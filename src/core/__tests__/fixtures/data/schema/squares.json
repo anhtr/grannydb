@@ -1,6 +1,6 @@
 {
   "table": "squares",
-  "file": "data/squares.csv",
+  "file": "src/core/__tests__/fixtures/data/squares.csv",
   "label": "Squares",
   "labelSingular": "Square",
   "icon": "grid",
@@ -9,7 +9,7 @@
   "idPadding": 3,
   "titleField": "id",
   "subtitleField": "design_id",
-  "goal": 400,
+  "goal": 10,
   "fields": [
     { "key": "id", "label": "ID", "type": "id", "list": true },
     { "key": "date", "label": "Date", "type": "date", "list": true, "defaultToday": true },

@@ -36,6 +36,12 @@ export interface FieldDef {
   separator?: string
   /** `date` only: prefill today's date on new records. */
   defaultToday?: boolean
+  /**
+   * `ref` only: offer a "+ New <thing>" affordance that creates a row in `refTable` (setting only
+   * its title field) without leaving the current form. For a target table where most rows are
+   * one-offs — a design used by exactly one square — a separate create screen is pure friction.
+   */
+  quickCreate?: boolean
 }
 
 export interface TableSchema {

@@ -20,7 +20,7 @@ directly through the GitHub API from your browser.
 | File | What it holds |
 |---|---|
 | [`data/squares.csv`](data/squares.csv) | One row per square: date, status, design, colours, notes |
-| [`data/yarns.csv`](data/yarns.csv) | Colourways, brands, hex colours, skeins left |
+| [`data/yarns.csv`](data/yarns.csv) | Colourways, product lines, hex colours, skeins left |
 | [`data/designs.csv`](data/designs.csv) | Patterns and where they came from |
 | [`data/schema/`](data/schema/) | Field definitions that drive the whole UI |
 

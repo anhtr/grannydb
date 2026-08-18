@@ -4,6 +4,49 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-18 — v0.1.2, quick-create designs from the square form
+
+**Data**
+- `ref` fields can set `"quickCreate": true` (`core/schema/types.ts`, parsed in `core/schema/load.ts`).
+  `squares.design_id` now uses it, since most squares turn out to be a one-off design and a separate
+  "new design" screen for each one was pure friction. See
+  [ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md).
+
+**App**
+- `RefSelect` (`ui/fields.tsx`) renders a "+ New &lt;thing&gt;" affordance under a `quickCreate` ref
+  field. It creates a row in the target table with only its title set, via the same `appStore.save`
+  a normal edit uses, then selects it — no navigation away from the form in progress.
+
+**Fixed**
+- Dev server: the `data/bundle.json` middleware in `vite.config.ts` matched the request path without
+  the configured `base` (`/grannydb/`), so it never matched, `readFromBundle` silently fell through to
+  fetching the *live* GitHub repo, and a local CSV/schema edit had no effect until pushed — despite
+  the comment above the plugin claiming otherwise. Now matches `${base}data/bundle.json`.
+
+**Data**
+- `data/*.csv` cleared of the original demo/seed rows (already done on `main` in a prior commit;
+  reconciled here rather than reintroduced).
+
+**Tests**
+- `app.render.test.tsx` now mounts against a small frozen fixture dataset
+  (`src/core/__tests__/fixtures/data/`) instead of the real `data/*.csv`, which had started breaking
+  the test purely by having its seed rows cleared — a change with nothing to do with whether the app
+  still renders. `buildBundle` takes an optional `dataDir` so the test can point it at the fixture.
+  See [ADR 0011](adr/0011-fixture-data-for-the-render-test.md).
+
+## 2026-08-17 — v0.1.1, yarn product line and in-progress colour breakdown
+
+**Data**
+- `yarns.csv`: `brand` renamed to `product_line` (better matches what was actually being recorded,
+  e.g. "Scheepjes Chunky Monkey"), and a new `product_id` column for the manufacturer's shade code.
+  Schema and CSV renamed together since the data has not been deployed/synced by any client yet, so
+  the usual [two-step rename](02-data-model.md#schema-evolution-policy) was not needed.
+
+**App**
+- Progress screen: new breakdown of squares currently `in progress`, tallied by main colour only
+  (extra colours excluded), to answer "what am I holding right now" separately from the existing
+  all-status, main-plus-extra colour reach tally.
+
 ## 2026-08-17 — v0.1.0, first build
 
 The initial working app.

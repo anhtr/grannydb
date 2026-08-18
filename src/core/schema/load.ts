@@ -46,6 +46,7 @@ function parseField(raw: unknown, where: string): FieldDef {
     refTable: typeof o.refTable === 'string' ? o.refTable : undefined,
     separator: typeof o.separator === 'string' ? o.separator : undefined,
     defaultToday: o.defaultToday === true,
+    quickCreate: o.quickCreate === true,
   }
 }
 

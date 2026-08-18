@@ -154,7 +154,7 @@ Coverage is deliberately concentrated where a bug loses data rather than annoys 
 | `schema.test.ts` | field validation, schema loading errors, whole-dataset integrity |
 | `sync.test.ts` | the full commit protocol against a fake GitHub, including conflict replay |
 | `router.test.ts` | route matching and specificity ordering |
-| `app.render.test.tsx` | one end-to-end mount against the real data files |
+| `app.render.test.tsx` | one end-to-end mount against a frozen fixture dataset (`src/core/__tests__/fixtures/data/`), not `data/*.csv` — real tracker data changes shape and content on its own schedule and has nothing to do with whether the app mounts |
 
 `sync.test.ts` is the important one. It stands up a fake GitHub that enforces fast-forward-only ref
 updates, then moves the branch in the window between our read and our write. That is the design's
@@ -163,6 +163,7 @@ rather than trusting the prose.
 
 `app.render.test.tsx` is a single smoke test, not a component suite. Typechecking cannot catch a
 crash at mount (a hook called conditionally, a value read before it loads), and finding that out on
-a phone is a bad way to find out. It mounts the whole app against the real CSVs and asserts a few
-things rendered. There is deliberately no per-component coverage: rendering is the least risky part
-of this app and the most churn-prone.
+a phone is a bad way to find out. It mounts the whole app against a small fixture dataset — not the
+real CSVs, which are live tracker data with no reason to stay shaped a certain way for a test's sake
+— and asserts a few things rendered. There is deliberately no per-component coverage: rendering is
+the least risky part of this app and the most churn-prone.

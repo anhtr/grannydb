@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { FieldDef, FieldType } from '../core/schema'
 import { formatBool, joinList, parseBool, splitList } from '../core/schema'
+import { appStore } from '../core/store'
 import { useLookup, useTableSchema } from '../app/hooks'
-import { inputClass, Swatch } from './components'
+import { Button, inputClass, Swatch } from './components'
 
 /**
  * The field-type registry.
@@ -67,24 +68,96 @@ function RefChip({ id, refTable }: { id: string; refTable?: string }) {
   )
 }
 
+/**
+ * "+ New <thing>" inline on a `ref` field, for a target table where most rows are one-offs. Creates
+ * a row with only its title field set — anything else is filled in later from that table's own
+ * screen — then selects it. See ADR 0010.
+ */
+function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id: string) => void }) {
+  const schema = useTableSchema(refTable)
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  if (!schema) return null
+
+  const create = async () => {
+    const title = draft.trim()
+    if (title === '' || saving) return
+    setSaving(true)
+    try {
+      const newId = appStore.nextIdFor(refTable)
+      await appStore.save(refTable, newId, { [schema.titleField]: title })
+      onCreated(newId)
+      setOpen(false)
+      setDraft('')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="text-sm text-accent underline-offset-2 hover:underline"
+        onClick={() => setOpen(true)}
+      >
+        + New {schema.labelSingular.toLowerCase()}
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex gap-2">
+      <input
+        autoFocus
+        type="text"
+        className={inputClass}
+        placeholder={`New ${schema.labelSingular.toLowerCase()} name`}
+        value={draft}
+        disabled={saving}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            void create()
+          } else if (e.key === 'Escape') {
+            setOpen(false)
+            setDraft('')
+          }
+        }}
+      />
+      <Button onClick={() => void create()} disabled={saving || draft.trim() === ''}>
+        {saving ? 'Adding…' : 'Add'}
+      </Button>
+    </div>
+  )
+}
+
 function RefSelect({ field, value, onChange, id }: FieldInputProps) {
   const schema = useTableSchema(field.refTable ?? '')
   const lookup = useLookup(field.refTable ?? '')
   const options = [...lookup.entries()]
 
   return (
-    <select id={id} className={inputClass} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">—</option>
-      {options.map(([rowId, row]) => (
-        <option key={rowId} value={rowId}>
-          {schema ? row[schema.titleField] || rowId : rowId}
-        </option>
-      ))}
-      {/* Keep a dangling reference visible rather than silently resetting it to blank. */}
-      {value !== '' && !lookup.has(value) ? (
-        <option value={value}>{value} (missing)</option>
+    <div className="space-y-2">
+      <select id={id} className={inputClass} value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">—</option>
+        {options.map(([rowId, row]) => (
+          <option key={rowId} value={rowId}>
+            {schema ? row[schema.titleField] || rowId : rowId}
+          </option>
+        ))}
+        {/* Keep a dangling reference visible rather than silently resetting it to blank. */}
+        {value !== '' && !lookup.has(value) ? (
+          <option value={value}>{value} (missing)</option>
+        ) : null}
+      </select>
+      {field.quickCreate && field.refTable ? (
+        <QuickCreate refTable={field.refTable} onCreated={onChange} />
       ) : null}
-    </select>
+    </div>
   )
 }
 

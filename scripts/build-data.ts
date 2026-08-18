@@ -36,13 +36,13 @@ function readRepoFile(path: string): string {
   return readFileSync(join(repoRoot, path), 'utf8')
 }
 
-export function buildBundle(): { bundle: DataBundle; issueCount: number } {
-  const manifest = JSON.parse(readRepoFile(`${DATA_DIR}/schema/tables.json`)) as { tables?: string[] }
+export function buildBundle(dataDir: string = DATA_DIR): { bundle: DataBundle; issueCount: number } {
+  const manifest = JSON.parse(readRepoFile(`${dataDir}/schema/tables.json`)) as { tables?: string[] }
   const names = manifest.tables ?? []
 
   const schemas: Record<string, unknown> = {}
   for (const name of names) {
-    schemas[name] = JSON.parse(readRepoFile(`${DATA_DIR}/schema/${name}.json`))
+    schemas[name] = JSON.parse(readRepoFile(`${dataDir}/schema/${name}.json`))
   }
 
   const schemaSet = buildSchemaSet(manifest, schemas)

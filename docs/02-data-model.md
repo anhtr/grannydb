@@ -72,8 +72,12 @@ Three, in [`data/`](../data/). Small enough that the app loads all of them and w
 
 ### `yarns.csv`
 
-`id`, `name` (colourway), `brand`, `hex`, `skeins`, `notes`. The `hex` drives every colour swatch
-in the app, which is what makes a list of 400 squares scannable on a phone.
+`id`, `name` (colourway), `product_line`, `product_id`, `hex`, `skeins`, `notes`. `product_line` is
+the manufacturer's yarn line (e.g. "Scheepjes Chunky Monkey") rather than the manufacturer alone,
+since that is the level most yarn is actually bought and matched at. `product_id` is the
+manufacturer's shade or product code, kept separate so it can drive a reorder link later without
+overloading a free-text field. The `hex` drives every colour swatch in the app, which is what makes
+a list of 400 squares scannable on a phone.
 
 ### `designs.csv`
 
@@ -140,6 +144,12 @@ A type is defined in two halves, deliberately split:
 - **[`src/ui/fields.tsx`](../src/ui/fields.tsx)** — the `Input` and `Display` components.
 
 Adding `image` later is one entry in each. Nothing else changes.
+
+A `ref` field can also set `"quickCreate": true`, which adds a "+ New &lt;thing&gt;" affordance to
+the field's `<select>` that creates a row in the target table — setting only its title field — without
+leaving the current form. `squares.design_id` uses it: most squares turn out to be a one-off design,
+so a separate "new design" screen for every square was pure friction. See
+[ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md).
 
 ## Schema evolution policy
 

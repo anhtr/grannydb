@@ -1,6 +1,6 @@
 {
   "table": "yarns",
-  "file": "data/yarns.csv",
+  "file": "src/core/__tests__/fixtures/data/yarns.csv",
   "label": "Yarns",
   "labelSingular": "Yarn",
   "icon": "yarn",

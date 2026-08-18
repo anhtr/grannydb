@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 /**
- * One end-to-end render, against the real data files.
+ * One end-to-end render, against a small fixture dataset shaped like the real one.
  *
  * Not a component test suite — there is deliberately no per-component coverage. This exists because
  * typechecking cannot catch a crash at mount (a hook called conditionally, a value read before it
  * loads), and finding that out on a phone is a bad way to find out. It also exercises the whole
  * anonymous read path: fetch the bundle, build the schema set, replay an empty queue, render.
+ *
+ * Deliberately not `data/*.csv`: that is real, live tracker data that changes shape and content on
+ * its own schedule (rows added, cleared, columns renamed), which has nothing to do with whether the
+ * app still mounts. `fixtures/data/` is a frozen mirror of the schema shape this test can depend on.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
@@ -18,7 +22,7 @@ import { App } from '../../app/App'
 // Tells React that `act()` is available, so it batches effects instead of warning on every render.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-const { bundle } = buildBundle()
+const { bundle } = buildBundle('src/core/__tests__/fixtures/data')
 
 let container: HTMLDivElement
 let root: Root
@@ -68,22 +72,22 @@ describe('App renders against the real data', () => {
     const text = container.textContent ?? ''
 
     expect(text).toContain('Squares')
-    expect(text).toContain('S001')
-    expect(text).toContain('Classic Granny') // resolved through the design_id reference
+    expect(text).toContain('FS1')
+    expect(text).toContain('Fixture Granny') // resolved through the design_id reference
     expect(text).toContain('Squares finished') // the progress header
   })
 
   it('renders a square detail with references resolved', async () => {
-    await render('#/squares/S003')
+    await render('#/squares/FS1')
     const text = container.textContent ?? ''
 
-    expect(text).toContain('Sunburst Granny') // design_id -> designs.name
-    expect(text).toContain('Cream') // main_yarn -> yarns.name
-    expect(text).toContain('Petrol') // one of the extra_yarns, via the reflist renderer
+    expect(text).toContain('Fixture Granny') // design_id -> designs.name
+    expect(text).toContain('Fixture Cream') // main_yarn -> yarns.name
+    expect(text).toContain('Fixture Rose') // one of the extra_yarns, via the reflist renderer
   })
 
   it('hides editing controls without a token', async () => {
-    await render('#/squares/S001')
+    await render('#/squares/FS1')
     const text = container.textContent ?? ''
 
     expect(text).toContain('Read-only')
@@ -100,7 +104,7 @@ describe('App renders against the real data', () => {
 
   it('renders the yarns list from the generic components', async () => {
     await render('#/yarns')
-    expect(container.textContent).toContain('Dusty Rose')
+    expect(container.textContent).toContain('Fixture Rose')
   })
 
   it('renders settings without a token saved', async () => {

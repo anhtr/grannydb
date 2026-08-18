@@ -12,7 +12,7 @@ import { buildBundle } from './scripts/build-data'
  * a CSV and refreshing just works.
  */
 function dataBundlePlugin(): Plugin {
-  const URL_PATH = '/data/bundle.json'
+  let urlPath = '/data/bundle.json'
   let isBuild = false
 
   return {
@@ -20,6 +20,11 @@ function dataBundlePlugin(): Plugin {
 
     configResolved(config) {
       isBuild = config.command === 'build'
+      // The app requests `${BASE_URL}data/bundle.json`, and BASE_URL is `config.base` (`/grannydb/`
+      // in this repo). Matching only `/data/bundle.json` never fires under that base, so the request
+      // falls through to the SPA index instead, `readFromBundle` fails to parse it as JSON, and the
+      // app silently falls back to fetching the live GitHub repo instead of local files.
+      urlPath = `${config.base.replace(/\/$/, '')}/data/bundle.json`
     },
 
     buildStart() {
@@ -37,7 +42,7 @@ function dataBundlePlugin(): Plugin {
 
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (!req.url || !req.url.startsWith(URL_PATH)) return next()
+        if (!req.url || !req.url.startsWith(urlPath)) return next()
         try {
           const { bundle, issueCount } = buildBundle()
           if (issueCount > 0) {

@@ -1,0 +1,19 @@
+{
+  "table": "designs",
+  "file": "src/core/__tests__/fixtures/data/designs.csv",
+  "label": "Designs",
+  "labelSingular": "Design",
+  "icon": "design",
+  "idField": "id",
+  "idPrefix": "D",
+  "idPadding": 2,
+  "titleField": "name",
+  "subtitleField": "source",
+  "fields": [
+    { "key": "id", "label": "ID", "type": "id", "list": true },
+    { "key": "name", "label": "Name", "type": "text", "required": true, "list": true },
+    { "key": "source", "label": "Source", "type": "text", "list": true, "filter": true, "help": "Book, designer, magazine, whoever." },
+    { "key": "source_url", "label": "Link", "type": "url" },
+    { "key": "notes", "label": "Notes", "type": "textarea" }
+  ]
+}
