@@ -7,16 +7,19 @@
   "idField": "id",
   "idPrefix": "Y",
   "idPadding": 2,
-  "titleField": "name",
+  "titleField": "display_name",
+  "titleFallback": "{product_id} ({name})",
   "subtitleField": "product_line",
   "swatchField": "hex",
   "fields": [
     { "key": "id", "label": "ID", "type": "id", "list": true },
+    { "key": "display_name", "label": "Display name", "type": "text", "list": true, "help": "Your own searchable nickname for this yarn — shown as \"colour\" everywhere in the app. Leave blank to fall back to \"product ID (colourway)\"." },
     { "key": "name", "label": "Colourway", "type": "text", "required": true, "list": true },
     { "key": "product_line", "label": "Product line", "type": "text", "list": true, "filter": true },
     { "key": "product_id", "label": "Product ID", "type": "text", "help": "Manufacturer's shade or product code, for reordering the exact yarn." },
     { "key": "hex", "label": "Colour", "type": "color", "list": true, "help": "Drives the swatches shown across the app." },
     { "key": "skeins", "label": "Skeins left", "type": "number", "list": true },
+    { "key": "partial_skein", "label": "Partial skein", "type": "bool", "default": "no", "list": true, "filter": true, "help": "At least one skein has been started." },
     { "key": "notes", "label": "Notes", "type": "textarea" }
   ]
 }

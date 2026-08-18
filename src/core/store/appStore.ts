@@ -12,6 +12,8 @@ import {
   saveToken as saveStoredToken,
 } from '../github'
 import type { ConnectionCheck, RepoConfig, Snapshot } from '../github'
+import { DEFAULT_PREFS, loadPrefs, savePrefs } from '../prefs'
+import type { Prefs } from '../prefs'
 import { applyChanges } from './merge'
 import {
   appendChange,
@@ -43,6 +45,7 @@ export interface AppState {
   lastSync: LastSync | null
   token: string | null
   config: RepoConfig
+  prefs: Prefs
 }
 
 const initialState: AppState = {
@@ -57,6 +60,7 @@ const initialState: AppState = {
   lastSync: null,
   token: null,
   config: DEFAULT_CONFIG,
+  prefs: DEFAULT_PREFS,
 }
 
 type Listener = () => void
@@ -96,6 +100,7 @@ class AppStore {
     this.set({
       token: loadToken(),
       config: loadConfig(),
+      prefs: loadPrefs(),
       lastSync: loadLastSync(),
       changes: await loadQueue(),
     })
@@ -136,6 +141,11 @@ class AppStore {
     saveConfig(config)
     this.set({ config })
     await this.reload()
+  }
+
+  setPrefs(prefs: Prefs): void {
+    savePrefs(prefs)
+    this.set({ prefs })
   }
 
   testConnection(): Promise<ConnectionCheck> {

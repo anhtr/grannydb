@@ -56,11 +56,22 @@ export interface TableSchema {
   idPadding: number
   /** Field used as the headline in list views. */
   titleField: string
+  /**
+   * Shown instead when `titleField` is blank, e.g. `"{product_id} ({name})"`. `{key}` interpolates
+   * another field on the same row. Falls back to the row id if the referenced fields are also blank.
+   */
+  titleFallback?: string
   subtitleField?: string
   /** Field holding a hex colour, used to draw a swatch. */
   swatchField?: string
   /** Target count, if this table is something you are working toward. */
   goal?: number
+  /**
+   * Keep this table out of the bottom nav. For a table that exists mainly as a lookup for other
+   * tables' `ref` fields (few rows, rarely browsed on its own), a tab is pure clutter — it is still
+   * fully addressable at `/<table>` and reachable by tapping a `ref` chip that points at it.
+   */
+  hideFromNav?: boolean
   fields: FieldDef[]
 }
 
@@ -85,4 +96,24 @@ export function filterFields(schema: TableSchema): FieldDef[] {
 /** Column order the writer should use for a table it has a schema for. */
 export function schemaColumns(schema: TableSchema): string[] {
   return schema.fields.map((f) => f.key)
+}
+
+/**
+ * The headline to show for a row: `titleField` if set, else `titleFallback` with its `{key}`
+ * placeholders filled in, else the row id. Centralised so every list, chip and quick-create shares
+ * one rule instead of each screen re-deciding what "blank" means.
+ */
+export function titleFor(schema: TableSchema, row: Record<string, string>): string {
+  const direct = (row[schema.titleField] ?? '').trim()
+  if (direct !== '') return direct
+
+  const template = schema.titleFallback
+  if (template) {
+    const keys = [...template.matchAll(/\{(\w+)\}/g)].map((m) => m[1])
+    if (keys.some((key) => (row[key] ?? '').trim() !== '')) {
+      return template.replace(/\{(\w+)\}/g, (_, key: string) => row[key] ?? '')
+    }
+  }
+
+  return row[schema.idField] ?? ''
 }

@@ -1,7 +1,18 @@
 import { useMemo } from 'react'
-import { parseBool, splitList } from '../../core/schema'
-import { useLookup, useTable, useTableSchema } from '../../app/hooks'
+import type { CsvRow } from '../../core/csv'
+import { splitList, titleFor } from '../../core/schema'
+import type { TableSchema } from '../../core/schema'
+import { useAppState, useLookup, useTable, useTableSchema } from '../../app/hooks'
 import { Card, Spinner, Swatch } from '../../ui/components'
+
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+/** The trailing window "Pace" normally averages over. */
+const PACE_WINDOW_WEEKS = 4
+
+function yarnLabel(schema: TableSchema | null, row: CsvRow | undefined, fallbackId: string): string {
+  if (!schema || !row) return fallbackId
+  return titleFor(schema, row)
+}
 
 interface Tally {
   key: string
@@ -63,13 +74,17 @@ export function StatsPage() {
   const squares = useTable('squares')
   const schema = useTableSchema('squares')
   const yarns = useLookup('yarns')
+  const yarnSchema = useTableSchema('yarns')
   const designs = useLookup('designs')
+  const projectStartDate = useAppState().prefs.projectStartDate
 
   const stats = useMemo(() => {
     if (!squares) return null
     const rows = squares.rows
-    const done = rows.filter((r) => r.status === 'done')
-    const blocked = done.filter((r) => parseBool(r.blocked ?? ''))
+    // "blocked" is the stage after "done" (crocheted, then blocked) rather than a separate
+    // property, so both statuses count as finished squares toward the goal.
+    const finished = rows.filter((r) => r.status === 'done' || r.status === 'blocked')
+    const blocked = rows.filter((r) => r.status === 'blocked')
 
     const byStatus = new Map<string, number>()
     const byDesign = new Map<string, number>()
@@ -91,9 +106,15 @@ export function StatsPage() {
       }
     }
 
-    // Pace over the trailing 4 weeks, from the dates on finished squares.
-    const cutoff = Date.now() - 28 * 24 * 60 * 60 * 1000
-    const recent = done.filter((r) => {
+    // Pace over a trailing window, from the dates on finished squares. The window is normally 4
+    // weeks, but shrinks to however long the project has actually been running when that is less —
+    // otherwise a project in its second week would have its pace divided by 4 anyway and read as a
+    // quarter of the real rate.
+    const startMs = projectStartDate ? Date.parse(projectStartDate) : NaN
+    const elapsedWeeks = Number.isFinite(startMs) ? (Date.now() - startMs) / MS_PER_WEEK : Infinity
+    const paceWindowWeeks = Math.min(PACE_WINDOW_WEEKS, Math.max(elapsedWeeks, 1 / 7))
+    const cutoff = Date.now() - paceWindowWeeks * MS_PER_WEEK
+    const recent = finished.filter((r) => {
       const t = Date.parse(r.date ?? '')
       return Number.isFinite(t) && t >= cutoff
     }).length
@@ -103,16 +124,17 @@ export function StatsPage() {
 
     return {
       total: rows.length,
-      done: done.length,
+      done: finished.length,
       blocked: blocked.length,
-      unblocked: done.length - blocked.length,
-      perWeek: recent / 4,
+      unblocked: finished.length - blocked.length,
+      perWeek: recent / paceWindowWeeks,
+      paceWindowWeeks,
       byStatus: sortDesc(byStatus),
       byDesign: sortDesc(byDesign),
       byYarn: sortDesc(byYarn),
       byMainYarnInProgress: sortDesc(byMainYarnInProgress),
     }
-  }, [squares])
+  }, [squares, projectStartDate])
 
   if (!stats || !schema) return <Spinner />
 
@@ -132,7 +154,11 @@ export function StatsPage() {
         <Stat
           label="Pace"
           value={stats.perWeek.toFixed(1)}
-          sub="squares per week, last 4 weeks"
+          sub={`squares per week, last ${
+            stats.paceWindowWeeks >= PACE_WINDOW_WEEKS
+              ? `${PACE_WINDOW_WEEKS} weeks`
+              : `${stats.paceWindowWeeks.toFixed(1)} week${stats.paceWindowWeeks >= 1.05 ? 's' : ''}`
+          }`}
         />
         <Stat
           label="At this rate"
@@ -151,7 +177,7 @@ export function StatsPage() {
         note="Only squares currently in progress, and only the main colour."
         items={stats.byMainYarnInProgress.map(([key, count]) => ({
           key,
-          label: yarns.get(key)?.name ?? key,
+          label: yarnLabel(yarnSchema, yarns.get(key), key),
           hex: yarns.get(key)?.hex ?? '',
           count,
         }))}
@@ -162,7 +188,7 @@ export function StatsPage() {
         note="Counts every square a colour appears in, main or extra."
         items={stats.byYarn.map(([key, count]) => ({
           key,
-          label: yarns.get(key)?.name ?? key,
+          label: yarnLabel(yarnSchema, yarns.get(key), key),
           hex: yarns.get(key)?.hex ?? '',
           count,
         }))}

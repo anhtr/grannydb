@@ -1,0 +1,20 @@
+{
+  "table": "sources",
+  "file": "data/sources.csv",
+  "label": "Sources",
+  "labelSingular": "Source",
+  "icon": "book",
+  "idField": "id",
+  "idPrefix": "SRC",
+  "idPadding": 2,
+  "titleField": "name",
+  "subtitleField": "type",
+  "hideFromNav": true,
+  "fields": [
+    { "key": "id", "label": "ID", "type": "id", "list": true },
+    { "key": "name", "label": "Name", "type": "text", "required": true, "list": true },
+    { "key": "type", "label": "Type", "type": "enum", "options": ["book", "website"], "list": true, "filter": true },
+    { "key": "url", "label": "URL", "type": "url" },
+    { "key": "note", "label": "Note", "type": "textarea" }
+  ]
+}

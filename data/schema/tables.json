@@ -1,4 +1,4 @@
 {
   "version": 1,
-  "tables": ["squares", "yarns", "designs"]
+  "tables": ["squares", "yarns", "designs", "sources"]
 }

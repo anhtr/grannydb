@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CsvRow } from '../core/csv'
 import { sortedRows } from '../core/csv'
-import { filterFields } from '../core/schema'
+import { filterFields, titleFor } from '../core/schema'
 import type { TableSchema } from '../core/schema'
 import { pendingRowIds } from '../core/store'
 import { useAppState, useTable, useTableSchema } from '../app/hooks'
@@ -141,7 +141,7 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
 }
 
 function DefaultRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
-  const title = row[schema.titleField] || row[schema.idField] || '(untitled)'
+  const title = titleFor(schema, row) || '(untitled)'
   const subtitle = schema.subtitleField ? row[schema.subtitleField] : ''
   const swatch = schema.swatchField ? row[schema.swatchField] : undefined
 

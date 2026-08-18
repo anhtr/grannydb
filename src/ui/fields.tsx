@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import type { FieldDef, FieldType } from '../core/schema'
-import { formatBool, joinList, parseBool, splitList } from '../core/schema'
+import { formatBool, joinList, parseBool, splitList, titleFor } from '../core/schema'
 import { appStore } from '../core/store'
 import { useLookup, useTableSchema } from '../app/hooks'
-import { Button, inputClass, Swatch } from './components'
+import { Button, inputClass, Link, Swatch } from './components'
 
 /**
  * The field-type registry.
@@ -46,16 +46,20 @@ function useRefInfo(refTable: string | undefined) {
     const row = lookup.get(id)
     if (!row) return { label: id, missing: id !== '' }
     return {
-      label: row[schema.titleField] || id,
+      label: titleFor(schema, row),
       hex: schema.swatchField ? row[schema.swatchField] : undefined,
       missing: false,
     }
   }
 }
 
+/**
+ * A reference shown as a chip. Links through to the referenced record's detail page — the only way
+ * to reach a table that is `hideFromNav` (e.g. `sources`), short of typing the URL.
+ */
 function RefChip({ id, refTable }: { id: string; refTable?: string }) {
   const info = useRefInfo(refTable)(id)
-  return (
+  const content = (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-1 text-sm ${
         info.missing ? 'text-red-600 dark:text-red-400' : ''
@@ -66,6 +70,8 @@ function RefChip({ id, refTable }: { id: string; refTable?: string }) {
       {info.missing ? ' (missing)' : ''}
     </span>
   )
+  if (info.missing || !refTable) return content
+  return <Link to={`/${refTable}/${id}`}>{content}</Link>
 }
 
 /**
@@ -146,7 +152,7 @@ function RefSelect({ field, value, onChange, id }: FieldInputProps) {
         <option value="">—</option>
         {options.map(([rowId, row]) => (
           <option key={rowId} value={rowId}>
-            {schema ? row[schema.titleField] || rowId : rowId}
+            {schema ? titleFor(schema, row) : rowId}
           </option>
         ))}
         {/* Keep a dangling reference visible rather than silently resetting it to blank. */}
@@ -197,7 +203,7 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
             }`}
           >
             {schema?.swatchField ? <Swatch hex={row[schema.swatchField]} size={14} /> : null}
-            {schema ? row[schema.titleField] || rowId : rowId}
+            {schema ? titleFor(schema, row) : rowId}
             {active ? <span className="text-xs opacity-70">{position}</span> : null}
           </button>
         )

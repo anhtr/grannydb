@@ -83,9 +83,11 @@ export function parseTableSchema(raw: unknown): TableSchema {
     idPrefix: typeof o.idPrefix === 'string' ? o.idPrefix : '',
     idPadding: typeof o.idPadding === 'number' ? o.idPadding : 3,
     titleField,
+    titleFallback: typeof o.titleFallback === 'string' ? o.titleFallback : undefined,
     subtitleField: typeof o.subtitleField === 'string' ? o.subtitleField : undefined,
     swatchField: typeof o.swatchField === 'string' ? o.swatchField : undefined,
     goal: typeof o.goal === 'number' ? o.goal : undefined,
+    hideFromNav: o.hideFromNav === true,
     fields,
   }
 }

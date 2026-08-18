@@ -8,6 +8,7 @@ src/
     csv/           parse, serialize, row operations
     schema/        types, loader, validation
     github/        config, HTTP client, snapshot reads, commits, auth
+    prefs/         device-local app preferences (currently: project start date)
     store/         change queue, merge, sync, the app store
   ui/              shared React: primitives, field renderers, generic list/detail/form
   features/        one folder per screen that is more than "a table"
@@ -46,7 +47,10 @@ filter and validation all appear. No code, no deploy.
 
 Create `data/schema/things.json`, add `"things"` to `tables.json`, create `data/things.csv`. You get
 a nav tab, a list with search and filters, a detail view, an editor, and validation. `App.tsx`
-resolves table routes generically from `schemas.order` — it has no idea which tables exist.
+resolves table routes generically from `schemas.order` — it has no idea which tables exist. Set
+`"hideFromNav": true` in the schema to skip the tab for a table that exists mainly as a lookup for
+other tables' `ref` fields — it stays fully routable at `/things`, just off the tab bar. See
+[ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
 
 ### 3. Add a field type → two entries
 
@@ -76,7 +80,7 @@ appStore.state = {
   changes      // the pending operation log
   data         // snapshot + changes, recomputed on either change  ← screens read this
   queueDurable // false once a queue write has failed; drives the storage warning
-  token, config, phase, syncing, lastSync, error, syncError
+  token, config, prefs, phase, syncing, lastSync, error, syncError
 }
 ```
 

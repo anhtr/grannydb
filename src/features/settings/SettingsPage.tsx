@@ -50,8 +50,10 @@ export function SettingsPage() {
   const [config, setConfig] = useState<RepoConfig>(state.config)
   const [check, setCheck] = useState<ConnectionCheck | null>(null)
   const [busy, setBusy] = useState(false)
+  const [startDate, setStartDate] = useState(state.prefs.projectStartDate)
 
   const configDirty = JSON.stringify(config) !== JSON.stringify(state.config)
+  const startDateDirty = startDate !== state.prefs.projectStartDate
 
   const onSaveToken = async () => {
     if (token.trim() === '') return
@@ -127,6 +129,30 @@ export function SettingsPage() {
             {check.login ? ` (as ${check.login})` : ''}
           </p>
         ) : null}
+      </Section>
+
+      <Section title="Project">
+        <Field
+          label="Start date"
+          type="date"
+          value={startDate}
+          onChange={setStartDate}
+          hint="When you started the blanket. Used to size the pace calculation on the Progress screen so it isn't diluted by weeks before you began."
+        />
+        <div className="flex flex-wrap gap-2 px-4 py-3">
+          <Button
+            variant="primary"
+            disabled={!startDateDirty}
+            onClick={() => appStore.setPrefs({ ...state.prefs, projectStartDate: startDate })}
+          >
+            Save
+          </Button>
+          {startDate !== '' ? (
+            <Button variant="ghost" onClick={() => setStartDate('')}>
+              Clear
+            </Button>
+          ) : null}
+        </div>
       </Section>
 
       <Section title="Data location">

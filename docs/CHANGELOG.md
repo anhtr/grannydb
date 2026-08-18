@@ -4,6 +4,44 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-18 — v0.1.3, sources table, yarn display names, blocked as a status
+
+**Data**
+- New `sources` table (`data/sources.csv`, `data/schema/sources.json`): `name`, `type`
+  (`book`/`website`), `url`, `note`. `designs.source` is now a `ref` to it (with `quickCreate`)
+  instead of retyped free text; the old `designs.source_url` is gone, since a source's URL now lives
+  on the source once instead of per design. `sources` sets `"hideFromNav": true` — no tab of its own,
+  reached by tapping the source chip on a design. See
+  [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
+- `squares.status` gains `blocked` (the stage after `done`) and drops `frogged` (never actually used —
+  a frogged square is deleted, not tracked). The old standalone `blocked` boolean field is removed;
+  blocking is a status now, not an independent flag that could combine with any other status.
+- `yarns.csv` gains `display_name` (the new `titleField` — your own nickname, shown as "colour"
+  everywhere a yarn is referenced) and `partial_skein` (bool: at least one skein on hand is started).
+  `yarns.json` sets `"titleFallback": "{product_id} ({name})"` so a blank `display_name` shows
+  something legible rather than a bare id. See
+  [ADR 0013](adr/0013-title-fallback-template.md).
+- `yarns.csv` seeded with the 100 colourways of Hobbii Friends Cotton 8/4 (`product_id` = Hobbii's own
+  shade number), `skeins: 0`, `hex` and `display_name` left blank for the owner to fill in by hand —
+  no reliable public source gave per-shade hex values, and a guessed swatch colour would be actively
+  misleading.
+
+**App**
+- New `core/prefs/` module: a device-local "project start date" (`YYYY-MM-DD`), same load/save-to-
+  `localStorage` shape as `core/github/config.ts`. Set from a new "Project" section in Settings.
+- Progress screen: the "Pace" window shrinks to however long the project has actually been running
+  when that is less than the usual 4 weeks, instead of always dividing by 4 — otherwise a project in
+  its second week reads as a quarter of its real pace. Falls back to the old fixed 4-week window when
+  no start date is set. "Finished"/"Blocked" now read off `status` instead of the removed `blocked`
+  field.
+- `titleFor(schema, row)` (`core/schema/types.ts`) centralises "what to show for this row": `titleField`,
+  else `titleFallback` with its `{key}`s filled in, else the row id. Every place that used to read
+  `row[schema.titleField] || id` directly (`ui/fields.tsx`, `ui/RecordList.tsx`, `StatsPage.tsx`) now
+  calls it, so `display_name`'s fallback is consistent everywhere instead of only where someone
+  remembered to add it.
+- `RefChip` (`ui/fields.tsx`) is now a link to the referenced record's detail page — the only way to
+  reach a `hideFromNav` table's row short of typing the URL.
+
 ## 2026-08-18 — v0.1.2, quick-create designs from the square form
 
 **Data**

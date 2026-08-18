@@ -1,5 +1,5 @@
 import type { CsvRow } from '../../core/csv'
-import { parseBool, splitList } from '../../core/schema'
+import { splitList, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
 import { useLookup, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, Swatch } from '../../ui/components'
@@ -7,9 +7,9 @@ import { RecordList } from '../../ui/RecordList'
 
 const statusTone: Record<string, 'neutral' | 'accent' | 'warn'> = {
   done: 'accent',
+  blocked: 'accent',
   'in progress': 'warn',
   planned: 'neutral',
-  frogged: 'neutral',
 }
 
 /** Progress toward the blanket, shown above the list because it is the reason for the app. */
@@ -44,7 +44,13 @@ function ProgressHeader({ schema }: { schema: TableSchema }) {
 
 function SquareRow({ row }: { row: CsvRow }) {
   const yarns = useLookup('yarns')
+  const yarnSchema = useTableSchema('yarns')
   const designs = useLookup('designs')
+
+  const yarnTitle = (id: string) => {
+    const yarn = yarns.get(id)
+    return yarn && yarnSchema ? titleFor(yarnSchema, yarn) : undefined
+  }
 
   const mainYarn = yarns.get(row.main_yarn ?? '')
   const extras = splitList(row.extra_yarns ?? '')
@@ -54,16 +60,15 @@ function SquareRow({ row }: { row: CsvRow }) {
   return (
     <div className="flex items-center gap-3">
       <span className="flex shrink-0 -space-x-1.5">
-        <Swatch hex={mainYarn?.hex} size={28} title={mainYarn?.name} />
+        <Swatch hex={mainYarn?.hex} size={28} title={yarnTitle(row.main_yarn ?? '')} />
         {extras.slice(0, 3).map((id) => (
-          <Swatch key={id} hex={yarns.get(id)?.hex} size={20} title={yarns.get(id)?.name} />
+          <Swatch key={id} hex={yarns.get(id)?.hex} size={20} title={yarnTitle(id)} />
         ))}
       </span>
 
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 font-medium">
           <span className="font-mono text-sm">{row.id}</span>
-          {parseBool(row.blocked ?? '') ? <Badge>blocked</Badge> : null}
         </p>
         <p className="truncate text-sm text-muted">
           {design?.name ?? '(no design)'}

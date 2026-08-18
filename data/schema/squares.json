@@ -17,12 +17,12 @@
       "key": "status",
       "label": "Status",
       "type": "enum",
-      "options": ["planned", "in progress", "done", "frogged"],
+      "options": ["planned", "in progress", "done", "blocked"],
       "default": "done",
       "list": true,
-      "filter": true
+      "filter": true,
+      "help": "Blocked comes after done: the square is crocheted and has also been blocked."
     },
-    { "key": "blocked", "label": "Blocked", "type": "bool", "default": "no", "list": true, "filter": true },
     { "key": "design_id", "label": "Design", "type": "ref", "refTable": "designs", "list": true, "filter": true, "quickCreate": true },
     { "key": "customization", "label": "Customization", "type": "textarea", "help": "How you deviated from the pattern." },
     { "key": "main_yarn", "label": "Main colour", "type": "ref", "refTable": "yarns", "list": true, "filter": true },

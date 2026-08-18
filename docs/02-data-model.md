@@ -53,7 +53,9 @@ The test that pins it is `preserves a column the app knows nothing about` in
 
 ## The tables
 
-Three, in [`data/`](../data/). Small enough that the app loads all of them and works in memory.
+Four, in [`data/`](../data/). Small enough that the app loads all of them and works in memory.
+`sources` is `hideFromNav`: it exists to be pointed at by `designs.source`, not browsed on its own —
+see [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
 
 ### `squares.csv`
 
@@ -61,8 +63,7 @@ Three, in [`data/`](../data/). Small enough that the app loads all of them and w
 |---|---|---|
 | `id` | id | `S001`… Assigned, never reused |
 | `date` | date | When it was made |
-| `status` | enum | `planned` / `in progress` / `done` / `frogged` |
-| `blocked` | bool | Separate from status: a done square may still need blocking |
+| `status` | enum | `planned` / `in progress` / `done` / `blocked` |
 | `design_id` | ref → designs | |
 | `customization` | textarea | How you deviated from the pattern |
 | `main_yarn` | ref → yarns | |
@@ -70,18 +71,53 @@ Three, in [`data/`](../data/). Small enough that the app loads all of them and w
 | `position` | text | Free text for now — the layout is undecided |
 | `notes` | textarea | |
 
+`blocked` is a `status` value, not a separate field: it is the stage *after* `done` (crocheted, then
+also blocked), so a blocked square is still counted as finished toward the goal. It used to be an
+independent boolean that could combine with any status; that let a square be `planned` and `blocked`
+at once, which never meant anything. Folding it into `status` also removed `frogged` — a status for a
+square that was pulled back out, which turned out to never get used since a frogged square is simply
+deleted rather than tracked as a state.
+
 ### `yarns.csv`
 
-`id`, `name` (colourway), `product_line`, `product_id`, `hex`, `skeins`, `notes`. `product_line` is
-the manufacturer's yarn line (e.g. "Scheepjes Chunky Monkey") rather than the manufacturer alone,
-since that is the level most yarn is actually bought and matched at. `product_id` is the
-manufacturer's shade or product code, kept separate so it can drive a reorder link later without
-overloading a free-text field. The `hex` drives every colour swatch in the app, which is what makes
-a list of 400 squares scannable on a phone.
+| Column | Type | Notes |
+|---|---|---|
+| `id` | id | `Y01`… |
+| `display_name` | text | Your own nickname. `titleField` — this is what "colour" means everywhere else in the app |
+| `name` | text | Colourway, usually the manufacturer's name for the shade |
+| `product_line` | text | The manufacturer's yarn line (e.g. "Scheepjes Chunky Monkey") rather than the manufacturer alone — that is the level yarn is actually bought and matched at |
+| `product_id` | text | Manufacturer's shade or product code, kept separate so it can drive a reorder link later without overloading a free-text field |
+| `hex` | color | Drives every colour swatch in the app, which is what makes a list of 400 squares scannable on a phone |
+| `skeins` | number | |
+| `partial_skein` | bool | At least one skein on hand has been started |
+| `notes` | textarea | |
+
+`display_name` is `titleField`; `name` is not. When `display_name` is blank — the common case right
+after a bulk colour import, before anything has been hand-named — the app shows
+`titleFallback: "{product_id} ({name})"` instead of falling back to the bare id. See
+[ADR 0013](adr/0013-title-fallback-template.md).
 
 ### `designs.csv`
 
-`id`, `name`, `source`, `source_url`, `notes`.
+`id`, `name`, `source` (ref → sources), `notes`.
+
+`source` used to be free text, retyped for every design that shared a book or website. It is now a
+`ref` with `quickCreate`, the same pattern `squares.design_id` uses
+([ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md)): picking an existing source is a
+`<select>`, and typing a new one only sets its name — its `type`/`url`/`note` are filled in later by
+opening the source itself (tap the chip; `sources` has no nav tab of its own, see below). The old
+`source_url` field is gone — a source's URL now lives on the source, once, instead of being retyped
+per design that cites it.
+
+### `sources.csv`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | id | `SRC01`… |
+| `name` | text | |
+| `type` | enum | `book` / `website` |
+| `url` | url | |
+| `note` | textarea | |
 
 ## Two modelling decisions worth explaining
 
@@ -147,9 +183,17 @@ Adding `image` later is one entry in each. Nothing else changes.
 
 A `ref` field can also set `"quickCreate": true`, which adds a "+ New &lt;thing&gt;" affordance to
 the field's `<select>` that creates a row in the target table — setting only its title field — without
-leaving the current form. `squares.design_id` uses it: most squares turn out to be a one-off design,
-so a separate "new design" screen for every square was pure friction. See
+leaving the current form. `squares.design_id` and `designs.source` both use it: most squares turn out
+to be a one-off design, and most designs cite a source already on file, so a separate "new X" screen
+for every one was pure friction. See
 [ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md).
+
+Two more knobs live on the *table*, not a field: `titleFallback` — a template like
+`"{product_id} ({name})"`, shown when `titleField` is blank instead of the bare row id, resolved by
+`titleFor()` in `core/schema/types.ts` — and `hideFromNav` — keeps a table out of the bottom nav while
+leaving it fully addressable, for a table like `sources` that exists to be pointed at by a `ref`
+field rather than browsed on its own. See [ADR 0013](adr/0013-title-fallback-template.md) and
+[ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
 
 ## Schema evolution policy
 

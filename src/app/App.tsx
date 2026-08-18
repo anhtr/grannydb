@@ -191,11 +191,13 @@ function BottomNav({ path }: { path: string }) {
   const tables = state.snapshot?.schemas.order ?? []
 
   const items = [
-    ...tables.map((table) => ({
-      to: `/${table}`,
-      label: state.snapshot?.schemas.tables[table]?.label ?? table,
-      section: table,
-    })),
+    ...tables
+      .filter((table) => !state.snapshot?.schemas.tables[table]?.hideFromNav)
+      .map((table) => ({
+        to: `/${table}`,
+        label: state.snapshot?.schemas.tables[table]?.label ?? table,
+        section: table,
+      })),
     { to: '/stats', label: 'Progress', section: 'stats' },
     { to: '/settings', label: 'Settings', section: 'settings' },
   ]
