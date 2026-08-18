@@ -1,0 +1,88 @@
+import type { CsvRow } from '../../core/csv'
+import { parseBool, splitList } from '../../core/schema'
+import type { TableSchema } from '../../core/schema'
+import { useLookup, useTable, useTableSchema } from '../../app/hooks'
+import { Badge, Card, Swatch } from '../../ui/components'
+import { RecordList } from '../../ui/RecordList'
+
+const statusTone: Record<string, 'neutral' | 'accent' | 'warn'> = {
+  done: 'accent',
+  'in progress': 'warn',
+  planned: 'neutral',
+  frogged: 'neutral',
+}
+
+/** Progress toward the blanket, shown above the list because it is the reason for the app. */
+function ProgressHeader({ schema }: { schema: TableSchema }) {
+  const table = useTable('squares')
+  const goal = schema.goal ?? 0
+  if (!table || goal === 0) return null
+
+  const done = table.rows.filter((r) => (r.status ?? '') === 'done').length
+  const percent = Math.min(100, Math.round((done / goal) * 100))
+
+  return (
+    <Card className="mx-4 mt-2 p-4">
+      <div className="flex items-baseline justify-between">
+        <p className="text-sm text-muted">Squares finished</p>
+        <p className="text-sm font-medium">
+          {done} <span className="text-muted">/ {goal}</span>
+        </p>
+      </div>
+      <div
+        className="mt-2 h-2 overflow-hidden rounded-full bg-line"
+        role="progressbar"
+        aria-valuenow={done}
+        aria-valuemin={0}
+        aria-valuemax={goal}
+      >
+        <div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
+      </div>
+    </Card>
+  )
+}
+
+function SquareRow({ row }: { row: CsvRow }) {
+  const yarns = useLookup('yarns')
+  const designs = useLookup('designs')
+
+  const mainYarn = yarns.get(row.main_yarn ?? '')
+  const extras = splitList(row.extra_yarns ?? '')
+  const design = designs.get(row.design_id ?? '')
+  const status = row.status ?? ''
+
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex shrink-0 -space-x-1.5">
+        <Swatch hex={mainYarn?.hex} size={28} title={mainYarn?.name} />
+        {extras.slice(0, 3).map((id) => (
+          <Swatch key={id} hex={yarns.get(id)?.hex} size={20} title={yarns.get(id)?.name} />
+        ))}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2 font-medium">
+          <span className="font-mono text-sm">{row.id}</span>
+          {parseBool(row.blocked ?? '') ? <Badge>blocked</Badge> : null}
+        </p>
+        <p className="truncate text-sm text-muted">
+          {design?.name ?? '(no design)'}
+          {row.date ? ` · ${row.date}` : ''}
+        </p>
+      </div>
+
+      {status ? <Badge tone={statusTone[status] ?? 'neutral'}>{status}</Badge> : null}
+    </div>
+  )
+}
+
+export function SquaresPage() {
+  const schema = useTableSchema('squares')
+  return (
+    <RecordList
+      table="squares"
+      header={schema ? <ProgressHeader schema={schema} /> : null}
+      renderRow={(row) => <SquareRow row={row} />}
+    />
+  )
+}

@@ -1,0 +1,33 @@
+{
+  "table": "squares",
+  "file": "data/squares.csv",
+  "label": "Squares",
+  "labelSingular": "Square",
+  "icon": "grid",
+  "idField": "id",
+  "idPrefix": "S",
+  "idPadding": 3,
+  "titleField": "id",
+  "subtitleField": "design_id",
+  "goal": 400,
+  "fields": [
+    { "key": "id", "label": "ID", "type": "id", "list": true },
+    { "key": "date", "label": "Date", "type": "date", "list": true, "defaultToday": true },
+    {
+      "key": "status",
+      "label": "Status",
+      "type": "enum",
+      "options": ["planned", "in progress", "done", "frogged"],
+      "default": "done",
+      "list": true,
+      "filter": true
+    },
+    { "key": "blocked", "label": "Blocked", "type": "bool", "default": "no", "list": true, "filter": true },
+    { "key": "design_id", "label": "Design", "type": "ref", "refTable": "designs", "list": true, "filter": true },
+    { "key": "customization", "label": "Customization", "type": "textarea", "help": "How you deviated from the pattern." },
+    { "key": "main_yarn", "label": "Main colour", "type": "ref", "refTable": "yarns", "list": true, "filter": true },
+    { "key": "extra_yarns", "label": "Extra colours", "type": "reflist", "refTable": "yarns", "separator": ";", "list": true },
+    { "key": "position", "label": "Position", "type": "text", "help": "Where it sits in the blanket. Free text for now." },
+    { "key": "notes", "label": "Notes", "type": "textarea" }
+  ]
+}

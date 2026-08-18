@@ -1,0 +1,64 @@
+name: Build and deploy
+
+# Data commits deploy too, deliberately. Two reasons:
+#   - the published JSON snapshot is generated at build time, so it needs regenerating
+#   - the build validates every CSV, so a bad hand-edit fails here instead of on a phone
+# The authenticated app reads live CSVs through the API, so you never wait on a deploy to see
+# your own edits.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a queued run supersedes an older one rather than racing it.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # Redundant with the build (which runs the same code), but it fails in seconds and names the
+      # offending row, which is what you want when a CSV edit breaks the pipeline.
+      - name: Validate data
+        run: npm run validate-data
+
+      - name: Build
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

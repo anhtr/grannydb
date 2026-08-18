@@ -1,0 +1,21 @@
+{
+  "table": "yarns",
+  "file": "data/yarns.csv",
+  "label": "Yarns",
+  "labelSingular": "Yarn",
+  "icon": "yarn",
+  "idField": "id",
+  "idPrefix": "Y",
+  "idPadding": 2,
+  "titleField": "name",
+  "subtitleField": "brand",
+  "swatchField": "hex",
+  "fields": [
+    { "key": "id", "label": "ID", "type": "id", "list": true },
+    { "key": "name", "label": "Colourway", "type": "text", "required": true, "list": true },
+    { "key": "brand", "label": "Brand", "type": "text", "list": true, "filter": true },
+    { "key": "hex", "label": "Colour", "type": "color", "list": true, "help": "Drives the swatches shown across the app." },
+    { "key": "skeins", "label": "Skeins left", "type": "number", "list": true },
+    { "key": "notes", "label": "Notes", "type": "textarea" }
+  ]
+}

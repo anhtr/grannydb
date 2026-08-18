@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
+    <!--
+      Everything is bundled locally: no CDN scripts, no remote fonts, no analytics. This origin
+      holds a GitHub token in localStorage and is shared with every other project page under the
+      same github.io user, so third-party script is not worth the convenience.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.github.com https://raw.githubusercontent.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    />
+    <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
+    <meta name="description" content="Granny square tracker backed by a GitHub repo." />
+    <title>grannydb</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

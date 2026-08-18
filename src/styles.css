@@ -1,0 +1,74 @@
+@import 'tailwindcss';
+
+/*
+  Palette. Warm neutrals so yarn swatches sit against something closer to wool than to a spreadsheet.
+  Light and dark are both defined explicitly; nothing is left to inherit from the browser.
+*/
+@theme {
+  --color-paper: #faf7f2;
+  --color-card: #ffffff;
+  --color-ink: #1c1917;
+  --color-muted: #78716c;
+  --color-line: #e7e2da;
+  --color-accent: #9a5b4c;
+  --color-accent-soft: #f2e4e0;
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family:
+      ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    /* Stops iOS Safari bouncing the whole page behind the fixed nav bar. */
+    overscroll-behavior-y: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-paper: #1c1917;
+      --color-card: #292524;
+      --color-ink: #f5f5f4;
+      --color-muted: #a8a29e;
+      --color-line: #44403c;
+      --color-accent: #d99a88;
+      --color-accent-soft: #3a2b27;
+    }
+  }
+
+  /* Inputs at 16px or larger, otherwise iOS zooms the viewport on focus. */
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    font-size: max(1rem, 16px);
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+@utility tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Room for the home indicator and notch on phones. */
+@utility pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@utility pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}

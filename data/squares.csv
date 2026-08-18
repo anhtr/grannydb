@@ -1,0 +1,6 @@
+id,date,status,blocked,design_id,customization,main_yarn,extra_yarns,position,notes
+S001,2026-08-01,done,yes,D01,,Y01,Y02;Y03,,First one. Tension is tighter than the rest.
+S002,2026-08-02,done,yes,D01,,Y01,Y04,,
+S003,2026-08-04,done,no,D02,Popcorn centre worked in the round instead of joined.,Y01,Y02;Y05,,
+S004,2026-08-09,in progress,no,D03,,Y03,Y01,,
+S005,,planned,no,D02,,Y05,Y01;Y04,,Wants to sit near the middle.
