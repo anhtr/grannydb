@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { appStore } from '../core/store'
 import { fileUrl } from '../core/github'
-import { useAppState, useCanEdit, useRow, useTableSchema } from '../app/hooks'
+import { effectiveValue, fieldByKey } from '../core/schema'
+import { useAppState, useCanEdit, useResolveRef, useRow, useTableSchema } from '../app/hooks'
 import { useNavigate } from '../app/router'
 import { Button, Card, ErrorNote, Link, Spinner } from './components'
 import { rendererFor } from './fields'
@@ -12,6 +13,7 @@ export function RecordDetail({ table, id }: { table: string; id: string }) {
   const row = useRow(table, id)
   const canEdit = useCanEdit()
   const navigate = useNavigate()
+  const resolve = useResolveRef()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   if (!schema) return <Spinner label="Loading schema" />
@@ -36,11 +38,20 @@ export function RecordDetail({ table, id }: { table: string; id: string }) {
       <Card className="mx-4 divide-y divide-line overflow-hidden">
         {schema.fields.map((field) => {
           const { Display } = rendererFor(field)
+          const { value, inherited } = field.inheritFrom
+            ? effectiveValue(schema, field, row, resolve)
+            : { value: row[field.key] ?? '', inherited: false }
+          const viaField = inherited ? fieldByKey(schema, field.inheritFrom!.via) : undefined
           return (
             <div key={field.key} className="flex gap-4 px-4 py-3">
               <span className="w-32 shrink-0 text-sm text-muted">{field.label}</span>
               <span className="min-w-0 flex-1">
-                <Display field={field} value={row[field.key] ?? ''} />
+                <Display field={field} value={value} />
+                {inherited ? (
+                  <span className="ml-2 text-xs text-muted">
+                    (from {viaField ? viaField.label.toLowerCase() : 'related record'})
+                  </span>
+                ) : null}
               </span>
             </div>
           )

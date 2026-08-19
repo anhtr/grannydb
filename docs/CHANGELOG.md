@@ -4,6 +4,31 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-18 — v0.1.6, construction type with field-level inheritance
+
+**Data**
+- `FieldDef` gains `inheritFrom: { via, throughField }` — same via/throughField hop shape
+  `derivedFilters` uses, but resolved against the field's own value: blank means "read `throughField`
+  off the row `via` points at." `buildSchemaSet` validates both ends exist, the same way it already
+  does for `derivedFilters`. See [ADR 0016](adr/0016-field-level-inherited-values.md).
+- New `construction_type` field (`solid` / `holey`) on both `designs.json` and `squares.json`.
+  `squares.construction_type` sets `"inheritFrom": { "via": "design_id", "throughField":
+  "construction_type" }`: a square leaves it blank to use its design's value, or sets it to override
+  just that square. Both CSVs gain the column, blank for every existing row — additive, per the schema
+  evolution policy.
+
+**App**
+- `effectiveValue()` (`core/schema/search.ts`) resolves a field's own value or, when blank, its
+  inherited one. `RecordDetail` shows the resolved value with a "(from design)" note when it came from
+  the hop; `RecordForm` shows the same resolution live under a blank input, read off the current draft
+  so switching designs before saving updates the hint.
+
+**Tests**
+- `schema.test.ts`: parsing `inheritFrom` and rejecting a `via` that isn't a `ref` field or a
+  `throughField` missing on the target table, mirroring the existing `derivedFilters` cases.
+- `search.test.ts`: `effectiveValue` — own value wins when set, falls back through the hop when blank,
+  stays blank (not falsely "inherited") when the hop also resolves to blank or `via` itself is empty.
+
 ## 2026-08-18 — v0.1.5, yarn stash filters/sort, remembered list state, print colourway
 
 **Data**

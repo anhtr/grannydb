@@ -1,4 +1,4 @@
-export type { DerivedFilterDef, FieldDef, FieldType, SchemaSet, TableSchema } from './types'
+export type { DerivedFilterDef, FieldDef, FieldType, InheritFromDef, SchemaSet, TableSchema } from './types'
 export { fieldByKey, listFields, filterFields, sortableFields, schemaColumns, titleFor } from './types'
 export { buildSchemaSet, parseTableSchema, SchemaError, schemaPath, manifestPath } from './load'
 export type { Issue } from './validate'
@@ -19,4 +19,5 @@ export {
   refDisplayLabel,
   derivedFilterField,
   derivedFilterValue,
+  effectiveValue,
 } from './search'

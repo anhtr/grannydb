@@ -196,6 +196,62 @@ describe('buildSchemaSet', () => {
       /is not a field on "yarns"/,
     )
   })
+
+  it('parses a field-level inheritFrom that hops through a valid ref', () => {
+    const squares = {
+      table: 'squares',
+      file: 'data/squares.csv',
+      label: 'Squares',
+      labelSingular: 'Square',
+      idField: 'id',
+      titleField: 'id',
+      fields: [
+        { key: 'id', label: 'ID', type: 'id' },
+        { key: 'ref_field', label: 'Ref', type: 'ref', refTable: 'yarns' },
+        { key: 'x', label: 'X', type: 'enum', options: ['a', 'b'], inheritFrom: { via: 'ref_field', throughField: 'name' } },
+      ],
+    }
+    const set = buildSchemaSet({ tables: ['yarns', 'squares'] }, { yarns, squares })
+    expect(set.tables.squares.fields.find((f) => f.key === 'x')?.inheritFrom).toEqual({
+      via: 'ref_field',
+      throughField: 'name',
+    })
+  })
+
+  it('rejects an inheritFrom "via" that is not a ref field', () => {
+    const squares = {
+      table: 'squares',
+      file: 'data/squares.csv',
+      label: 'Squares',
+      labelSingular: 'Square',
+      idField: 'id',
+      titleField: 'id',
+      fields: [
+        { key: 'id', label: 'ID', type: 'id' },
+        { key: 'x', label: 'X', type: 'enum', options: ['a', 'b'], inheritFrom: { via: 'id', throughField: 'name' } },
+      ],
+    }
+    expect(() => buildSchemaSet({ tables: ['squares'] }, { squares })).toThrow(/must name a ref field/)
+  })
+
+  it('rejects an inheritFrom "throughField" that does not exist on the target table', () => {
+    const squares = {
+      table: 'squares',
+      file: 'data/squares.csv',
+      label: 'Squares',
+      labelSingular: 'Square',
+      idField: 'id',
+      titleField: 'id',
+      fields: [
+        { key: 'id', label: 'ID', type: 'id' },
+        { key: 'ref_field', label: 'Ref', type: 'ref', refTable: 'yarns' },
+        { key: 'x', label: 'X', type: 'enum', options: ['a', 'b'], inheritFrom: { via: 'ref_field', throughField: 'nope' } },
+      ],
+    }
+    expect(() => buildSchemaSet({ tables: ['yarns', 'squares'] }, { yarns, squares })).toThrow(
+      /is not a field on "yarns"/,
+    )
+  })
 })
 
 describe('validateDataset', () => {

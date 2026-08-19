@@ -70,6 +70,7 @@ see [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
 | `extra_yarns` | reflist → yarns | `;`-separated, order preserved |
 | `position` | text | Free text for now — the layout is undecided |
 | `notes` | textarea | |
+| `construction_type` | enum, inherited | `solid` / `holey`. Blank means "use the design's" — see [ADR 0016](adr/0016-field-level-inherited-values.md) |
 
 `blocked` is a `status` value, not a separate field: it is the stage *after* `done` (crocheted, then
 also blocked), so a blocked square is still counted as finished toward the goal. It used to be an
@@ -99,7 +100,9 @@ after a bulk colour import, before anything has been hand-named — the app show
 
 ### `designs.csv`
 
-`id`, `name`, `source` (ref → sources), `notes`.
+`id`, `name`, `source` (ref → sources), `construction_type` (enum: `solid` / `holey` — the value a
+square inherits unless it sets its own, see [ADR 0016](adr/0016-field-level-inherited-values.md)),
+`notes`.
 
 `source` used to be free text, retyped for every design that shared a book or website. It is now a
 `ref` with `quickCreate`, the same pattern `squares.design_id` uses
@@ -224,6 +227,16 @@ on the table it points at, for filtering by something the table does not store d
 `squares.json` filters by `source` this way, hopping `design_id` to the design's `source`, since a
 square does not store a source itself. See
 [ADR 0015](adr/0015-derived-filters-instead-of-a-materialised-column.md).
+
+A field can also set `"inheritFrom": { "via", "throughField" }` — the same via/throughField hop
+`derivedFilters` uses, but resolved against the field's *own* value instead of used as a separate
+filter: if the field is blank, read `throughField` off the row `via` points at instead. `squares.json`
+sets it on `construction_type` (`{ "via": "design_id", "throughField": "construction_type" }`):
+leaving a square's own construction type blank means the design's applies, and setting it overrides
+the design for that square alone. `effectiveValue()` (`core/schema/search.ts`) resolves it — own value
+if set, else the hop, else blank — and both the read view and the edit form call it, so a blank field
+shows what it actually resolves to rather than looking like a forgotten one. See
+[ADR 0016](adr/0016-field-level-inherited-values.md).
 
 A table can also set `"defaultSort"` — `{ "key": "...", "direction": "asc" | "desc" }` — the sort a
 list opens with the first time it is visited on a device, before the person picks one of their own

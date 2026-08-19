@@ -1,4 +1,4 @@
-import type { DerivedFilterDef, FieldDef, FieldType, SchemaSet, TableSchema } from './types'
+import type { DerivedFilterDef, FieldDef, FieldType, InheritFromDef, SchemaSet, TableSchema } from './types'
 
 export class SchemaError extends Error {
   constructor(message: string) {
@@ -36,6 +36,8 @@ function parseField(raw: unknown, where: string): FieldDef {
   if (o.filterMode !== undefined && o.filterMode !== 'exact' && o.filterMode !== 'min') {
     throw new SchemaError(`${where}.${key}: "filterMode" must be "exact" or "min"`)
   }
+  const inheritFrom =
+    o.inheritFrom !== undefined ? parseInheritFrom(o.inheritFrom, `${where}.${key}.inheritFrom`) : undefined
   return {
     key,
     label: str(o, 'label', `${where}.${key}`),
@@ -53,7 +55,16 @@ function parseField(raw: unknown, where: string): FieldDef {
     searchFields: Array.isArray(o.searchFields) ? (o.searchFields as string[]) : undefined,
     sortable: o.sortable === true,
     filterMode: o.filterMode === 'min' ? 'min' : undefined,
+    inheritFrom,
   }
+}
+
+function parseInheritFrom(raw: unknown, where: string): InheritFromDef {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new SchemaError(`${where}: "inheritFrom" must be an object`)
+  }
+  const o = raw as Record<string, unknown>
+  return { via: str(o, 'via', where), throughField: str(o, 'throughField', where) }
 }
 
 function parseDefaultSort(raw: unknown, where: string): { key: string; direction?: 'asc' | 'desc' } {
@@ -181,6 +192,25 @@ export function buildSchemaSet(manifest: unknown, rawTables: Record<string, unkn
       if (!viaSchema.fields.some((f) => f.key === filter.throughField)) {
         throw new SchemaError(
           `${where}: "throughField" "${filter.throughField}" is not a field on "${viaField.refTable}"`,
+        )
+      }
+    }
+  }
+
+  // A field's inheritFrom hops through a ref field the same way a derived filter does, so both ends
+  // have to exist — checked here for the same reason.
+  for (const schema of Object.values(tables)) {
+    for (const field of schema.fields) {
+      if (!field.inheritFrom) continue
+      const where = `schema[${schema.table}].${field.key}.inheritFrom`
+      const viaField = schema.fields.find((f) => f.key === field.inheritFrom!.via)
+      if (!viaField || !viaField.refTable) {
+        throw new SchemaError(`${where}: "via" must name a ref field on "${schema.table}"`)
+      }
+      const viaSchema = tables[viaField.refTable]
+      if (!viaSchema.fields.some((f) => f.key === field.inheritFrom!.throughField)) {
+        throw new SchemaError(
+          `${where}: "throughField" "${field.inheritFrom!.throughField}" is not a field on "${viaField.refTable}"`,
         )
       }
     }

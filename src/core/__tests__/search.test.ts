@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   derivedFilterField,
   derivedFilterValue,
+  effectiveValue,
   matchesSearch,
   refDisplayLabel,
   searchText,
@@ -59,6 +60,7 @@ const designs: TableSchema = {
     { key: 'id', label: 'ID', type: 'id' },
     { key: 'name', label: 'Name', type: 'text' },
     { key: 'source', label: 'Source', type: 'ref', refTable: 'sources' },
+    { key: 'construction_type', label: 'Construction', type: 'enum', options: ['solid', 'holey'] },
   ],
 }
 
@@ -75,11 +77,21 @@ const squares: TableSchema = {
     { key: 'id', label: 'ID', type: 'id' },
     { key: 'status', label: 'Status', type: 'enum', options: ['done', 'planned'] },
     { key: 'design_id', label: 'Design', type: 'ref', refTable: 'designs' },
+    {
+      key: 'construction_type',
+      label: 'Construction',
+      type: 'enum',
+      options: ['solid', 'holey'],
+      inheritFrom: { via: 'design_id', throughField: 'construction_type' },
+    },
   ],
 }
 
 const sourceRows = new Map([['SRC01', { id: 'SRC01', name: 'Attic24' }]])
-const designRows = new Map([['D01', { id: 'D01', name: 'Granny Stripe', source: 'SRC01' }]])
+const designRows = new Map([
+  ['D01', { id: 'D01', name: 'Granny Stripe', source: 'SRC01', construction_type: 'holey' }],
+  ['D02', { id: 'D02', name: 'Solid Square', source: 'SRC01', construction_type: '' }],
+])
 
 const resolve: ResolveRef = (table) => {
   if (table === 'sources') return { schema: sources, rows: sourceRows }
@@ -151,5 +163,35 @@ describe('derived filters', () => {
   it('is blank when the via field is empty', () => {
     const value = derivedFilterValue(squares, filter, { id: 'S001', design_id: '' }, resolve)
     expect(value).toBe('')
+  })
+})
+
+describe('effectiveValue', () => {
+  const field = squares.fields.find((f) => f.key === 'construction_type')!
+
+  it('returns the row\'s own value untouched when it is set', () => {
+    const row = { id: 'S001', design_id: 'D01', construction_type: 'solid' }
+    expect(effectiveValue(squares, field, row, resolve)).toEqual({ value: 'solid', inherited: false })
+  })
+
+  it('falls back through inheritFrom when the row is blank', () => {
+    const row = { id: 'S001', design_id: 'D01', construction_type: '' }
+    expect(effectiveValue(squares, field, row, resolve)).toEqual({ value: 'holey', inherited: true })
+  })
+
+  it('is blank, not inherited, when the row it hops to is also blank', () => {
+    const row = { id: 'S002', design_id: 'D02', construction_type: '' }
+    expect(effectiveValue(squares, field, row, resolve)).toEqual({ value: '', inherited: false })
+  })
+
+  it('is blank when the via field itself is empty', () => {
+    const row = { id: 'S003', design_id: '', construction_type: '' }
+    expect(effectiveValue(squares, field, row, resolve)).toEqual({ value: '', inherited: false })
+  })
+
+  it('passes non-inheriting fields straight through', () => {
+    const status = squares.fields.find((f) => f.key === 'status')!
+    const row = { id: 'S001', status: 'done' }
+    expect(effectiveValue(squares, status, row, resolve)).toEqual({ value: 'done', inherited: false })
   })
 })

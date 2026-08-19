@@ -1,5 +1,5 @@
 import type { DerivedFilterDef, FieldDef, TableSchema } from './types'
-import { titleFor } from './types'
+import { fieldByKey, titleFor } from './types'
 import { splitList } from './validate'
 
 /**
@@ -118,4 +118,26 @@ export function derivedFilterValue(
   if (!viaField?.refTable) return ''
   const viaRow = resolve(viaField.refTable)?.rows.get(row[filter.via] ?? '')
   return viaRow?.[filter.throughField] ?? ''
+}
+
+/**
+ * A field's effective value: its own value, or — when blank and the field declares `inheritFrom` —
+ * the value read by hopping through `via` to `throughField` on the row it points at, e.g. a square's
+ * blank `construction_type` falling back to its design's. `inherited` is true only when the hop
+ * actually found something, so a blank field pointing at a row that is also blank still reads as
+ * "not set" rather than falsely claiming to be inherited.
+ */
+export function effectiveValue(
+  schema: TableSchema,
+  field: FieldDef,
+  row: Record<string, string>,
+  resolve: ResolveRef,
+): { value: string; inherited: boolean } {
+  const own = row[field.key] ?? ''
+  if (own !== '' || !field.inheritFrom) return { value: own, inherited: false }
+  const viaField = fieldByKey(schema, field.inheritFrom.via)
+  if (!viaField?.refTable) return { value: '', inherited: false }
+  const viaRow = resolve(viaField.refTable)?.rows.get(row[viaField.key] ?? '')
+  const value = viaRow?.[field.inheritFrom.throughField] ?? ''
+  return { value, inherited: value !== '' }
 }

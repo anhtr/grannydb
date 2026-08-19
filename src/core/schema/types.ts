@@ -57,6 +57,22 @@ export interface FieldDef {
    * is a range question, not a lookup of one exact count.
    */
   filterMode?: 'exact' | 'min'
+  /**
+   * When this field's own value is blank, read it instead by hopping through a `ref` field on this
+   * row to a field on the row it points at — e.g. a square's blank `construction_type` falling back
+   * to its design's. See `effectiveValue` in `core/schema/search.ts`.
+   */
+  inheritFrom?: InheritFromDef
+}
+
+/**
+ * Where a blank field falls back to: `via` names a `ref` field on the same table, `throughField`
+ * names the field to read on the row that `ref` points at. One hop only, same restriction as
+ * `DerivedFilterDef` and for the same reason — a chain would need a second mechanism.
+ */
+export interface InheritFromDef {
+  via: string
+  throughField: string
 }
 
 /**

@@ -15,6 +15,7 @@
     { "key": "id", "label": "ID", "type": "id", "list": true },
     { "key": "name", "label": "Name", "type": "text", "required": true, "list": true },
     { "key": "source", "label": "Source", "type": "ref", "refTable": "sources", "list": true, "filter": true, "sortable": true, "quickCreate": true, "help": "Book, website, whoever. The + New link only sets the name — open the source itself to add its type, URL or notes." },
+    { "key": "construction_type", "label": "Construction", "type": "enum", "options": ["solid", "holey"], "list": true, "filter": true, "help": "Solid (no holes) or holey (open, lacy) stitch pattern. Squares use this unless they set their own." },
     { "key": "notes", "label": "Notes", "type": "textarea" }
   ]
 }

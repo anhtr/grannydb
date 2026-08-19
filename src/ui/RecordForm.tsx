@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { CsvRow } from '../core/csv'
-import { idSet, validateValue } from '../core/schema'
-import type { TableSchema } from '../core/schema'
+import { effectiveValue, fieldByKey, idSet, validateValue } from '../core/schema'
+import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import { appStore } from '../core/store'
-import { useAppState, useRow, useTableSchema } from '../app/hooks'
+import { useAppState, useResolveRef, useRow, useTableSchema } from '../app/hooks'
 import { useNavigate } from '../app/router'
 import { Button, ErrorNote, FieldShell, Spinner } from './components'
 import { rendererFor } from './fields'
@@ -31,6 +31,33 @@ function initialValues(schema: TableSchema, row: CsvRow | null, newId: string): 
 }
 
 /**
+ * A note under a field that inherits its value when left blank, read live off the draft — so
+ * changing the `via` field (e.g. picking a different design) updates what "blank" would resolve to
+ * before the form is even saved.
+ */
+function InheritHint({
+  field,
+  schema,
+  draft,
+  resolve,
+}: {
+  field: FieldDef
+  schema: TableSchema
+  draft: CsvRow
+  resolve: ResolveRef
+}) {
+  if ((draft[field.key] ?? '') !== '') return null
+  const { value, inherited } = effectiveValue(schema, field, draft, resolve)
+  if (!inherited) return null
+  const viaField = fieldByKey(schema, field.inheritFrom!.via)
+  return (
+    <p className="mt-1.5 text-xs text-muted">
+      Blank inherits <strong>{value}</strong> from the {viaField ? viaField.label.toLowerCase() : 'linked record'}.
+    </p>
+  )
+}
+
+/**
  * The one form in the app.
  *
  * Every table gets its editor from its schema, so adding a field to `squares.json` puts a control
@@ -41,6 +68,7 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
   const schema = useTableSchema(table)
   const existing = useRow(table, id)
   const navigate = useNavigate()
+  const resolve = useResolveRef()
 
   const newId = useMemo(
     () => (id ? '' : appStore.nextIdFor(table)),
@@ -130,6 +158,9 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
                 onChange={(v) => setField(field.key, v)}
                 id={inputId}
               />
+              {field.inheritFrom ? (
+                <InheritHint field={field} schema={schema} draft={current} resolve={resolve} />
+              ) : null}
             </FieldShell>
           )
         })}
