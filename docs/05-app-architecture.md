@@ -163,7 +163,9 @@ Used mostly one-handed, on a phone, sometimes standing up:
 - **Tap-to-toggle chips** for multi-select instead of a `<select multiple>`, which is close to
   unusable on a phone. Selection order is shown, because for a square the order colours were worked
   in is real information.
-- **Colour swatches everywhere** — the fastest way to recognise a square on a small screen.
+- **Colour swatches everywhere** — the fastest way to recognise a square on a small screen. One
+  yarn's colours are always equal stripes filling its shape; a wedge always means a separate yarn
+  ([ADR 0021](adr/0021-colourway-as-stripes-clipped-to-its-shape.md)).
 - **No hover-dependent affordances.**
 - **Dark mode** via `prefers-color-scheme`, both palettes defined explicitly in
   [`styles.css`](../src/styles.css).

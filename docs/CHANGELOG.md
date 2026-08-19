@@ -4,6 +4,19 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-19 — v0.1.11, one way to draw a colourway: stripes, clipped to its shape
+
+**App**
+- A multi-colour (`colorlist`) yarn is now drawn the same way everywhere: equal parallel stripes, in
+  cell order, filling whatever shape holds that yarn. `Swatch` (`ui/components.tsx`) stripes its whole
+  circle instead of filling with the first hex and scattering the rest as up to four dots — so no
+  colour is dropped from a five-or-more-colour colourway, and none is treated as primary. `ColourGlyph`
+  keeps one pie wedge per extra yarn but fills each wedge with that yarn's stripes, via a `clip-path`
+  sector (`sectorClipPath`) rather than subdividing the wedge into narrower `conic-gradient` wedges —
+  a wedge now means "a separate yarn" and nothing else. `wedgeBackground` is gone; `stripeBackground`
+  is the single renderer for a list of colours. See
+  [ADR 0021](adr/0021-colourway-as-stripes-clipped-to-its-shape.md).
+
 ## 2026-08-19 — v0.1.10, square colour glyph shows every stripe
 
 **App**

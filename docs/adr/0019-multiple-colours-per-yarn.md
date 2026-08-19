@@ -19,9 +19,9 @@ meaningful. A variegated yarn's shades are not independent picks, they are one p
 
 **A single cell holding a `;`-joined list of hex values**, the same shape `extra_yarns` already uses
 for a list of refs in one cell — just a new field *type*, `colorlist`, rather than a new field. The
-first value is the primary colour, read by everything that already treats `hex` as one colour (a
-single hex is trivially a valid one-item list, so no data migration). The rest are additional shades,
-shown as small dots inside the swatch rather than a second swatch.
+first value is read by everything that already treats `hex` as one colour (a single hex is trivially a
+valid one-item list, so no data migration). The rest are additional shades of the same yarn, shown
+inside the same swatch rather than as a second swatch.
 
 **Leave it as a single colour, note the limitation.** No change, but a real yarn stash for anyone who
 buys variegated or gradient yarn (not unusual for granny squares specifically) has no honest way to
@@ -34,14 +34,15 @@ record it.
 `yarns.json`'s `hex` field changes `"type"` from `color` to `colorlist`; `swatchField` still just names
 that column, so every existing caller of `Swatch` (`RefChip`, the ref-picker dropdown, `RecordList`'s
 default row, the Yarns list itself) needed no change — `Swatch` (`ui/components.tsx`) now splits its
-`hex` prop on `;`, fills the swatch with the first colour, and draws up to four more as small dots
-inside it. `ColourGlyph` (the square list's main-colour-as-a-square glyph, see the colour-imbalance
-stats work) originally took only a multi-colour yarn's *first* hex, to avoid drawing wedges of dots
-inside wedges — later revised (see the CHANGELOG) once a stash with variegated yarn made "first colour
-only" read as a bug rather than a simplification. It now draws every colour: as equal-width linear
-stripes across the outer square for the main yarn, and as further radial stripes *within* an extra
-yarn's own pie wedge, so a variegated extra yarn's colours stay legible without merging into a
-neighbouring yarn's wedge.
+`hex` prop on `;` and draws every colour in it. `ColourGlyph` (the square list's
+main-colour-as-a-square glyph, see the colour-imbalance stats work) originally took only a multi-colour
+yarn's *first* hex, to avoid drawing colours inside wedges — later revised (see the CHANGELOG) once a
+stash with variegated yarn made "first colour only" read as a bug rather than a simplification.
+
+How those extra colours are drawn changed twice more and settled in
+[ADR 0021](0021-colourway-as-stripes-clipped-to-its-shape.md): a colourway is equal parallel stripes
+filling whatever shape holds it, the same in both components. The first attempts — dots inside the
+`Swatch`, sub-wedges inside a `ColourGlyph` wedge — are gone.
 
 The edit form gets a new `ColorListInput` (`ui/fields.tsx`): one colour row per hex value, "+" beside
 the first to add another, "−" on every row after it to remove that one. Each row is a

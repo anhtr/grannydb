@@ -90,33 +90,20 @@ function splitHexList(value?: string): string[] {
 
 /**
  * A yarn colour chip. `hex` can hold more than one colour in a single cell — a variegated yarn's
- * colourway (see `colorlist`, ADR 0019) — in which case the first fills the swatch and the rest show
- * as small dots inside it, capped at 4 so they stay legible even at the 14px swatches used in chips.
+ * colourway (see `colorlist`, ADR 0019) — in which case the chip splits into equal stripes, one per
+ * colour, filling the whole circle. Every colour gets the same weight: a colourway has no "primary",
+ * and at the 14px sizes used in chips a stripe stays readable where a dot inside a fill did not.
  * Falls back to a dashed outline when no colour is recorded.
  */
 export function Swatch({ hex, size = 20, title }: { hex?: string; size?: number; title?: string }) {
-  const [primary, ...extra] = splitHexList(hex)
-  const dots = extra.slice(0, 4)
-  const dotSize = Math.max(3, Math.round(size * 0.22))
+  const colours = splitHexList(hex)
   return (
     <span
       title={title}
       aria-hidden={title ? undefined : true}
-      className={`inline-flex shrink-0 items-center justify-center rounded-full border ${primary ? 'border-black/15' : 'border-dashed border-line'}`}
-      style={{ width: size, height: size, background: primary ?? 'transparent' }}
-    >
-      {dots.length > 0 ? (
-        <span className="flex flex-wrap items-center justify-center gap-[1px]" style={{ width: size * 0.7 }}>
-          {dots.map((h, i) => (
-            <span
-              key={i}
-              className="rounded-full border border-black/25"
-              style={{ width: dotSize, height: dotSize, background: h }}
-            />
-          ))}
-        </span>
-      ) : null}
-    </span>
+      className={`inline-flex shrink-0 overflow-hidden rounded-full border ${colours.length > 0 ? 'border-black/15' : 'border-dashed border-line'}`}
+      style={{ width: size, height: size, background: stripeBackground(colours) }}
+    />
   )
 }
 
@@ -131,26 +118,25 @@ function stripeBackground(colours: string[]): string {
 }
 
 /**
- * A `conic-gradient` background giving each group of colours its own equal pie wedge, and — when a
- * group holds more than one colour (a variegated yarn's `colorlist`) — subdividing that wedge into
- * further equal radial slices, one per colour, so a multi-colour yarn reads as stripes confined to its
- * own wedge rather than spilling into a neighbouring yarn's slice.
+ * One pie sector as a `clip-path` polygon: the centre, then an arc from `startTurn` to `endTurn`
+ * (fractions of a full turn, clockwise from twelve o'clock). The radius deliberately overshoots the
+ * box, so the only edges that land inside it are the two straight radii — the curved edge is cut by
+ * the parent's `rounded-full`, which keeps it exactly circular however coarsely we step the arc.
+ * A sector clips its own `background`, which is what lets a wedge hold linear stripes; a
+ * `conic-gradient` can only put more wedges inside a wedge.
  */
-function wedgeBackground(groups: string[][]): string {
-  if (groups.length === 0) return 'transparent'
-  if (groups.length === 1 && groups[0].length === 1) return groups[0][0]
-  const wedgeStep = 100 / groups.length
-  const stops: string[] = []
-  groups.forEach((colours, i) => {
-    const wedgeStart = i * wedgeStep
-    const subStep = wedgeStep / colours.length
-    colours.forEach((hex, j) => {
-      const start = wedgeStart + j * subStep
-      const end = wedgeStart + (j + 1) * subStep
-      stops.push(`${hex} ${start.toFixed(2)}% ${end.toFixed(2)}%`)
-    })
-  })
-  return `conic-gradient(${stops.join(', ')})`
+function sectorClipPath(startTurn: number, endTurn: number): string {
+  const radius = 80
+  const steps = Math.max(2, Math.ceil((endTurn - startTurn) * 8))
+  const points = ['50% 50%']
+  for (let i = 0; i <= steps; i += 1) {
+    const turn = startTurn + ((endTurn - startTurn) * i) / steps
+    const angle = turn * 2 * Math.PI
+    const x = 50 + radius * Math.sin(angle)
+    const y = 50 - radius * Math.cos(angle)
+    points.push(`${x.toFixed(2)}% ${y.toFixed(2)}%`)
+  }
+  return `polygon(${points.join(', ')})`
 }
 
 /**
@@ -158,10 +144,10 @@ function wedgeBackground(groups: string[][]): string {
  * stripes, and a smaller circle inside gives each extra yarn its own pie wedge (`extra_yarns`' order is
  * meaningful, see `RefListInput`) — one wedge per yarn, in the order they were selected, matching the
  * pie-chart glyph this replaced (see ADR 0019, colour-imbalance stats work). A yarn's own `hex` can
- * itself be a `colorlist` (a variegated colourway); every colour in it gets its own stripe — a radial
- * one inside that yarn's wedge, a linear one across the outer square for the main yarn — rather than
- * only the primary, unlike `Swatch`'s dots. A single colour collapses to a solid fill, the trivial
- * one-stripe case.
+ * itself be a `colorlist` (a variegated colourway); every colour in it gets its own stripe, so a
+ * colourway reads the same way wherever it is drawn — across the outer square for the main yarn, and
+ * clipped to that yarn's wedge of the inner circle for an extra one, never as wedges inside a wedge.
+ * A single colour collapses to a solid fill, the trivial one-stripe case.
  */
 export function ColourGlyph({
   mainHex,
@@ -189,9 +175,24 @@ export function ColourGlyph({
     >
       {extraGroups.length > 0 ? (
         <span
-          className="rounded-full border border-black/20 shadow-sm"
-          style={{ width: innerSize, height: innerSize, background: wedgeBackground(extraGroups) }}
-        />
+          className="relative overflow-hidden rounded-full border border-black/20 shadow-sm"
+          style={{ width: innerSize, height: innerSize }}
+        >
+          {extraGroups.map((colours, i) => (
+            <span
+              key={i}
+              className="absolute inset-0"
+              style={{
+                background: stripeBackground(colours),
+                // A lone extra yarn owns the whole circle, so it needs no clip at all.
+                clipPath:
+                  extraGroups.length > 1
+                    ? sectorClipPath(i / extraGroups.length, (i + 1) / extraGroups.length)
+                    : undefined,
+              }}
+            />
+          ))}
+        </span>
       ) : null}
     </span>
   )

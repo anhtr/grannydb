@@ -192,10 +192,12 @@ Adding `image` later is one entry in each. Nothing else changes.
 
 `colorlist` is `color`'s multi-value counterpart, the same `;`-joined-single-cell pattern `reflist`
 uses for `extra_yarns` rather than a second field or a join table — `yarns.hex` is one (`"#2a7f8c"`,
-or `"#2a7f8c;#a7c7e7"` for a variegated colourway). The first hex is the yarn's primary colour, what
-`swatchField` fills a `Swatch` with everywhere one is drawn; the rest show as small dots inside it. A
-single hex value is already a valid one-item `colorlist`, so existing single-colour data reads
-unchanged. See [ADR 0019](adr/0019-multiple-colours-per-yarn.md).
+or `"#2a7f8c;#a7c7e7"` for a variegated colourway). No hex is primary: `swatchField` names the
+column, and every colour in it is drawn as an equal stripe filling whatever shape holds the yarn — the
+`Swatch` circle, a square's glyph, one wedge of it (see
+[ADR 0021](adr/0021-colourway-as-stripes-clipped-to-its-shape.md)). A single hex value is already a
+valid one-item `colorlist`, so existing single-colour data reads unchanged. See
+[ADR 0019](adr/0019-multiple-colours-per-yarn.md).
 
 A `ref` field can also set `"quickCreate": true`, which adds a "+ New &lt;thing&gt;" affordance to
 the field's picker that opens a full inline form — every field on the target table except its id,
