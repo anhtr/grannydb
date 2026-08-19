@@ -95,43 +95,55 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
 type SortKey = string
 type SortDir = 'asc' | 'desc'
 
-function compareValues(
-  a: CsvRow,
-  b: CsvRow,
-  schema: TableSchema,
-  sortKey: SortKey,
-  sortField: FieldDef | undefined,
-  resolve: ResolveRef,
-): number {
-  if (sortKey === 'title') return titleFor(schema, a).localeCompare(titleFor(schema, b))
-  if (sortField) {
-    if (sortField.type === 'number') {
-      return (Number(a[sortField.key]) || 0) - (Number(b[sortField.key]) || 0)
+export interface SortSpec {
+  key: SortKey
+  field: FieldDef | undefined
+  dir: SortDir
+}
+
+/** A sortable field's own value on `row` — the *effective* one when it has `inheritFrom`, same as
+ * filtering already does (see `useFilterDescriptors`), so sorting a square by Construction groups
+ * squares that inherit it from their design correctly instead of stranding them at whichever end of
+ * the order an empty string happens to land on. */
+function sortValue(schema: TableSchema, field: FieldDef, row: CsvRow, resolve: ResolveRef): string {
+  return field.inheritFrom ? effectiveValue(schema, field, row, resolve).value : (row[field.key] ?? '')
+}
+
+function compareValues(a: CsvRow, b: CsvRow, schema: TableSchema, spec: SortSpec, resolve: ResolveRef): number {
+  if (spec.key === 'title') return titleFor(schema, a).localeCompare(titleFor(schema, b))
+  if (spec.field) {
+    if (spec.field.type === 'number') {
+      return (Number(a[spec.field.key]) || 0) - (Number(b[spec.field.key]) || 0)
     }
-    return refDisplayLabel(sortField, a[sortField.key] ?? '', resolve).localeCompare(
-      refDisplayLabel(sortField, b[sortField.key] ?? '', resolve),
-    )
+    const va = sortValue(schema, spec.field, a, resolve)
+    const vb = sortValue(schema, spec.field, b, resolve)
+    return refDisplayLabel(spec.field, va, resolve).localeCompare(refDisplayLabel(spec.field, vb, resolve))
   }
   return compareIds(a[schema.idField] ?? '', b[schema.idField] ?? '')
 }
 
 /**
- * Sorted by `sortKey`/`sortDir`, ties broken by title alphabetically (always ascending, regardless
- * of the primary direction) and then by id, so the order is fully determined instead of falling back
- * to whatever order the rows happened to already be in.
+ * Sorted by `primary`, ties broken by `secondary` when the schema's `defaultSort.thenBy` applies (see
+ * `secondarySort` below), then by title alphabetically (always ascending, regardless of either
+ * direction) and then by id, so the order is fully determined instead of falling back to whatever
+ * order the rows happened to already be in.
  */
-function sortRows(
+export function sortRows(
   rows: CsvRow[],
   schema: TableSchema,
-  sortKey: SortKey,
-  sortField: FieldDef | undefined,
-  sortDir: SortDir,
+  primary: SortSpec,
   resolve: ResolveRef,
+  secondary?: SortSpec,
 ): CsvRow[] {
-  const sign = sortDir === 'desc' ? -1 : 1
+  const sign = primary.dir === 'desc' ? -1 : 1
+  const secondSign = secondary && secondary.dir === 'desc' ? -1 : 1
   return [...rows].sort((a, b) => {
-    const primary = compareValues(a, b, schema, sortKey, sortField, resolve)
-    if (primary !== 0) return sign * primary
+    const byPrimary = compareValues(a, b, schema, primary, resolve)
+    if (byPrimary !== 0) return sign * byPrimary
+    if (secondary) {
+      const bySecondary = compareValues(a, b, schema, secondary, resolve)
+      if (bySecondary !== 0) return secondSign * bySecondary
+    }
     const byTitle = titleFor(schema, a).localeCompare(titleFor(schema, b))
     if (byTitle !== 0) return byTitle
     return compareIds(a[schema.idField] ?? '', b[schema.idField] ?? '')
@@ -179,6 +191,18 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
   const sortOptions = schema ? sortableFields(schema) : []
   const sortField = schema ? sortOptions.find((f) => f.key === sortKey) : undefined
 
+  // `thenBy` only kicks in while the list is showing exactly the schema's own default combination —
+  // once the person picks a different primary sort from the dropdown, ties break by title/id like any
+  // other sort, rather than by a secondary field they never asked for.
+  const secondarySort: SortSpec | undefined =
+    schema?.defaultSort?.thenBy && sortKey === (schema.defaultSort.key ?? 'id')
+      ? {
+          key: schema.defaultSort.thenBy,
+          field: sortOptions.find((f) => f.key === schema.defaultSort!.thenBy),
+          dir: schema.defaultSort.thenDirection ?? 'asc',
+        }
+      : undefined
+
   const rows = useMemo(() => {
     if (!schema || !data) return []
     const filtered = data.rows.filter((row) => {
@@ -188,8 +212,8 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
         return !value || d.matches(row, value)
       })
     })
-    return sortRows(filtered, schema, sortKey, sortField, sortDir, resolve)
-  }, [schema, data, query, filters, filterDescriptors, sortKey, sortField, sortDir, resolve])
+    return sortRows(filtered, schema, { key: sortKey, field: sortField, dir: sortDir }, resolve, secondarySort)
+  }, [schema, data, query, filters, filterDescriptors, sortKey, sortField, sortDir, resolve, secondarySort])
 
   if (!schema || !data) return <Spinner />
 

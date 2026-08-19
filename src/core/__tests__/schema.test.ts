@@ -37,6 +37,14 @@ describe('validateValue', () => {
     expect(validateValue(f, 'rose')).toMatch(/hex colour/)
   })
 
+  it('checks every hex colour in a colorlist cell', () => {
+    const f = field({ key: 'hex', type: 'colorlist' })
+    expect(validateValue(f, '')).toBeNull()
+    expect(validateValue(f, '#C98B94')).toBeNull()
+    expect(validateValue(f, '#C98B94;#112233')).toBeNull()
+    expect(validateValue(f, '#C98B94;rose')).toMatch(/rose/)
+  })
+
   it('checks referential integrity for ref and reflist', () => {
     const ids = new Set(['Y01', 'Y02'])
     expect(validateValue(field({ key: 'main', type: 'ref', refTable: 'yarns' }), 'Y01', ids)).toBeNull()
@@ -142,6 +150,25 @@ describe('buildSchemaSet', () => {
   it('rejects a defaultSort naming a field that is not sortable', () => {
     const bad = { ...yarns, defaultSort: { key: 'name' } }
     expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: bad })).toThrow(/defaultSort/)
+  })
+
+  it('accepts a defaultSort.thenBy naming a sortable field', () => {
+    const withSort = {
+      ...yarns,
+      defaultSort: { key: 'name', thenBy: 'skeins' },
+      fields: [
+        { key: 'id', label: 'ID', type: 'id' },
+        { key: 'name', label: 'Name', type: 'text', sortable: true },
+        { key: 'skeins', label: 'Skeins', type: 'number', sortable: true },
+      ],
+    }
+    const set = buildSchemaSet({ tables: ['yarns'] }, { yarns: withSort })
+    expect(set.tables.yarns.defaultSort).toEqual({ key: 'name', thenBy: 'skeins' })
+  })
+
+  it('rejects a defaultSort.thenBy naming a field that is not sortable', () => {
+    const bad = { ...yarns, defaultSort: { key: 'title', thenBy: 'name' } }
+    expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: bad })).toThrow(/thenBy/)
   })
 
   it('accepts a table-level derivedFilters entry that hops through a valid ref', () => {

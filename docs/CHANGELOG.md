@@ -4,6 +4,49 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-19 — v0.1.9, multi-colour yarns, RGB input, square list colour text, colour+construction sort
+
+**Data**
+- `yarns.json`'s `hex` field changes type from `color` to `colorlist` — a yarn can now hold more than
+  one hex value (`;`-joined in the one cell, same pattern `extra_yarns` uses for a list of refs), for a
+  variegated or self-striping colourway. A single hex value is already a valid one-item `colorlist`, so
+  no data migration. See [ADR 0019](adr/0019-multiple-colours-per-yarn.md).
+- `squares.json` gains `"defaultSort": { "key": "main_yarn", "thenBy": "construction_type" }` and marks
+  `design_id`, `construction_type`, and `main_yarn` `"sortable": true` — the Squares list now offers
+  Design, Construction, and Main colour as sort options alongside the existing ID and Date, and opens
+  grouped by colour, then by construction within a colour, instead of by id. See
+  [ADR 0020](adr/0020-default-sort-secondary-key.md).
+
+**App**
+- `core/schema` gains a `colorlist` field type: `validateValue` checks every `;`-separated hex
+  individually; `ui/fields.tsx` gets a `ColorListInput` (one colour row per hex, "+" beside the first
+  to add another, "−" on every added row to remove it) and a `Display` reusing the updated `Swatch`.
+  `Swatch` (`ui/components.tsx`) now splits its `hex` prop on `;`: the first colour fills the swatch,
+  up to four more show as small dots inside it — every existing caller (`RefChip`, the ref-picker
+  dropdown, `RecordList`'s default row, the Yarns list) picks this up automatically since `swatchField`
+  still just names one column. `ColourGlyph` (the square list's colour glyph) takes only a multi-colour
+  yarn's first hex, to avoid nesting wedges of dots inside wedges.
+- Every colour field — `color` and the new `colorlist` — gains RGB number inputs alongside the native
+  picker and hex text box, all views of the same hex value (`ColorPickerRow` in `ui/fields.tsx`):
+  editing R/G/B recomputes the hex and writes that back, since hex is still the only thing actually
+  stored.
+- Squares list row: the first line is now `[id] • [main colour]/[extra colours]` (colour names in a
+  smaller, unbolded weight than the id), the same main-then-extras order the colour glyph already draws
+  in, next to it.
+- `RecordList`'s sort machinery (`compareValues`/`sortRows`) now takes a primary and optional secondary
+  `SortSpec` instead of three loose sort parameters, and resolves `effectiveValue()` for a sort field
+  with `inheritFrom` instead of its raw stored cell — sorting by Construction previously would have
+  sorted every square that inherits it from its design as an empty string. Updates
+  [ADR 0016](adr/0016-field-level-inherited-values.md)'s Consequences, which flagged the filter-side
+  version of the same gap in the previous entry.
+
+**Tests**
+- `schema.test.ts`: `colorlist` validation (every hex in the cell checked, not just the first); a
+  `defaultSort.thenBy` naming a sortable field is accepted, one naming a non-sortable field is rejected.
+- New `ui/__tests__/RecordList.sort.test.ts`: `sortRows` resolves a `ref` sort field to the referenced
+  row's title, resolves an `inheritFrom` field to its effective value rather than the blank stored
+  cell, and breaks a primary-sort tie using a secondary `SortSpec`.
+
 ## 2026-08-19 — v0.1.8, data-gap stats, full inline quick-create, square colour/status glyphs, sorting
 
 **Data**

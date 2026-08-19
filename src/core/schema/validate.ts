@@ -67,6 +67,13 @@ export function validateValue(
     case 'color':
       if (!HEX_RE.test(v)) return `${field.label} must be a hex colour like #C98B94`
       return null
+    case 'colorlist': {
+      const bad = splitList(v, field.separator).filter((h) => !HEX_RE.test(h))
+      if (bad.length > 0) {
+        return `${field.label} must be hex colours like #C98B94 (not ${bad.join(', ')})`
+      }
+      return null
+    }
     case 'url':
       try {
         new URL(v)

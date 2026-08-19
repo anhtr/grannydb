@@ -15,6 +15,7 @@ export type FieldType =
   | 'ref'
   | 'reflist'
   | 'color'
+  | 'colorlist'
   | 'url'
 
 export interface FieldDef {
@@ -32,7 +33,7 @@ export interface FieldDef {
   options?: string[]
   /** `ref` and `reflist` only: which table the value points at. */
   refTable?: string
-  /** `reflist` only: separator used inside the single cell. Defaults to ';'. */
+  /** `reflist`/`colorlist` only: separator used inside the single cell. Defaults to ';'. */
   separator?: string
   /** `date` only: prefill today's date on new records. */
   defaultToday?: boolean
@@ -126,9 +127,13 @@ export interface TableSchema {
   /**
    * Sort applied the first time this table's list is opened on a device, before any sort the person
    * picks themselves gets saved locally (see `core/prefs`). `key` is `"id"`, `"title"`, or a field
-   * marked `"sortable": true`. Omit to fall back to the built-in id sort.
+   * marked `"sortable": true`. Omit to fall back to the built-in id sort. `thenBy` is an optional
+   * second key, same restriction, that breaks ties on `key` — e.g. squares sort by main colour, then
+   * by construction within a colour — but only while the list is still showing this exact default;
+   * picking a different sort from the dropdown reverts to the generic title/id tie-break every sort
+   * gets. See `sortRows` in `ui/RecordList.tsx`.
    */
-  defaultSort?: { key: string; direction?: 'asc' | 'desc' }
+  defaultSort?: { key: string; direction?: 'asc' | 'desc'; thenBy?: string; thenDirection?: 'asc' | 'desc' }
   fields: FieldDef[]
 }
 

@@ -92,7 +92,7 @@ deleted rather than tracked as a state.
 | `name` | text | Colourway, usually the manufacturer's name for the shade |
 | `product_line` | text | The manufacturer's yarn line (e.g. "Scheepjes Chunky Monkey") rather than the manufacturer alone — that is the level yarn is actually bought and matched at |
 | `product_id` | text | Manufacturer's shade or product code, kept separate so it can drive a reorder link later without overloading a free-text field |
-| `hex` | color | Drives every colour swatch in the app, which is what makes a list of 400 squares scannable on a phone |
+| `hex` | colorlist | Drives every colour swatch in the app, which is what makes a list of 400 squares scannable on a phone. Usually one hex value; more than one (`;`-joined) is a variegated colourway |
 | `skeins` | number | |
 | `partial_skein` | bool | At least one skein on hand has been started |
 | `notes` | textarea | |
@@ -179,7 +179,8 @@ See [ADR 0005](adr/0005-schema-as-data.md).
 
 ### Field types
 
-`id`, `text`, `textarea`, `number`, `date`, `bool`, `enum`, `ref`, `reflist`, `color`, `url`.
+`id`, `text`, `textarea`, `number`, `date`, `bool`, `enum`, `ref`, `reflist`, `color`, `colorlist`,
+`url`.
 
 A type is defined in two halves, deliberately split:
 
@@ -188,6 +189,13 @@ A type is defined in two halves, deliberately split:
 - **[`src/ui/fields.tsx`](../src/ui/fields.tsx)** — the `Input` and `Display` components.
 
 Adding `image` later is one entry in each. Nothing else changes.
+
+`colorlist` is `color`'s multi-value counterpart, the same `;`-joined-single-cell pattern `reflist`
+uses for `extra_yarns` rather than a second field or a join table — `yarns.hex` is one (`"#2a7f8c"`,
+or `"#2a7f8c;#a7c7e7"` for a variegated colourway). The first hex is the yarn's primary colour, what
+`swatchField` fills a `Swatch` with everywhere one is drawn; the rest show as small dots inside it. A
+single hex value is already a valid one-item `colorlist`, so existing single-colour data reads
+unchanged. See [ADR 0019](adr/0019-multiple-colours-per-yarn.md).
 
 A `ref` field can also set `"quickCreate": true`, which adds a "+ New &lt;thing&gt;" affordance to
 the field's picker that opens a full inline form — every field on the target table except its id,
@@ -224,7 +232,10 @@ A field can also set `"sortable": true` to appear as a sort option in that table
 built-in sort by id and by title (`designs.source` uses it — see the sort control in
 [app-architecture](05-app-architecture.md#the-generic-crud-components)). Every sort — built-in or
 field-based — breaks ties by title, then id, so the order is always fully determined instead of
-falling back to whatever order the rows already happened to be in.
+falling back to whatever order the rows already happened to be in. Sorting on a field with
+`inheritFrom` resolves the same *effective* value filtering does (`squares.construction_type` is
+sortable and inheriting at once), for the same reason: sorting on the raw cell would strand every
+square that inherits its construction at whichever end of the order an empty string lands on.
 
 A `"filter": true` field on a `number` type can also set `"filterMode": "min"`, which turns the filter
 dropdown from "equals one of these values" into "at least N" thresholds built from whatever counts are
@@ -261,6 +272,14 @@ list opens with the first time it is visited on a device, before the person pick
 `designs.json` sets `{ "key": "source" }` so the Designs list opens grouped by source instead of by
 id, since browsing "everything from this book" is the more common way to want to see it. `key` is
 `"id"`, `"title"`, or a field marked `"sortable": true`.
+
+`defaultSort` can also set `"thenBy"` (plus optional `"thenDirection"`), a second key breaking ties on
+the first — `squares.json` sets `{ "key": "main_yarn", "thenBy": "construction_type" }` so the Squares
+list opens grouped by colour, then by construction within a colour, rather than falling straight
+through to the generic title/id tie-break. `thenBy` only applies while `key` is still the active sort;
+picking a different sort from the dropdown drops it, since a person who explicitly asked to sort by
+Design was not asking for construction to keep quietly influencing the order underneath it. See
+[ADR 0020](adr/0020-default-sort-secondary-key.md).
 
 ## Schema evolution policy
 

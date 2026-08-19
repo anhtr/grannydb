@@ -60,9 +60,11 @@ function SquareRow({ row }: { row: CsvRow }) {
   const design = designs.get(row.design_id ?? '')
   const status = row.status ?? ''
 
-  const glyphTitle = [yarnTitle(row.main_yarn ?? ''), ...extras.map(yarnTitle)]
-    .filter((t): t is string => !!t)
-    .join(' + ')
+  const mainTitle = yarnTitle(row.main_yarn ?? '')
+  const extraTitles = extras.map(yarnTitle).filter((t): t is string => !!t)
+  // Main and extras in one breath, main first — same order the glyph draws them in.
+  const colourNames = [mainTitle, ...extraTitles].filter((t): t is string => !!t).join('/')
+  const glyphTitle = [mainTitle, ...extraTitles].filter((t): t is string => !!t).join(' + ')
 
   return (
     <div className="flex items-center gap-3">
@@ -74,8 +76,14 @@ function SquareRow({ row }: { row: CsvRow }) {
       />
 
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 font-medium">
+        <p className="flex items-baseline gap-1.5 font-medium">
           <span className="font-mono text-sm">{row.id}</span>
+          {colourNames ? (
+            <>
+              <span className="text-muted">•</span>
+              <span className="truncate text-xs font-normal text-muted">{colourNames}</span>
+            </>
+          ) : null}
         </p>
         <p className="truncate text-sm text-muted">
           {design?.name ?? '(no design)'}

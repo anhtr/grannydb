@@ -80,16 +80,43 @@ export function Badge({
 
 const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
 
-/** A yarn colour chip. Falls back to a dashed outline when no hex is recorded. */
+/** A `colorlist` cell (`#111;#222`) split into its valid hex colours, in order. */
+function splitHexList(value?: string): string[] {
+  return (value ?? '')
+    .split(';')
+    .map((h) => h.trim())
+    .filter((h) => HEX_RE.test(h))
+}
+
+/**
+ * A yarn colour chip. `hex` can hold more than one colour in a single cell — a variegated yarn's
+ * colourway (see `colorlist`, ADR 0019) — in which case the first fills the swatch and the rest show
+ * as small dots inside it, capped at 4 so they stay legible even at the 14px swatches used in chips.
+ * Falls back to a dashed outline when no colour is recorded.
+ */
 export function Swatch({ hex, size = 20, title }: { hex?: string; size?: number; title?: string }) {
-  const valid = hex && HEX_RE.test(hex)
+  const [primary, ...extra] = splitHexList(hex)
+  const dots = extra.slice(0, 4)
+  const dotSize = Math.max(3, Math.round(size * 0.22))
   return (
     <span
       title={title}
       aria-hidden={title ? undefined : true}
-      className={`inline-block shrink-0 rounded-full border ${valid ? 'border-black/15' : 'border-dashed border-line'}`}
-      style={{ width: size, height: size, background: valid ? hex : 'transparent' }}
-    />
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border ${primary ? 'border-black/15' : 'border-dashed border-line'}`}
+      style={{ width: size, height: size, background: primary ?? 'transparent' }}
+    >
+      {dots.length > 0 ? (
+        <span className="flex flex-wrap items-center justify-center gap-[1px]" style={{ width: size * 0.7 }}>
+          {dots.map((h, i) => (
+            <span
+              key={i}
+              className="rounded-full border border-black/25"
+              style={{ width: dotSize, height: dotSize, background: h }}
+            />
+          ))}
+        </span>
+      ) : null}
+    </span>
   )
 }
 
@@ -97,7 +124,10 @@ export function Swatch({ hex, size = 20, title }: { hex?: string; size?: number;
  * A square's colour at a glance: main colour fills the outer square, extra colours share a smaller
  * circle inside it — one wedge per extra colour, like a pie chart, in the order they were selected
  * (`extra_yarns`' order is meaningful, see `RefListInput`). A single extra colour is just a solid
- * inner circle, the trivial one-wedge case.
+ * inner circle, the trivial one-wedge case. A yarn's own `hex` can itself be a `colorlist` (a
+ * variegated colourway) — only its primary colour is used here, same simplification `Swatch` does not
+ * make (it shows the rest as dots); stacking wedges of dots would be more detail than a square-list row
+ * needs.
  */
 export function ColourGlyph({
   mainHex,
@@ -110,8 +140,8 @@ export function ColourGlyph({
   size?: number
   title?: string
 }) {
-  const validMain = mainHex && HEX_RE.test(mainHex)
-  const extras = extraHexes.filter((h): h is string => !!h && HEX_RE.test(h))
+  const validMain = splitHexList(mainHex)[0]
+  const extras = extraHexes.map((h) => splitHexList(h)[0]).filter((h): h is string => !!h)
   const innerSize = Math.round(size * 0.52)
 
   let innerBackground = 'transparent'
@@ -131,7 +161,7 @@ export function ColourGlyph({
       className={`relative inline-flex shrink-0 items-center justify-center rounded-md border ${
         validMain ? 'border-black/15' : 'border-dashed border-line'
       }`}
-      style={{ width: size, height: size, background: validMain ? mainHex : 'transparent' }}
+      style={{ width: size, height: size, background: validMain ?? 'transparent' }}
     >
       {extras.length > 0 ? (
         <span

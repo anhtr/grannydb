@@ -375,6 +375,129 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
   )
 }
 
+const VALID_HEX6 = /^#[0-9a-fA-F]{6}$/
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = VALID_HEX6.exec(hex)
+  if (!m) return null
+  const n = parseInt(hex.slice(1), 16)
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const clamp = (n: number) => Math.min(255, Math.max(0, Math.round(Number.isFinite(n) ? n : 0)))
+  return `#${[r, g, b].map((v) => clamp(v).toString(16).padStart(2, '0')).join('')}`
+}
+
+/**
+ * One colour: a native picker, a hex text box, and RGB number boxes, all views of the same hex string
+ * — there is nothing else to store, so editing any of them just writes back a recomputed hex value
+ * rather than tracking RGB as separate state that could drift out of sync with it.
+ */
+function ColorPickerRow({
+  value,
+  onChange,
+  id,
+}: {
+  value: string
+  onChange: (v: string) => void
+  id?: string
+}) {
+  const valid = VALID_HEX6.test(value)
+  const rgb = hexToRgb(valid ? value : '#cccccc') ?? { r: 204, g: 204, b: 204 }
+  const setChannel = (channel: 'r' | 'g' | 'b', v: number) => {
+    const next = { ...rgb, [channel]: v }
+    onChange(rgbToHex(next.r, next.g, next.b))
+  }
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      <input
+        type="color"
+        aria-label="Colour picker"
+        className="tap-target size-11 shrink-0 rounded-xl border border-line bg-card p-1"
+        value={valid ? value : '#cccccc'}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <input
+        id={id}
+        type="text"
+        className={`${inputClass} min-w-0 flex-1 font-mono`}
+        placeholder="#C98B94"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <div className="flex shrink-0 items-center gap-1 text-xs text-muted">
+        RGB
+        {(['r', 'g', 'b'] as const).map((channel) => (
+          <input
+            key={channel}
+            type="number"
+            min={0}
+            max={255}
+            aria-label={channel.toUpperCase()}
+            className={`${inputClass} w-14 px-1.5 py-1 text-center text-sm`}
+            value={rgb[channel]}
+            onChange={(e) => setChannel(channel, Number(e.target.value))}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * More than one colour in a single cell (`#111;#222`), same `;`-joined-list-in-one-cell pattern as
+ * `reflist` — a variegated yarn's colourway is a handful of hex values, not enough to earn a join
+ * table. The first is the yarn's primary colour (what `Swatch` fills with); "+" appends another,
+ * each added one gets its own "−". See ADR 0019.
+ */
+function ColorListInput({ field, value, onChange, id }: FieldInputProps) {
+  const separator = field.separator ?? ';'
+  const colours = splitList(value, separator)
+
+  const setColour = (i: number, hex: string) => {
+    const next = [...colours]
+    next[i] = hex
+    onChange(joinList(next, separator))
+  }
+  const addColour = () => onChange(joinList([...colours, '#cccccc'], separator))
+  const removeColour = (i: number) => onChange(joinList(colours.filter((_, idx) => idx !== i), separator))
+
+  if (colours.length === 0) {
+    return (
+      <Button type="button" variant="secondary" onClick={addColour}>
+        + Add colour
+      </Button>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {colours.map((hex, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <ColorPickerRow value={hex} onChange={(v) => setColour(i, v)} id={i === 0 ? id : undefined} />
+          {i === 0 ? (
+            <Button type="button" variant="ghost" className="shrink-0 px-3" onClick={addColour} aria-label="Add another colour">
+              +
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="shrink-0 px-3"
+              onClick={() => removeColour(i)}
+              aria-label="Remove this colour"
+            >
+              −
+            </Button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function textInput(type: string, inputMode?: string): FieldRenderer['Input'] {
   return ({ value, onChange, id, field }) => (
     <input
@@ -479,25 +602,7 @@ export const fieldRenderers: Record<FieldType, FieldRenderer> = {
   },
 
   color: {
-    Input: ({ value, onChange, id }) => (
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          aria-label="Colour picker"
-          className="tap-target size-11 shrink-0 rounded-xl border border-line bg-card p-1"
-          value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#cccccc'}
-          onChange={(e) => onChange(e.target.value)}
-        />
-        <input
-          id={id}
-          type="text"
-          className={`${inputClass} font-mono`}
-          placeholder="#C98B94"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    ),
+    Input: ({ value, onChange, id }) => <ColorPickerRow value={value} onChange={onChange} id={id} />,
     Display: ({ value }) =>
       value === '' ? (
         <Muted>—</Muted>
@@ -507,6 +612,20 @@ export const fieldRenderers: Record<FieldType, FieldRenderer> = {
           <span className="font-mono text-sm">{value}</span>
         </span>
       ),
+  },
+
+  colorlist: {
+    Input: ColorListInput,
+    Display: ({ field, value }) => {
+      const colours = splitList(value, field.separator ?? ';')
+      if (colours.length === 0) return <Muted>—</Muted>
+      return (
+        <span className="inline-flex items-center gap-2">
+          <Swatch hex={value} size={28} />
+          <span className="font-mono text-sm">{colours.join(', ')}</span>
+        </span>
+      )
+    },
   },
 
   url: {

@@ -67,3 +67,9 @@ something instead of meaning "unset."
   that explicitly set it. Same one-hop mechanism, no new abstraction: the filter's option list and its
   `matches` predicate both resolve through the field the same way `RecordDetail` and `RecordForm`
   already did.
+- **Update, 2026-08-19 (later the same day):** sorting resolves effective value too, for the same
+  reason filtering needed to. `construction_type` became sortable alongside `main_yarn` and
+  `design_id` ([ADR 0020](0020-default-sort-secondary-key.md)), which would otherwise have sorted every
+  inheriting square as an empty string — `RecordList`'s `compareValues` now calls `effectiveValue()` for
+  a sort field with `inheritFrom`, the fourth read path (after `RecordDetail`, `RecordForm`, and the
+  filter descriptors) to resolve through the same one hop instead of reading the raw cell.

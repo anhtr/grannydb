@@ -8,7 +8,7 @@ export class SchemaError extends Error {
 }
 
 const FIELD_TYPES: readonly FieldType[] = [
-  'id', 'text', 'textarea', 'number', 'date', 'bool', 'enum', 'ref', 'reflist', 'color', 'url',
+  'id', 'text', 'textarea', 'number', 'date', 'bool', 'enum', 'ref', 'reflist', 'color', 'colorlist', 'url',
 ]
 
 function str(obj: Record<string, unknown>, key: string, where: string): string {
@@ -67,14 +67,25 @@ function parseInheritFrom(raw: unknown, where: string): InheritFromDef {
   return { via: str(o, 'via', where), throughField: str(o, 'throughField', where) }
 }
 
-function parseDefaultSort(raw: unknown, where: string): { key: string; direction?: 'asc' | 'desc' } {
+function parseSortDirection(raw: unknown, key: string, where: string): 'asc' | 'desc' | undefined {
+  if (raw !== undefined && raw !== 'asc' && raw !== 'desc') {
+    throw new SchemaError(`${where}: "${key}" must be "asc" or "desc"`)
+  }
+  return raw
+}
+
+function parseDefaultSort(
+  raw: unknown,
+  where: string,
+): { key: string; direction?: 'asc' | 'desc'; thenBy?: string; thenDirection?: 'asc' | 'desc' } {
   if (typeof raw !== 'object' || raw === null) throw new SchemaError(`${where}: "defaultSort" must be an object`)
   const o = raw as Record<string, unknown>
-  const direction = o.direction
-  if (direction !== undefined && direction !== 'asc' && direction !== 'desc') {
-    throw new SchemaError(`${where}: "defaultSort.direction" must be "asc" or "desc"`)
+  return {
+    key: str(o, 'key', where),
+    direction: parseSortDirection(o.direction, 'direction', where),
+    thenBy: typeof o.thenBy === 'string' ? o.thenBy : undefined,
+    thenDirection: parseSortDirection(o.thenDirection, 'thenDirection', where),
   }
-  return { key: str(o, 'key', where), direction }
 }
 
 function parseDerivedFilter(raw: unknown, where: string): DerivedFilterDef {
@@ -115,11 +126,16 @@ export function parseTableSchema(raw: unknown): TableSchema {
 
   const defaultSort =
     o.defaultSort !== undefined ? parseDefaultSort(o.defaultSort, `${where}.defaultSort`) : undefined
-  if (defaultSort && defaultSort.key !== 'id' && defaultSort.key !== 'title') {
-    const sortField = fields.find((f) => f.key === defaultSort.key)
+  const checkSortKey = (key: string, prop: string) => {
+    if (key === 'id' || key === 'title') return
+    const sortField = fields.find((f) => f.key === key)
     if (!sortField?.sortable) {
-      throw new SchemaError(`${where}.defaultSort: "${defaultSort.key}" is not "id", "title", or a sortable field`)
+      throw new SchemaError(`${where}.defaultSort: "${prop}" "${key}" is not "id", "title", or a sortable field`)
     }
+  }
+  if (defaultSort) {
+    checkSortKey(defaultSort.key, 'key')
+    if (defaultSort.thenBy) checkSortKey(defaultSort.thenBy, 'thenBy')
   }
 
   return {
