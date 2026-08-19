@@ -10,6 +10,7 @@
   "titleField": "name",
   "subtitleField": "source",
   "searchFields": ["name"],
+  "defaultSort": { "key": "source" },
   "fields": [
     { "key": "id", "label": "ID", "type": "id", "list": true },
     { "key": "name", "label": "Name", "type": "text", "required": true, "list": true },

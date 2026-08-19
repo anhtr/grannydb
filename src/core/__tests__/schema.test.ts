@@ -106,6 +106,44 @@ describe('buildSchemaSet', () => {
     expect(field?.sortable).toBe(true)
   })
 
+  it('parses filterMode on a field', () => {
+    const withExtras = {
+      ...yarns,
+      fields: [...yarns.fields, { key: 'x', label: 'X', type: 'number', filter: true, filterMode: 'min' }],
+    }
+    const set = buildSchemaSet({ tables: ['yarns'] }, { yarns: withExtras })
+    expect(set.tables.yarns.fields.find((f) => f.key === 'x')?.filterMode).toBe('min')
+  })
+
+  it('rejects an invalid filterMode', () => {
+    const bad = {
+      ...yarns,
+      fields: [...yarns.fields, { key: 'x', label: 'X', type: 'number', filterMode: 'nope' }],
+    }
+    expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: bad })).toThrow(/filterMode/)
+  })
+
+  it('accepts a defaultSort naming a sortable field', () => {
+    const withSort = {
+      ...yarns,
+      defaultSort: { key: 'name' },
+      fields: [{ key: 'id', label: 'ID', type: 'id' }, { key: 'name', label: 'Name', type: 'text', sortable: true }],
+    }
+    const set = buildSchemaSet({ tables: ['yarns'] }, { yarns: withSort })
+    expect(set.tables.yarns.defaultSort).toEqual({ key: 'name' })
+  })
+
+  it('accepts the built-in "id"/"title" defaultSort keys without a matching sortable field', () => {
+    const withSort = { ...yarns, defaultSort: { key: 'title', direction: 'desc' } }
+    const set = buildSchemaSet({ tables: ['yarns'] }, { yarns: withSort })
+    expect(set.tables.yarns.defaultSort).toEqual({ key: 'title', direction: 'desc' })
+  })
+
+  it('rejects a defaultSort naming a field that is not sortable', () => {
+    const bad = { ...yarns, defaultSort: { key: 'name' } }
+    expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: bad })).toThrow(/defaultSort/)
+  })
+
   it('accepts a table-level derivedFilters entry that hops through a valid ref', () => {
     const squares = {
       table: 'squares',

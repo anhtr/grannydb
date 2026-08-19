@@ -50,6 +50,13 @@ export interface FieldDef {
   searchFields?: string[]
   /** Offer this field as a sort option in list views, alongside the built-in id and name sorts. */
   sortable?: boolean
+  /**
+   * `number` fields only, and only meaningful alongside `"filter": true`. `'exact'` (the default)
+   * offers a dropdown of the distinct values present. `'min'` instead offers "N or more" thresholds
+   * built from the distinct values present, e.g. yarn `skeins`: "find anything with at least 2 left"
+   * is a range question, not a lookup of one exact count.
+   */
+  filterMode?: 'exact' | 'min'
 }
 
 /**
@@ -100,6 +107,12 @@ export interface TableSchema {
   searchFields?: string[]
   /** Filters computed by hopping through a `ref` field rather than read off a column directly. */
   derivedFilters?: DerivedFilterDef[]
+  /**
+   * Sort applied the first time this table's list is opened on a device, before any sort the person
+   * picks themselves gets saved locally (see `core/prefs`). `key` is `"id"`, `"title"`, or a field
+   * marked `"sortable": true`. Omit to fall back to the built-in id sort.
+   */
+  defaultSort?: { key: string; direction?: 'asc' | 'desc' }
   fields: FieldDef[]
 }
 

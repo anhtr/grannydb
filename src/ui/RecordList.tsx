@@ -14,7 +14,8 @@ import {
   titleFor,
 } from '../core/schema'
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
-import { pendingRowIds } from '../core/store'
+import type { ListPrefs } from '../core/prefs'
+import { appStore, pendingRowIds } from '../core/store'
 import { useAppState, useResolveRef, useTable, useTableSchema } from '../app/hooks'
 import { Badge, Card, EmptyState, inputClass, Link, Spinner } from './components'
 
@@ -26,8 +27,23 @@ interface FilterOption {
 interface FilterDescriptor {
   key: string
   label: string
-  getValue: (row: CsvRow) => string
   options: FilterOption[]
+  matches: (row: CsvRow, value: string) => boolean
+}
+
+/**
+ * `"min"` thresholds for a numeric field: "N or more", built from whatever counts are actually
+ * present in the data rather than a fixed range, so the dropdown never offers a threshold nothing
+ * could match. Starts at 1 — "0 or more" is already what the dropdown's own blank "any" option means,
+ * so a `0` entry would just be a second, confusingly-worded way to clear the filter.
+ */
+function minThresholdOptions(field: FieldDef, data: CsvTable): FilterOption[] {
+  const max = data.rows.reduce((m, r) => Math.max(m, Math.floor(Number(r[field.key]) || 0)), 0)
+  const options: FilterOption[] = []
+  for (let n = 1; n <= max; n++) {
+    options.push({ value: String(n), label: `${n}+` })
+  }
+  return options
 }
 
 /** Build the filter dropdowns: fields marked `"filter": true`, plus the schema's `derivedFilters`. */
@@ -37,6 +53,14 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
     if (!schema || !data) return []
 
     const direct = filterFields(schema).map((field): FilterDescriptor => {
+      if (field.filterMode === 'min') {
+        return {
+          key: field.key,
+          label: field.label,
+          options: minThresholdOptions(field, data),
+          matches: (row, value) => (Number(row[field.key]) || 0) >= Number(value),
+        }
+      }
       const values = [...new Set(data.rows.map((r) => r[field.key] ?? '').filter((v) => v !== ''))]
       const options =
         field.type === 'enum' && field.options
@@ -44,7 +68,7 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
           : values
               .map((v) => ({ value: v, label: refDisplayLabel(field, v, resolve) }))
               .sort((a, b) => a.label.localeCompare(b.label))
-      return { key: field.key, label: field.label, getValue: (row) => row[field.key] ?? '', options }
+      return { key: field.key, label: field.label, options, matches: (row, value) => (row[field.key] ?? '') === value }
     })
 
     const derived = (schema.derivedFilters ?? []).map((filter): FilterDescriptor => {
@@ -54,7 +78,7 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
       const options = values
         .map((v) => ({ value: v, label: throughField ? refDisplayLabel(throughField, v, resolve) : v }))
         .sort((a, b) => a.label.localeCompare(b.label))
-      return { key: filter.key, label: filter.label, getValue, options }
+      return { key: filter.key, label: filter.label, options, matches: (row, value) => getValue(row) === value }
     })
 
     return [...direct, ...derived]
@@ -62,25 +86,49 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
 }
 
 type SortKey = string
+type SortDir = 'asc' | 'desc'
 
+function compareValues(
+  a: CsvRow,
+  b: CsvRow,
+  schema: TableSchema,
+  sortKey: SortKey,
+  sortField: FieldDef | undefined,
+  resolve: ResolveRef,
+): number {
+  if (sortKey === 'title') return titleFor(schema, a).localeCompare(titleFor(schema, b))
+  if (sortField) {
+    if (sortField.type === 'number') {
+      return (Number(a[sortField.key]) || 0) - (Number(b[sortField.key]) || 0)
+    }
+    return refDisplayLabel(sortField, a[sortField.key] ?? '', resolve).localeCompare(
+      refDisplayLabel(sortField, b[sortField.key] ?? '', resolve),
+    )
+  }
+  return compareIds(a[schema.idField] ?? '', b[schema.idField] ?? '')
+}
+
+/**
+ * Sorted by `sortKey`/`sortDir`, ties broken by title alphabetically (always ascending, regardless
+ * of the primary direction) and then by id, so the order is fully determined instead of falling back
+ * to whatever order the rows happened to already be in.
+ */
 function sortRows(
   rows: CsvRow[],
   schema: TableSchema,
   sortKey: SortKey,
   sortField: FieldDef | undefined,
+  sortDir: SortDir,
   resolve: ResolveRef,
 ): CsvRow[] {
-  if (sortKey === 'name') {
-    return [...rows].sort((a, b) => titleFor(schema, a).localeCompare(titleFor(schema, b)))
-  }
-  if (sortField) {
-    return [...rows].sort((a, b) =>
-      refDisplayLabel(sortField, a[sortField.key] ?? '', resolve).localeCompare(
-        refDisplayLabel(sortField, b[sortField.key] ?? '', resolve),
-      ),
-    )
-  }
-  return [...rows].sort((a, b) => compareIds(a[schema.idField] ?? '', b[schema.idField] ?? ''))
+  const sign = sortDir === 'desc' ? -1 : 1
+  return [...rows].sort((a, b) => {
+    const primary = compareValues(a, b, schema, sortKey, sortField, resolve)
+    if (primary !== 0) return sign * primary
+    const byTitle = titleFor(schema, a).localeCompare(titleFor(schema, b))
+    if (byTitle !== 0) return byTitle
+    return compareIds(a[schema.idField] ?? '', b[schema.idField] ?? '')
+  })
 }
 
 export interface RecordListProps {
@@ -91,14 +139,33 @@ export interface RecordListProps {
   header?: ReactNode
 }
 
+/** This table's remembered list state, or the schema's own default when nothing was saved yet. */
+function initialListPrefs(schema: TableSchema | null, saved: ListPrefs | undefined): ListPrefs {
+  return {
+    filters: saved?.filters ?? {},
+    sortKey: saved?.sortKey ?? schema?.defaultSort?.key ?? 'id',
+    sortDir: saved?.sortDir ?? schema?.defaultSort?.direction ?? 'asc',
+  }
+}
+
 export function RecordList({ table, renderRow, header }: RecordListProps) {
   const state = useAppState()
   const schema = useTableSchema(table)
   const data = useTable(table)
   const resolve = useResolveRef()
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState<Record<string, string>>({})
-  const [sortKey, setSortKey] = useState<SortKey>('id')
+  const [listPrefs, setListPrefsState] = useState<ListPrefs>(() =>
+    initialListPrefs(schema, state.prefs.lists[table]),
+  )
+  const { filters, sortKey, sortDir } = listPrefs
+
+  // Saved locally (see `core/prefs`), keyed by table, so leaving and reopening a list keeps how it
+  // was last narrowed and sorted — but device-local only, never part of the synced data.
+  const setListPrefs = (next: Partial<ListPrefs>) => {
+    const merged = { ...listPrefs, ...next }
+    setListPrefsState(merged)
+    appStore.setPrefs({ ...state.prefs, lists: { ...state.prefs.lists, [table]: merged } })
+  }
 
   const pending = useMemo(() => pendingRowIds(state.changes, table), [state.changes, table])
   const filterDescriptors = useFilterDescriptors(schema, data)
@@ -111,15 +178,16 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
       if (!matchesSearch(searchText(schema, row, resolve, schema.searchFields), query)) return false
       return filterDescriptors.every((d) => {
         const value = filters[d.key]
-        return !value || d.getValue(row) === value
+        return !value || d.matches(row, value)
       })
     })
-    return sortRows(filtered, schema, sortKey, sortField, resolve)
-  }, [schema, data, query, filters, filterDescriptors, sortKey, sortField, resolve])
+    return sortRows(filtered, schema, sortKey, sortField, sortDir, resolve)
+  }, [schema, data, query, filters, filterDescriptors, sortKey, sortField, sortDir, resolve])
 
   if (!schema || !data) return <Spinner />
 
   const activeFilters = Object.values(filters).filter((v) => v !== '').length
+  const sortActive = sortKey !== (schema.defaultSort?.key ?? 'id') || sortDir !== (schema.defaultSort?.direction ?? 'asc')
 
   return (
     <div className="pb-24">
@@ -138,22 +206,35 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
         {filterDescriptors.length > 0 || sortOptions.length > 0 ? (
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
             {sortOptions.length > 0 ? (
-              <select
-                aria-label="Sort by"
-                className={`tap-target shrink-0 rounded-xl border px-3 text-sm ${
-                  sortKey !== 'id' ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-                }`}
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value)}
-              >
-                <option value="id">Sort: ID</option>
-                <option value="name">Sort: Name</option>
-                {sortOptions.map((field) => (
-                  <option key={field.key} value={field.key}>
-                    Sort: {field.label}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select
+                  aria-label="Sort by"
+                  className={`tap-target shrink-0 rounded-xl border px-3 text-sm ${
+                    sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+                  }`}
+                  value={sortKey}
+                  onChange={(e) => setListPrefs({ sortKey: e.target.value })}
+                >
+                  <option value="id">Sort: ID</option>
+                  <option value="title">Sort: Name</option>
+                  {sortOptions.map((field) => (
+                    <option key={field.key} value={field.key}>
+                      Sort: {field.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  aria-label={sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                  title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+                  className={`tap-target shrink-0 rounded-xl border px-3 text-sm ${
+                    sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+                  }`}
+                  onClick={() => setListPrefs({ sortDir: sortDir === 'asc' ? 'desc' : 'asc' })}
+                >
+                  {sortDir === 'asc' ? '↑' : '↓'}
+                </button>
+              </>
             ) : null}
             {filterDescriptors.map((d) => (
               <select
@@ -163,7 +244,7 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
                   filters[d.key] ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
                 }`}
                 value={filters[d.key] ?? ''}
-                onChange={(e) => setFilters({ ...filters, [d.key]: e.target.value })}
+                onChange={(e) => setListPrefs({ filters: { ...filters, [d.key]: e.target.value } })}
               >
                 <option value="">{d.label}: any</option>
                 {d.options.map((option) => (

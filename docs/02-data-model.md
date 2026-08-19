@@ -210,11 +210,27 @@ Three more knobs live on the *table*, not a field:
 
 A field can also set `"sortable": true` to appear as a sort option in that table's list, alongside the
 built-in sort by id and by title (`designs.source` uses it — see the sort control in
-[app-architecture](05-app-architecture.md#the-generic-crud-components)). And a table can set
-`"derivedFilters"` — filters computed by hopping through a `ref` field to a field on the table it
-points at, for filtering by something the table does not store directly. `squares.json` filters by
-`source` this way, hopping `design_id` to the design's `source`, since a square does not store a
-source itself. See [ADR 0015](adr/0015-derived-filters-instead-of-a-materialised-column.md).
+[app-architecture](05-app-architecture.md#the-generic-crud-components)). Every sort — built-in or
+field-based — breaks ties by title, then id, so the order is always fully determined instead of
+falling back to whatever order the rows already happened to be in.
+
+A `"filter": true` field on a `number` type can also set `"filterMode": "min"`, which turns the filter
+dropdown from "equals one of these values" into "at least N" thresholds built from whatever counts are
+actually in the data. `yarns.skeins` uses it: "how many colours do I have at least 2 skeins of" is a
+range question, an exact-match dropdown of every distinct skein count on file could not answer.
+
+And a table can set `"derivedFilters"` — filters computed by hopping through a `ref` field to a field
+on the table it points at, for filtering by something the table does not store directly.
+`squares.json` filters by `source` this way, hopping `design_id` to the design's `source`, since a
+square does not store a source itself. See
+[ADR 0015](adr/0015-derived-filters-instead-of-a-materialised-column.md).
+
+A table can also set `"defaultSort"` — `{ "key": "...", "direction": "asc" | "desc" }` — the sort a
+list opens with the first time it is visited on a device, before the person picks one of their own
+(which is then remembered locally — see [app-architecture](05-app-architecture.md#state)).
+`designs.json` sets `{ "key": "source" }` so the Designs list opens grouped by source instead of by
+id, since browsing "everything from this book" is the more common way to want to see it. `key` is
+`"id"`, `"title"`, or a field marked `"sortable": true`.
 
 ## Schema evolution policy
 

@@ -8,7 +8,7 @@ src/
     csv/           parse, serialize, row operations
     schema/        types, loader, validation, search/filter/sort resolution
     github/        config, HTTP client, snapshot reads, commits, auth
-    prefs/         device-local app preferences (currently: project start date)
+    prefs/         device-local app preferences (project start date, per-table list filters/sort)
     store/         change queue, merge, sync, the app store
   ui/              shared React: primitives, field renderers, generic list/detail/form
   features/        one folder per screen that is more than "a table"
@@ -61,8 +61,14 @@ A `parse`/`validate` case in [`core/schema/validate.ts`](../src/core/schema/vali
 ### 4. Add a custom screen → `FIXED_ROUTES`
 
 Non-table screens (Progress, Settings, Sync) are entries in `FIXED_ROUTES` in
-[`App.tsx`](../src/app/App.tsx). A table that wants a custom list — `squares` does, for the colour
-swatches — registers a renderer in `TABLE_LIST_OVERRIDES` and inherits everything else.
+[`App.tsx`](../src/app/App.tsx). A table that wants a custom list registers a renderer in
+`TABLE_LIST_OVERRIDES` and inherits everything else: `squares` does, for the colour swatches, and
+`yarns` does, for the skeins-left/partial-skein badges a generic row has no field type to show.
+
+`App.tsx` mounts the generic `<RecordList>` with `key={table}`, so switching tables (Designs → Yarns
+in the bottom nav) always gets a fresh component instance instead of one React reuses in place —
+otherwise the previous table's search text and in-memory filter state would leak into the next
+table's list until something else happened to remount it.
 
 ## State
 
@@ -120,8 +126,13 @@ Three components in `ui/` serve every table:
 
 - **[`RecordList`](../src/ui/RecordList.tsx)** — search across cells (restricted to the table's
   `searchFields` if it sets any, otherwise every field), filter dropdowns built from fields marked
-  `"filter": true` plus the schema's `derivedFilters`, a sort control (id and title always offered,
-  plus any field marked `"sortable": true`), unsynced badges. Accepts a `renderRow` override.
+  `"filter": true` (numeric ones can set `"filterMode": "min"` for "N or more" thresholds instead of
+  an exact-match dropdown) plus the schema's `derivedFilters`, a sort control (id and title always
+  offered, plus any field marked `"sortable": true`) with an ascending/descending toggle, unsynced
+  badges. Accepts a `renderRow` override. Every sort breaks ties by title then id, so the result order
+  is always fully determined. The list opens on the schema's `defaultSort` (or id, if it sets none)
+  the first time it is visited on a device; after that, whatever filters and sort the person chooses
+  are saved to `Prefs.lists[table]` (`core/prefs`) and restored next time — device-local, not synced.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, edit and delete,
   a link to the underlying CSV on github.com.
 - **[`RecordForm`](../src/ui/RecordForm.tsx)** — every field via its `Input`, validation on save

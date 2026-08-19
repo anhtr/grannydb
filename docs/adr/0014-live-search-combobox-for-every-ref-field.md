@@ -44,7 +44,14 @@ what the owner remembers about a colour. Omitting `searchFields` searches every 
 referenced row — the honest default when a table has not said otherwise.
 
 `RefListInput` always shows already-selected chips regardless of the current search text, so typing
-to find one more colour never hides the ones already picked.
+to find one more colour never hides the ones already picked. With the search box empty it shows
+*only* the selected chips — like the Bcc field in a mail client — rather than the whole referenced
+table. That started as "show everything when there's nothing to filter by", which was fine for a
+stash of a few dozen yarns; it stopped being fine once the stash reached a few hundred, at which point
+an empty `extra_yarns` picker was a wall of a hundred-plus chips to scroll past on a phone before
+finding the search box. Hiding the unselected set until there is a query to narrow it by keeps the
+control's cost proportional to how many colours are actually on a square, not to how many the owner
+owns.
 
 ## Consequences
 
@@ -56,3 +63,8 @@ to find one more colour never hides the ones already picked.
   costs some built-in a11y semantics `<select>` gets for free — acceptable here since the whole app
   already accepts custom controls (the chip grid this replaces was one) in exchange for phone-sized
   touch targets.
+- `RefListInput` can no longer be browsed empty-handed — there is no "show me everything and I'll tap
+  a few" for `extra_yarns` the way there was when the chip grid showed the whole table. That is the
+  point rather than a regression: browsing the *whole* yarn stash belongs on the Yarns list, which has
+  search, filters and sort of its own; a square's colour picker only needs to find specific colours
+  fast.

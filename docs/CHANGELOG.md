@@ -4,6 +4,56 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-18 — v0.1.5, yarn stash filters/sort, remembered list state, print colourway
+
+**Data**
+- `FieldDef` gains `filterMode` (`"min"` on a `"filter": true` number field offers "N or more"
+  thresholds instead of an exact-value dropdown). `TableSchema` gains `defaultSort` (`{ key,
+  direction? }`, the sort a list opens with on a device before the person picks their own; `key` must
+  be `"id"`, `"title"`, or a field marked `"sortable": true`, checked by `buildSchemaSet` the same way
+  `idField`/`titleField` are).
+- `yarns.json`: `name` (Colourway) and `skeins` (Skeins left) are now `"sortable": true`; `skeins`
+  gains `"filter": true, "filterMode": "min"` so the Yarns list can answer "what do I have at least 2
+  of" and "what am I out of" without a dropdown of every exact count on file. `designs.json` sets
+  `"defaultSort": { "key": "source" }` — the Designs list now opens grouped by source, since "everything
+  from this book" is the more common way to want to see it, instead of by id.
+- `yarns.csv` gains the 30 colourways of Hobbii Friends Cotton 8/4 **Print** (a distinct product line
+  from the 100 solid Cotton 8/4 shades already on file, with its own, overlapping shade numbering —
+  `product_id` "01" exists in both lines). `display_name` is set explicitly for each
+  (`"P01 (Summer Sunrise)"`, the `P` distinguishing a print shade number from a solid one) rather than
+  left to `titleFallback` as the solid line's rows are, precisely because the two lines' numbers
+  collide. `hex` and `skeins` are left blank/zero for the owner to fill in by hand, same reasoning as
+  the original seed: no reliable source gives a single representative swatch colour for a
+  multi-coloured print, and a guessed one would be actively misleading.
+
+**App**
+- `RecordList` (`ui/RecordList.tsx`): filter dropdowns now match through a per-descriptor `matches`
+  function instead of bare equality, so a `"min"` field can filter by threshold instead of exact value.
+  Sort gains an ascending/descending toggle, and every sort — built-in or field-based — now breaks ties
+  by title then id (previously ties fell back to whatever order the rows already happened to be in,
+  which was id order; a table sorted by something other than id, like Designs by source, wants its ties
+  broken by name, not silently by id). The built-in "sort by title" key changed from `"name"` to
+  `"title"`: a table can now mark a field literally named `name` `"sortable"` (`yarns.name`, the
+  colourway) without colliding with the built-in title sort. A list opens on its schema's
+  `defaultSort`, or id, until the person picks a sort/filter of their own — from then on their choice
+  is remembered per table in `Prefs.lists` (new `ListPrefs` in `core/prefs`) and restored next visit,
+  device-local like the rest of `core/prefs`. `App.tsx` now mounts the generic list with `key={table}`
+  so switching tables always gets a fresh instance — needed for a freshly-opened table to actually pick
+  up its own remembered/default state instead of inheriting whatever the previously-viewed table's
+  `RecordList` instance still had in memory.
+- `RefListInput` (`ui/fields.tsx`): with the search box empty, shows only already-selected chips —
+  like a mail client's Bcc field — instead of the whole referenced table. Typing narrows the offered
+  chips to matches, same as before; selected chips still stay visible regardless of the query. Needed
+  once `extra_yarns` had 130 possible colours to scroll past on a phone before typing a search. See the
+  updated [ADR 0014](adr/0014-live-search-combobox-for-every-ref-field.md).
+- New `YarnsPage` (`features/yarns/YarnsPage.tsx`), registered in `TABLE_LIST_OVERRIDES`: each row now
+  shows a skeins-left badge and a "Partial" badge, which a generic row has no field type to render.
+
+**Tests**
+- `schema.test.ts`: parsing and validating `filterMode` (accepted values, rejects anything else) and
+  `defaultSort` (accepts `"id"`/`"title"` unconditionally, accepts a `"sortable"` field, rejects one
+  that is not).
+
 ## 2026-08-18 — v0.1.4, searchable ref pickers, resolved filters, derived filters, sort
 
 **Data**

@@ -243,10 +243,12 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
 
 /**
  * Multi-reference stored in a single cell, e.g. `Y03;Y11;Y07`, as a live search plus tap-to-toggle
- * chips rather than a `<select multiple>`, which is close to unusable on a phone. Search narrows
- * which chips are offered; anything already selected stays visible regardless of the search text, so
- * typing to find one more colour never hides the ones already picked. Selection order is preserved,
- * because for a square the order colours were worked in is real information.
+ * chips rather than a `<select multiple>`, which is close to unusable on a phone. Like a mail
+ * client's Bcc field: with the box empty, only what is already selected is shown — not every row in
+ * the referenced table — so this stays usable once that table has hundreds of rows (100+ yarn
+ * colourways). Typing narrows the offered chips to matches, on top of whatever is already selected.
+ * Selection order is preserved, because for a square the order colours were worked in is real
+ * information.
  */
 function RefListInput({ field, value, onChange }: FieldInputProps) {
   const separator = field.separator ?? ';'
@@ -264,11 +266,12 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
   }
 
   const entries = [...lookup.entries()]
+  const searching = query.trim() !== ''
   const visible = schema
     ? entries.filter(
         ([rowId, row]) =>
           selected.includes(rowId) ||
-          matchesSearch(searchText(schema, row, resolve, field.searchFields), query),
+          (searching && matchesSearch(searchText(schema, row, resolve, field.searchFields), query)),
       )
     : entries
 
@@ -304,7 +307,10 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
           )
         })}
         {entries.length === 0 ? <Muted>Nothing to pick from yet.</Muted> : null}
-        {entries.length > 0 && visible.length === 0 ? <Muted>No matches.</Muted> : null}
+        {entries.length > 0 && !searching && visible.length === 0 ? (
+          <Muted>Type to search — nothing selected yet.</Muted>
+        ) : null}
+        {entries.length > 0 && searching && visible.length === 0 ? <Muted>No matches.</Muted> : null}
       </div>
     </div>
   )

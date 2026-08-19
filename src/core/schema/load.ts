@@ -33,6 +33,9 @@ function parseField(raw: unknown, where: string): FieldDef {
   if ((type === 'ref' || type === 'reflist') && typeof o.refTable !== 'string') {
     throw new SchemaError(`${where}.${key}: ${type} fields need a "refTable"`)
   }
+  if (o.filterMode !== undefined && o.filterMode !== 'exact' && o.filterMode !== 'min') {
+    throw new SchemaError(`${where}.${key}: "filterMode" must be "exact" or "min"`)
+  }
   return {
     key,
     label: str(o, 'label', `${where}.${key}`),
@@ -49,7 +52,18 @@ function parseField(raw: unknown, where: string): FieldDef {
     quickCreate: o.quickCreate === true,
     searchFields: Array.isArray(o.searchFields) ? (o.searchFields as string[]) : undefined,
     sortable: o.sortable === true,
+    filterMode: o.filterMode === 'min' ? 'min' : undefined,
   }
+}
+
+function parseDefaultSort(raw: unknown, where: string): { key: string; direction?: 'asc' | 'desc' } {
+  if (typeof raw !== 'object' || raw === null) throw new SchemaError(`${where}: "defaultSort" must be an object`)
+  const o = raw as Record<string, unknown>
+  const direction = o.direction
+  if (direction !== undefined && direction !== 'asc' && direction !== 'desc') {
+    throw new SchemaError(`${where}: "defaultSort.direction" must be "asc" or "desc"`)
+  }
+  return { key: str(o, 'key', where), direction }
 }
 
 function parseDerivedFilter(raw: unknown, where: string): DerivedFilterDef {
@@ -88,6 +102,15 @@ export function parseTableSchema(raw: unknown): TableSchema {
   const titleField = typeof o.titleField === 'string' ? o.titleField : idField
   if (!seen.has(titleField)) throw new SchemaError(`${where}: titleField "${titleField}" is not a field`)
 
+  const defaultSort =
+    o.defaultSort !== undefined ? parseDefaultSort(o.defaultSort, `${where}.defaultSort`) : undefined
+  if (defaultSort && defaultSort.key !== 'id' && defaultSort.key !== 'title') {
+    const sortField = fields.find((f) => f.key === defaultSort.key)
+    if (!sortField?.sortable) {
+      throw new SchemaError(`${where}.defaultSort: "${defaultSort.key}" is not "id", "title", or a sortable field`)
+    }
+  }
+
   return {
     table,
     file: str(o, 'file', where),
@@ -107,6 +130,7 @@ export function parseTableSchema(raw: unknown): TableSchema {
     derivedFilters: Array.isArray(o.derivedFilters)
       ? o.derivedFilters.map((f) => parseDerivedFilter(f, `${where}.derivedFilters`))
       : undefined,
+    defaultSort,
     fields,
   }
 }

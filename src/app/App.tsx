@@ -5,6 +5,7 @@ import { RecordForm } from '../ui/RecordForm'
 import { RecordList } from '../ui/RecordList'
 import { Button, ErrorNote, Link, PageHeader, Spinner } from '../ui/components'
 import { SquaresPage } from '../features/squares/SquaresPage'
+import { YarnsPage } from '../features/yarns/YarnsPage'
 import { StatsPage } from '../features/stats/StatsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { SyncPage } from '../features/sync/SyncPage'
@@ -26,6 +27,7 @@ const FIXED_ROUTES = [
 
 const TABLE_LIST_OVERRIDES: Record<string, () => React.ReactNode> = {
   squares: () => <SquaresPage />,
+  yarns: () => <YarnsPage />,
 }
 
 export function App() {
@@ -150,7 +152,7 @@ function Screen({ path }: { path: string }) {
             </div>
           }
         />
-        {override ? override() : <RecordList table={table} />}
+        {override ? override() : <RecordList key={table} table={table} />}
       </main>
     )
   }

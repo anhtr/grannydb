@@ -1,3 +1,10 @@
+/** One table list's remembered search/filter/sort, keyed by table name in `Prefs.lists`. */
+export interface ListPrefs {
+  filters: Record<string, string>
+  sortKey: string
+  sortDir: 'asc' | 'desc'
+}
+
 /**
  * Device-local app preferences that are not about where the data lives (that's `github/config.ts`)
  * or who can write it (that's `github/auth.ts`) — just how the app itself should behave.
@@ -9,9 +16,15 @@ export interface Prefs {
    * has always elapsed.
    */
   projectStartDate: string
+  /**
+   * Each table list's filters and sort, remembered across sessions on this device so reopening a
+   * list does not lose how it was last narrowed down. Never synced to the repo — this is about how
+   * *this device* likes to look at the data, not the data itself.
+   */
+  lists: Record<string, ListPrefs>
 }
 
-export const DEFAULT_PREFS: Prefs = { projectStartDate: '' }
+export const DEFAULT_PREFS: Prefs = { projectStartDate: '', lists: {} }
 
 const STORAGE_KEY = 'grannydb.prefs'
 
