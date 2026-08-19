@@ -36,8 +36,12 @@ that column, so every existing caller of `Swatch` (`RefChip`, the ref-picker dro
 default row, the Yarns list itself) needed no change — `Swatch` (`ui/components.tsx`) now splits its
 `hex` prop on `;`, fills the swatch with the first colour, and draws up to four more as small dots
 inside it. `ColourGlyph` (the square list's main-colour-as-a-square glyph, see the colour-imbalance
-stats work) does the opposite simplification: it takes only a multi-colour yarn's *first* hex, since
-drawing wedges of dots inside wedges is more detail than that glyph's job calls for.
+stats work) originally took only a multi-colour yarn's *first* hex, to avoid drawing wedges of dots
+inside wedges — later revised (see the CHANGELOG) once a stash with variegated yarn made "first colour
+only" read as a bug rather than a simplification. It now draws every colour: as equal-width linear
+stripes across the outer square for the main yarn, and as further radial stripes *within* an extra
+yarn's own pie wedge, so a variegated extra yarn's colours stay legible without merging into a
+neighbouring yarn's wedge.
 
 The edit form gets a new `ColorListInput` (`ui/fields.tsx`): one colour row per hex value, "+" beside
 the first to add another, "−" on every row after it to remove that one. Each row is a

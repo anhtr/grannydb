@@ -4,6 +4,18 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-19 — v0.1.10, square colour glyph shows every stripe
+
+**App**
+- `ColourGlyph` (`ui/components.tsx`) now draws every colour in a multi-colour (`colorlist`) yarn,
+  instead of only the first hex. The outer square (main yarn) splits into equal-width linear stripes,
+  one per colour. The inner circle keeps its per-extra-yarn `conic-gradient` pie wedge (introduced in
+  v0.1.8, one wedge per yarn in `extra_yarns` order) but now subdivides a wedge further, into equal
+  radial stripes, when that yarn itself has more than one colour — so a variegated extra yarn's colours
+  stay confined to its own wedge rather than merging with its neighbours'. Corrects the "first colour
+  only" simplification [ADR 0019](adr/0019-multiple-colours-per-yarn.md) originally chose for this
+  glyph, which read as a bug once a variegated yarn showed as a plain solid square or wedge.
+
 ## 2026-08-19 — v0.1.9, multi-colour yarns, RGB input, square list colour text, colour+construction sort
 
 **Data**

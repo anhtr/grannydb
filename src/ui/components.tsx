@@ -120,14 +120,48 @@ export function Swatch({ hex, size = 20, title }: { hex?: string; size?: number;
   )
 }
 
+/** An equal-width horizontal-stripe `background` for a list of hex colours (solid fill if just one). */
+function stripeBackground(colours: string[]): string {
+  if (colours.length === 0) return 'transparent'
+  if (colours.length === 1) return colours[0]
+  const step = 100 / colours.length
+  return `linear-gradient(90deg, ${colours
+    .map((hex, i) => `${hex} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`)
+    .join(', ')})`
+}
+
 /**
- * A square's colour at a glance: main colour fills the outer square, extra colours share a smaller
- * circle inside it — one wedge per extra colour, like a pie chart, in the order they were selected
- * (`extra_yarns`' order is meaningful, see `RefListInput`). A single extra colour is just a solid
- * inner circle, the trivial one-wedge case. A yarn's own `hex` can itself be a `colorlist` (a
- * variegated colourway) — only its primary colour is used here, same simplification `Swatch` does not
- * make (it shows the rest as dots); stacking wedges of dots would be more detail than a square-list row
- * needs.
+ * A `conic-gradient` background giving each group of colours its own equal pie wedge, and — when a
+ * group holds more than one colour (a variegated yarn's `colorlist`) — subdividing that wedge into
+ * further equal radial slices, one per colour, so a multi-colour yarn reads as stripes confined to its
+ * own wedge rather than spilling into a neighbouring yarn's slice.
+ */
+function wedgeBackground(groups: string[][]): string {
+  if (groups.length === 0) return 'transparent'
+  if (groups.length === 1 && groups[0].length === 1) return groups[0][0]
+  const wedgeStep = 100 / groups.length
+  const stops: string[] = []
+  groups.forEach((colours, i) => {
+    const wedgeStart = i * wedgeStep
+    const subStep = wedgeStep / colours.length
+    colours.forEach((hex, j) => {
+      const start = wedgeStart + j * subStep
+      const end = wedgeStart + (j + 1) * subStep
+      stops.push(`${hex} ${start.toFixed(2)}% ${end.toFixed(2)}%`)
+    })
+  })
+  return `conic-gradient(${stops.join(', ')})`
+}
+
+/**
+ * A square's colour at a glance: the outer square shows the main yarn's colours as side-by-side
+ * stripes, and a smaller circle inside gives each extra yarn its own pie wedge (`extra_yarns`' order is
+ * meaningful, see `RefListInput`) — one wedge per yarn, in the order they were selected, matching the
+ * pie-chart glyph this replaced (see ADR 0019, colour-imbalance stats work). A yarn's own `hex` can
+ * itself be a `colorlist` (a variegated colourway); every colour in it gets its own stripe — a radial
+ * one inside that yarn's wedge, a linear one across the outer square for the main yarn — rather than
+ * only the primary, unlike `Swatch`'s dots. A single colour collapses to a solid fill, the trivial
+ * one-stripe case.
  */
 export function ColourGlyph({
   mainHex,
@@ -140,33 +174,23 @@ export function ColourGlyph({
   size?: number
   title?: string
 }) {
-  const validMain = splitHexList(mainHex)[0]
-  const extras = extraHexes.map((h) => splitHexList(h)[0]).filter((h): h is string => !!h)
+  const mainColours = splitHexList(mainHex)
+  const extraGroups = extraHexes.map((h) => splitHexList(h)).filter((g) => g.length > 0)
   const innerSize = Math.round(size * 0.52)
-
-  let innerBackground = 'transparent'
-  if (extras.length === 1) {
-    innerBackground = extras[0]
-  } else if (extras.length > 1) {
-    const step = 100 / extras.length
-    innerBackground = `conic-gradient(${extras
-      .map((hex, i) => `${hex} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`)
-      .join(', ')})`
-  }
 
   return (
     <span
       title={title}
       aria-hidden={title ? undefined : true}
-      className={`relative inline-flex shrink-0 items-center justify-center rounded-md border ${
-        validMain ? 'border-black/15' : 'border-dashed border-line'
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border ${
+        mainColours.length > 0 ? 'border-black/15' : 'border-dashed border-line'
       }`}
-      style={{ width: size, height: size, background: validMain ?? 'transparent' }}
+      style={{ width: size, height: size, background: stripeBackground(mainColours) }}
     >
-      {extras.length > 0 ? (
+      {extraGroups.length > 0 ? (
         <span
           className="rounded-full border border-black/20 shadow-sm"
-          style={{ width: innerSize, height: innerSize, background: innerBackground }}
+          style={{ width: innerSize, height: innerSize, background: wedgeBackground(extraGroups) }}
         />
       ) : null}
     </span>
