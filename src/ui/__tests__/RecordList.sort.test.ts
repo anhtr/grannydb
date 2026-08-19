@@ -106,4 +106,23 @@ describe('sortRows', () => {
     // Amber first; within the Blue tie, holey (S002) sorts before solid (S001).
     expect(sorted.map((r) => r.id)).toEqual(['S003', 'S002', 'S001'])
   })
+
+  it('sorts a ref field label by its leading number, not digit-by-digit', () => {
+    const numericYarnRows = new Map([
+      ['Y1', { id: 'Y1', name: '129 (Sunflower)' }],
+      ['Y2', { id: 'Y2', name: '77 (Amber)' }],
+      ['Y3', { id: 'Y3', name: 'P03 (Periwinkle)' }],
+    ])
+    const numericResolve: ResolveRef = (table) =>
+      table === 'yarns' ? { schema: yarnsSchema, rows: numericYarnRows } : undefined
+    const numericRows = [
+      { id: 'S001', design_id: 'D1', construction_type: '', main_yarn: 'Y1' }, // 129
+      { id: 'S002', design_id: 'D1', construction_type: '', main_yarn: 'Y2' }, // 77
+      { id: 'S003', design_id: 'D1', construction_type: '', main_yarn: 'Y3' }, // P03
+    ]
+    const primary: SortSpec = { key: 'main_yarn', field: mainYarnField, dir: 'asc' }
+    const sorted = sortRows(numericRows, squaresSchema, primary, numericResolve)
+    // 77 before 129 (numeric, not lexicographic), P03 last (letters sort after digits).
+    expect(sorted.map((r) => r.id)).toEqual(['S002', 'S001', 'S003'])
+  })
 })

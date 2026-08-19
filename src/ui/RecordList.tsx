@@ -74,7 +74,7 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
           ? field.options.map((o) => ({ value: o, label: o }))
           : values
               .map((v) => ({ value: v, label: refDisplayLabel(field, v, resolve) }))
-              .sort((a, b) => a.label.localeCompare(b.label))
+              .sort((a, b) => compareIds(a.label, b.label))
       return { key: field.key, label: field.label, options, matches: (row, value) => fieldValue(row) === value }
     })
 
@@ -84,7 +84,7 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
       const values = [...new Set(data.rows.map(getValue).filter((v) => v !== ''))]
       const options = values
         .map((v) => ({ value: v, label: throughField ? refDisplayLabel(throughField, v, resolve) : v }))
-        .sort((a, b) => a.label.localeCompare(b.label))
+        .sort((a, b) => compareIds(a.label, b.label))
       return { key: filter.key, label: filter.label, options, matches: (row, value) => getValue(row) === value }
     })
 
@@ -110,14 +110,16 @@ function sortValue(schema: TableSchema, field: FieldDef, row: CsvRow, resolve: R
 }
 
 function compareValues(a: CsvRow, b: CsvRow, schema: TableSchema, spec: SortSpec, resolve: ResolveRef): number {
-  if (spec.key === 'title') return titleFor(schema, a).localeCompare(titleFor(schema, b))
+  if (spec.key === 'title') return compareIds(titleFor(schema, a), titleFor(schema, b))
   if (spec.field) {
     if (spec.field.type === 'number') {
       return (Number(a[spec.field.key]) || 0) - (Number(b[spec.field.key]) || 0)
     }
     const va = sortValue(schema, spec.field, a, resolve)
     const vb = sortValue(schema, spec.field, b, resolve)
-    return refDisplayLabel(spec.field, va, resolve).localeCompare(refDisplayLabel(spec.field, vb, resolve))
+    // Natural compare (not plain localeCompare) so a ref label like a yarn's "77 (Sunflower)" sorts by
+    // the leading number instead of digit-by-digit, which would put "129 (…)" before "77 (…)".
+    return compareIds(refDisplayLabel(spec.field, va, resolve), refDisplayLabel(spec.field, vb, resolve))
   }
   return compareIds(a[schema.idField] ?? '', b[schema.idField] ?? '')
 }
@@ -144,7 +146,7 @@ export function sortRows(
       const bySecondary = compareValues(a, b, schema, secondary, resolve)
       if (bySecondary !== 0) return secondSign * bySecondary
     }
-    const byTitle = titleFor(schema, a).localeCompare(titleFor(schema, b))
+    const byTitle = compareIds(titleFor(schema, a), titleFor(schema, b))
     if (byTitle !== 0) return byTitle
     return compareIds(a[schema.idField] ?? '', b[schema.idField] ?? '')
   })

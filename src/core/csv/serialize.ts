@@ -20,6 +20,8 @@ function quote(value: string): string {
 
 /**
  * Natural-order comparison so `S9` sorts before `S10` even if someone hand-edits an unpadded id.
+ * Generic enough to reuse for any display string with an embedded number (e.g. a ref label like
+ * "77 (Sunflower)"), not just id columns — see its callers in `RecordList`.
  */
 export function compareIds(a: string, b: string): number {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
