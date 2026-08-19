@@ -10,3 +10,5 @@ Added a round of hdc (+4sts per side) and a round of sc (+2sts per side). Ch2 co
 S008,2026-08-19,blocked,D08,,Y131,,,,
 S009,2026-08-19,blocked,D09,,Y131,Y62,,,
 S010,2026-08-19,blocked,D10,"Single color only ",Y131,,,,
+S011,2026-07-04,done,D11,Use less color,Y131,Y66;Y67,,,
+S012,2026-07-04,done,D12,Color change every 4sc instead of every 3sc,Y131,Y120,,,
