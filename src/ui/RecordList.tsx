@@ -17,8 +17,8 @@ import {
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import type { ListPrefs } from '../core/prefs'
 import { appStore, pendingRowIds } from '../core/store'
-import { useAppState, useResolveRef, useTable, useTableSchema } from '../app/hooks'
-import { Badge, Card, EmptyState, inputClass, Link, Spinner } from './components'
+import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema } from '../app/hooks'
+import { Badge, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
 
 interface FilterOption {
   value: string
@@ -174,6 +174,7 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
   const schema = useTableSchema(table)
   const data = useTable(table)
   const resolve = useResolveRef()
+  const canEdit = useCanEdit()
   const [query, setQuery] = useState('')
   const [listPrefs, setListPrefsState] = useState<ListPrefs>(() =>
     initialListPrefs(schema, state.prefs.lists[table]),
@@ -223,7 +224,7 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
   const sortActive = sortKey !== (schema.defaultSort?.key ?? 'id') || sortDir !== (schema.defaultSort?.direction ?? 'asc')
 
   return (
-    <div className="pb-24">
+    <div className="pb-32">
       {header}
 
       <div className="sticky top-0 z-10 space-y-2 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur">
@@ -326,6 +327,27 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
           })}
         </ul>
       )}
+
+      {canEdit ? <NewRecordButton table={table} schema={schema} /> : null}
+    </div>
+  )
+}
+
+/**
+ * Floating above the bottom nav rather than up in the header, so adding a record stays in thumb
+ * reach no matter how far the list has been scrolled. `pointer-events-none` on the wrapper lets taps
+ * pass through to the list on either side of the button; only the button itself re-enables them.
+ */
+function NewRecordButton({ table, schema }: { table: string; schema: TableSchema }) {
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-16 z-20 flex justify-end px-4 pb-safe">
+      <div className="mx-auto flex w-full max-w-2xl justify-end">
+        <Link to={`/${table}/new`} className="pointer-events-auto">
+          <Button variant="primary" className="shadow-lg shadow-black/20">
+            New {schema.labelSingular.toLowerCase()}
+          </Button>
+        </Link>
+      </div>
     </div>
   )
 }

@@ -3,13 +3,13 @@ import { appStore } from '../core/store'
 import { RecordDetail } from '../ui/RecordDetail'
 import { RecordForm } from '../ui/RecordForm'
 import { RecordList } from '../ui/RecordList'
-import { Button, ErrorNote, Link, PageHeader, Spinner } from '../ui/components'
+import { ErrorNote, Link, PageHeader, Spinner } from '../ui/components'
 import { SquaresPage } from '../features/squares/SquaresPage'
 import { YarnsPage } from '../features/yarns/YarnsPage'
 import { StatsPage } from '../features/stats/StatsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { SyncPage } from '../features/sync/SyncPage'
-import { useAppState, useCanEdit } from './hooks'
+import { useAppState } from './hooks'
 import { matchRoute, useRoute } from './router'
 
 /**
@@ -51,7 +51,6 @@ export function App() {
 
 function Screen({ path }: { path: string }) {
   const state = useAppState()
-  const canEdit = useCanEdit()
 
   if (path === '/' || path === '') {
     return <Redirect to="/squares" />
@@ -137,21 +136,7 @@ function Screen({ path }: { path: string }) {
     const override = TABLE_LIST_OVERRIDES[table]
     return (
       <main className="flex-1">
-        <PageHeader
-          title={schema.label}
-          action={
-            <div className="flex items-center gap-2">
-              <SyncButton />
-              {canEdit ? (
-                <Link to={`/${table}/new`}>
-                  <Button variant="primary" className="px-3">
-                    New
-                  </Button>
-                </Link>
-              ) : null}
-            </div>
-          }
-        />
+        <PageHeader title={schema.label} action={<SyncButton />} />
         {override ? override() : <RecordList key={table} table={table} />}
       </main>
     )
