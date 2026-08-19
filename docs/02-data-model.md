@@ -102,6 +102,9 @@ after a bulk colour import, before anything has been hand-named — the app show
 `titleFallback: "{product_id} ({name})"` instead of falling back to the bare id. See
 [ADR 0013](adr/0013-title-fallback-template.md).
 
+A yarn's "active" status, and its counts of squares using it as main colour vs. an extra colour, are
+**not columns** — see "Derived properties" below.
+
 ### `designs.csv`
 
 `id`, `name`, `source` (ref → sources), `construction_type` (enum: `solid` / `holey` — the value a
@@ -127,7 +130,7 @@ being retyped per design that cites it.
 | `url` | url | |
 | `note` | textarea | |
 
-## Two modelling decisions worth explaining
+## Three modelling decisions worth explaining
 
 ### Extra colours in one cell, not a join table
 
@@ -148,6 +151,27 @@ rather than a join. At 400 rows that is free.
 The migration path is real, not hypothetical: `reflist` is a *field type*, so moving to a join table
 means adding a `jointable` type to the schema layer and the field registry. Nothing else in the app
 knows how extra colours are stored.
+
+### Derived counts and flags, not columns
+
+The Yarns list shows each yarn's "active" status and its counts of squares using it as main colour
+vs. an extra colour; the Designs list shows each design's squares count. None of these are CSV
+columns. Each is a property of the relationship between a `yarns`/`designs` row and every `squares`
+row — a join, computed at read time by [`core/schema/relations.ts`](../src/core/schema/relations.ts)
+— rather than a value stored on the row itself.
+
+The same reasoning as derived filters ([ADR 0015](adr/0015-derived-filters-instead-of-a-materialised-column.md)):
+a stored `active` or `square_count` column would go stale the moment a square's `main_yarn`,
+`extra_yarns` or `design_id` changed, and nothing in the sync engine's field-level merge cascades an
+edit on one table into a computed column on another. Scanning `squares` at read time instead means
+there is only ever one copy of the fact.
+
+`isYarnActive` treats "active" as *either* signal, not their conjunction: a yarn is active if any
+skein (partial or not) is still in stash, **or** at least one square already cites it — so a
+used-up colour still explains an old square's yarn, and a freshly bought colour with no square yet
+still shows up as something to plan with. Both counts and the active flag are sortable/filterable in
+the Yarns and Designs lists via `RecordList`'s `extraSortOptions`/`extraFilters`, not the schema's
+`"sortable"`/`"filter"` flags — see [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md).
 
 ### Ids are permanent and never reused
 

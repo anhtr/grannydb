@@ -4,6 +4,24 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-19 — v0.1.12, active yarn, and squares-used counts for yarns and designs
+
+**App**
+- New `core/schema/relations.ts`: `isYarnActive` (a yarn with stash left, or cited by at least one
+  square, either signal), `yarnUsageCounts` (squares-as-main / squares-as-extra per yarn), and
+  `designSquareCounts` (squares per design) — all computed by scanning `squares` at read time, not
+  stored as columns. See [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md).
+- `RecordList` (`ui/RecordList.tsx`) gains `extraSortOptions`/`extraFilters` props, alongside the
+  schema-derived sort options and filter dropdowns it already builds, for a value with no field to
+  scan. `YarnsPage` now shows and can sort by each yarn's main/extra square counts, and can filter to
+  active/inactive yarns. `DesignsPage` is a new file (Designs previously used the generic `RecordList`
+  unmodified) that shows and can sort by each design's square count.
+
+**Docs**
+- [Data model](02-data-model.md) documents the derived-properties pattern under "Three modelling
+  decisions worth explaining." [App architecture](05-app-architecture.md) documents the new
+  `RecordList` props and `designs`' addition to `TABLE_LIST_OVERRIDES`.
+
 ## 2026-08-19 — v0.1.11, one way to draw a colourway: stripes, clipped to its shape
 
 **App**

@@ -25,11 +25,23 @@ interface FilterOption {
   label: string
 }
 
-interface FilterDescriptor {
+export interface FilterDescriptor {
   key: string
   label: string
   options: FilterOption[]
   matches: (row: CsvRow, value: string) => boolean
+}
+
+/**
+ * A sort option for a value that lives outside the schema — a cross-table count like "squares using
+ * this yarn as main", say — computed from data the page already has loaded rather than read off a
+ * field. Numeric only: every current use is a count, and a computed *label* sort would need its own
+ * comparison shape, not built until something actually needs it.
+ */
+export interface ComputedSortOption {
+  key: string
+  label: string
+  value: (row: CsvRow) => number
 }
 
 /**
@@ -99,6 +111,8 @@ export interface SortSpec {
   key: SortKey
   field: FieldDef | undefined
   dir: SortDir
+  /** Set instead of `field` for a sort computed outside the schema — see `ComputedSortOption`. */
+  computed?: ComputedSortOption
 }
 
 /** A sortable field's own value on `row` — the *effective* one when it has `inheritFrom`, same as
@@ -111,6 +125,7 @@ function sortValue(schema: TableSchema, field: FieldDef, row: CsvRow, resolve: R
 
 function compareValues(a: CsvRow, b: CsvRow, schema: TableSchema, spec: SortSpec, resolve: ResolveRef): number {
   if (spec.key === 'title') return compareIds(titleFor(schema, a), titleFor(schema, b))
+  if (spec.computed) return spec.computed.value(a) - spec.computed.value(b)
   if (spec.field) {
     if (spec.field.type === 'number') {
       return (Number(a[spec.field.key]) || 0) - (Number(b[spec.field.key]) || 0)
@@ -158,6 +173,10 @@ export interface RecordListProps {
   renderRow?: (row: CsvRow, schema: TableSchema) => ReactNode
   /** Extra content above the list, e.g. progress stats. */
   header?: ReactNode
+  /** Sort options for values computed outside the schema, e.g. a cross-table count. */
+  extraSortOptions?: ComputedSortOption[]
+  /** Filter dropdowns for values computed outside the schema, e.g. a derived flag. */
+  extraFilters?: FilterDescriptor[]
 }
 
 /** This table's remembered list state, or the schema's own default when nothing was saved yet. */
@@ -169,7 +188,7 @@ function initialListPrefs(schema: TableSchema | null, saved: ListPrefs | undefin
   }
 }
 
-export function RecordList({ table, renderRow, header }: RecordListProps) {
+export function RecordList({ table, renderRow, header, extraSortOptions, extraFilters }: RecordListProps) {
   const state = useAppState()
   const schema = useTableSchema(table)
   const data = useTable(table)
@@ -190,9 +209,12 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
   }
 
   const pending = useMemo(() => pendingRowIds(state.changes, table), [state.changes, table])
-  const filterDescriptors = useFilterDescriptors(schema, data)
+  const schemaFilterDescriptors = useFilterDescriptors(schema, data)
+  const filterDescriptors = [...schemaFilterDescriptors, ...(extraFilters ?? [])]
   const sortOptions = schema ? sortableFields(schema) : []
+  const computedSortOptions = extraSortOptions ?? []
   const sortField = schema ? sortOptions.find((f) => f.key === sortKey) : undefined
+  const sortComputed = computedSortOptions.find((c) => c.key === sortKey)
 
   // `thenBy` only kicks in while the list is showing exactly the schema's own default combination —
   // once the person picks a different primary sort from the dropdown, ties break by title/id like any
@@ -215,8 +237,14 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
         return !value || d.matches(row, value)
       })
     })
-    return sortRows(filtered, schema, { key: sortKey, field: sortField, dir: sortDir }, resolve, secondarySort)
-  }, [schema, data, query, filters, filterDescriptors, sortKey, sortField, sortDir, resolve, secondarySort])
+    return sortRows(
+      filtered,
+      schema,
+      { key: sortKey, field: sortField, dir: sortDir, computed: sortComputed },
+      resolve,
+      secondarySort,
+    )
+  }, [schema, data, query, filters, filterDescriptors, sortKey, sortField, sortComputed, sortDir, resolve, secondarySort])
 
   if (!schema || !data) return <Spinner />
 
@@ -237,9 +265,9 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        {filterDescriptors.length > 0 || sortOptions.length > 0 ? (
+        {filterDescriptors.length > 0 || sortOptions.length > 0 || computedSortOptions.length > 0 ? (
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-            {sortOptions.length > 0 ? (
+            {sortOptions.length > 0 || computedSortOptions.length > 0 ? (
               <>
                 <select
                   aria-label="Sort by"
@@ -254,6 +282,11 @@ export function RecordList({ table, renderRow, header }: RecordListProps) {
                   {sortOptions.map((field) => (
                     <option key={field.key} value={field.key}>
                       Sort: {field.label}
+                    </option>
+                  ))}
+                  {computedSortOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      Sort: {option.label}
                     </option>
                   ))}
                 </select>

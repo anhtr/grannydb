@@ -125,4 +125,18 @@ describe('sortRows', () => {
     // 77 before 129 (numeric, not lexicographic), P03 last (letters sort after digits).
     expect(sorted.map((r) => r.id)).toEqual(['S002', 'S001', 'S003'])
   })
+
+  it('sorts by a computed value outside the schema, not a field', () => {
+    // Squares-per-design, keyed by row id rather than a schema field — the shape a cross-table count
+    // like "squares using this design" takes.
+    const squaresPerDesign: Record<string, number> = { S001: 3, S002: 1, S003: 2 }
+    const primary: SortSpec = {
+      key: 'squareCount',
+      field: undefined,
+      dir: 'asc',
+      computed: { key: 'squareCount', label: 'Squares', value: (row) => squaresPerDesign[row.id] ?? 0 },
+    }
+    const sorted = sortRows(rows, squaresSchema, primary, resolve)
+    expect(sorted.map((r) => r.id)).toEqual(['S002', 'S003', 'S001'])
+  })
 })

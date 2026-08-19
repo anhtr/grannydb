@@ -21,3 +21,5 @@ export {
   derivedFilterValue,
   effectiveValue,
 } from './search'
+export type { YarnUsage } from './relations'
+export { yarnUsageCounts, isYarnActive, designSquareCounts } from './relations'

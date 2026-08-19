@@ -6,7 +6,7 @@
 src/
   core/            no React. Pure TypeScript, testable without a DOM.
     csv/           parse, serialize, row operations
-    schema/        types, loader, validation, search/filter/sort resolution
+    schema/        types, loader, validation, search/filter/sort resolution, cross-table counts
     github/        config, HTTP client, snapshot reads, commits, auth
     prefs/         device-local app preferences (project start date, per-table list filters/sort)
     store/         change queue, merge, sync, the app store
@@ -62,8 +62,10 @@ A `parse`/`validate` case in [`core/schema/validate.ts`](../src/core/schema/vali
 
 Non-table screens (Progress, Settings, Sync) are entries in `FIXED_ROUTES` in
 [`App.tsx`](../src/app/App.tsx). A table that wants a custom list registers a renderer in
-`TABLE_LIST_OVERRIDES` and inherits everything else: `squares` does, for the colour swatches, and
-`yarns` does, for the skeins-left/partial-skein badges a generic row has no field type to show.
+`TABLE_LIST_OVERRIDES` and inherits everything else: `squares` does, for the colour swatches; `yarns`
+does, for the skeins-left/partial-skein badges and the active/usage information below; and `designs`
+does, for its squares-used count — none of which a generic row has a field type to show, because none
+of them are schema fields (see [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md)).
 
 `App.tsx` mounts the generic `<RecordList>` with `key={table}`, so switching tables (Designs → Yarns
 in the bottom nav) always gets a fresh component instance instead of one React reuses in place —
@@ -133,6 +135,11 @@ Three components in `ui/` serve every table:
   is always fully determined. The list opens on the schema's `defaultSort` (or id, if it sets none)
   the first time it is visited on a device; after that, whatever filters and sort the person chooses
   are saved to `Prefs.lists[table]` (`core/prefs`) and restored next time — device-local, not synced.
+  A page can also pass `extraSortOptions`/`extraFilters` — the same shapes `sortableFields`/
+  `filterFields` build from the schema, but supplied by the caller for a value that has no field to
+  scan, e.g. a cross-table count. `YarnsPage` and `DesignsPage` both use this for counts computed by
+  [`core/schema/relations.ts`](../src/core/schema/relations.ts); see
+  [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md).
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, edit and delete,
   a link to the underlying CSV on github.com.
 - **[`RecordForm`](../src/ui/RecordForm.tsx)** — every field via its `Input`, validation on save
