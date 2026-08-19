@@ -1,5 +1,5 @@
-export type { FieldDef, FieldType, SchemaSet, TableSchema } from './types'
-export { fieldByKey, listFields, filterFields, schemaColumns, titleFor } from './types'
+export type { DerivedFilterDef, FieldDef, FieldType, SchemaSet, TableSchema } from './types'
+export { fieldByKey, listFields, filterFields, sortableFields, schemaColumns, titleFor } from './types'
 export { buildSchemaSet, parseTableSchema, SchemaError, schemaPath, manifestPath } from './load'
 export type { Issue } from './validate'
 export {
@@ -12,3 +12,11 @@ export {
   parseBool,
   formatBool,
 } from './validate'
+export type { RefLookup, ResolveRef } from './search'
+export {
+  matchesSearch,
+  searchText,
+  refDisplayLabel,
+  derivedFilterField,
+  derivedFilterValue,
+} from './search'

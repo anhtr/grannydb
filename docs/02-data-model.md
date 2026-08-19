@@ -182,18 +182,39 @@ A type is defined in two halves, deliberately split:
 Adding `image` later is one entry in each. Nothing else changes.
 
 A `ref` field can also set `"quickCreate": true`, which adds a "+ New &lt;thing&gt;" affordance to
-the field's `<select>` that creates a row in the target table — setting only its title field — without
+the field's picker that creates a row in the target table — setting only its title field — without
 leaving the current form. `squares.design_id` and `designs.source` both use it: most squares turn out
 to be a one-off design, and most designs cite a source already on file, so a separate "new X" screen
 for every one was pure friction. See
 [ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md).
 
-Two more knobs live on the *table*, not a field: `titleFallback` — a template like
-`"{product_id} ({name})"`, shown when `titleField` is blank instead of the bare row id, resolved by
-`titleFor()` in `core/schema/types.ts` — and `hideFromNav` — keeps a table out of the bottom nav while
-leaving it fully addressable, for a table like `sources` that exists to be pointed at by a `ref`
-field rather than browsed on its own. See [ADR 0013](adr/0013-title-fallback-template.md) and
-[ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
+A `ref`/`reflist` field is edited through a live-search combobox, not a bare `<select>` — practical
+once a table has more than a handful of rows, e.g. one design per square. `"searchFields"` on the
+field names which fields on the *referenced* row the search matches against (`squares.design_id` sets
+`["name", "source"]`, so picking a design searches by book as well as by name); omit it to search
+every field on the referenced row. See
+[ADR 0014](adr/0014-live-search-combobox-for-every-ref-field.md).
+
+Three more knobs live on the *table*, not a field:
+
+- `titleFallback` — a template like `"{product_id} ({name})"`, shown when `titleField` is blank
+  instead of the bare row id, resolved by `titleFor()` in `core/schema/types.ts`. See
+  [ADR 0013](adr/0013-title-fallback-template.md).
+- `hideFromNav` — keeps a table out of the bottom nav while leaving it fully addressable, for a table
+  like `sources` that exists to be pointed at by a `ref` field rather than browsed on its own. See
+  [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
+- `searchFields` — which of *this* table's own fields the list's search box matches against.
+  `designs.json` sets `["name"]`, so searching the Designs list matches the design's name and not the
+  source it resolves through; omit it to search every field, right for a table with few enough fields
+  that "search everything" is the honest default.
+
+A field can also set `"sortable": true` to appear as a sort option in that table's list, alongside the
+built-in sort by id and by title (`designs.source` uses it — see the sort control in
+[app-architecture](05-app-architecture.md#the-generic-crud-components)). And a table can set
+`"derivedFilters"` — filters computed by hopping through a `ref` field to a field on the table it
+points at, for filtering by something the table does not store directly. `squares.json` filters by
+`source` this way, hopping `design_id` to the design's `source`, since a square does not store a
+source itself. See [ADR 0015](adr/0015-derived-filters-instead-of-a-materialised-column.md).
 
 ## Schema evolution policy
 

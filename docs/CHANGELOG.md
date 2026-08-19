@@ -4,6 +4,53 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-18 — v0.1.4, searchable ref pickers, resolved filters, derived filters, sort
+
+**Data**
+- `FieldDef` gains `searchFields` (`ref`/`reflist` only: which fields on the *referenced* row a live
+  search matches — omit to search every field) and `sortable` (offer this field as a sort option in
+  list views). `TableSchema` gains `searchFields` (which of the table's own fields its list search box
+  matches — omit to search every field) and `derivedFilters` (filters computed by hopping through a
+  `ref` field to a field on the table it points at, for filtering by something the table does not
+  store directly). `buildSchemaSet` validates a `derivedFilters` entry's `via`/`throughField` the same
+  way it already validates `refTable` — both ends have to exist once every schema is loaded. See
+  [ADR 0014](adr/0014-live-search-combobox-for-every-ref-field.md) and
+  [ADR 0015](adr/0015-derived-filters-instead-of-a-materialised-column.md).
+- `designs.json` sets `"searchFields": ["name"]` (the Designs list search matches the design name, not
+  the source it resolves through) and marks `source` `"sortable": true`. `squares.json`'s `design_id`
+  sets `"searchFields": ["name", "source"]` (picking a design searches by book as well as by name) and
+  the table gains a `derivedFilters` entry filtering squares by source, hopping `design_id` to the
+  design's `source`.
+
+**App**
+- Every `ref`/`reflist` field is now a live-search combobox instead of a bare `<select>`/chip grid —
+  practical once a table has more than a handful of rows, e.g. one design per square.
+  `RefSelect`/`RefListInput` (`ui/fields.tsx`) become `RefSearchSelect` and a search-augmented
+  `RefListInput`, both built on `matchesSearch`/`searchText` (new `core/schema/search.ts`):
+  case-insensitive, matches any part of the text, `*`/`?` wildcards. `RefListInput` keeps already-
+  selected chips visible regardless of the current search text.
+- `RecordList` (`ui/RecordList.tsx`) resolves `ref`/`reflist` cells to their titles for search, filter
+  option labels and sort, instead of matching/showing the raw stored id — a filter dropdown now reads
+  "Granny Stripe" rather than "D03", and searching "granny stripe" finds a square by its design's name.
+  Filter dropdowns are built from fields marked `"filter": true` plus the schema's `derivedFilters`.
+  `DefaultRow`'s subtitle resolves the same way, so the Designs list now shows the source's name
+  instead of its id.
+- `RecordList` gains a sort control: id and title are always offered, plus any field marked
+  `"sortable": true`, sorted by the field's resolved (title, for a `ref`) text.
+- Progress screen's "Squares finished" count (`SquaresPage.tsx`) now counts `blocked` alongside `done`,
+  matching the Progress screen's own "Finished" stat — it had regressed to `done`-only when `blocked`
+  became a `status` value. The "in progress, by main colour" tally is now "Finished, by main colour":
+  it counts `done`/`blocked` squares instead of `in progress` ones, consistent with `status`'s default
+  of `done` and with every other "finished" number on the screen.
+
+**Tests**
+- `core/__tests__/search.test.ts`: `matchesSearch` (substring, case-insensitivity, wildcards, regex-
+  unsafe input), `searchText` (ref resolution, key restriction, dangling references),
+  `refDisplayLabel`, `derivedFilterField`/`derivedFilterValue`.
+- `schema.test.ts`: parsing `searchFields`/`sortable`, and `buildSchemaSet` accepting a valid
+  `derivedFilters` entry and rejecting a `via` that is not a `ref` field or a `throughField` that does
+  not exist on the target table.
+
 ## 2026-08-18 — v0.1.3, sources table, yarn display names, blocked as a status
 
 **Data**

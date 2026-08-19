@@ -18,7 +18,8 @@ function ProgressHeader({ schema }: { schema: TableSchema }) {
   const goal = schema.goal ?? 0
   if (!table || goal === 0) return null
 
-  const done = table.rows.filter((r) => (r.status ?? '') === 'done').length
+  // `blocked` is the stage after `done`, so a blocked square still counts toward the goal.
+  const done = table.rows.filter((r) => r.status === 'done' || r.status === 'blocked').length
   const percent = Math.min(100, Math.round((done / goal) * 100))
 
   return (

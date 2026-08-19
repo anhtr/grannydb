@@ -6,7 +6,7 @@
 src/
   core/            no React. Pure TypeScript, testable without a DOM.
     csv/           parse, serialize, row operations
-    schema/        types, loader, validation
+    schema/        types, loader, validation, search/filter/sort resolution
     github/        config, HTTP client, snapshot reads, commits, auth
     prefs/         device-local app preferences (currently: project start date)
     store/         change queue, merge, sync, the app store
@@ -118,15 +118,27 @@ Fixed routes are checked before `/:table` so `/settings` is not read as a table 
 
 Three components in `ui/` serve every table:
 
-- **[`RecordList`](../src/ui/RecordList.tsx)** — search across all cells, filter dropdowns built
-  from fields marked `"filter": true`, unsynced badges. Accepts a `renderRow` override.
+- **[`RecordList`](../src/ui/RecordList.tsx)** — search across cells (restricted to the table's
+  `searchFields` if it sets any, otherwise every field), filter dropdowns built from fields marked
+  `"filter": true` plus the schema's `derivedFilters`, a sort control (id and title always offered,
+  plus any field marked `"sortable": true`), unsynced badges. Accepts a `renderRow` override.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, edit and delete,
   a link to the underlying CSV on github.com.
 - **[`RecordForm`](../src/ui/RecordForm.tsx)** — every field via its `Input`, validation on save
   including referential integrity, sticky save bar.
 
-Search is a linear scan over every cell on each keystroke. At 400 rows that is imperceptible, and an
-index would have to be kept in step with the pending queue — complexity buying nothing.
+Search, filter options and sort all read a `ref`/`reflist` field by its *resolved* value — a design's
+name, not its `D03` id — via `searchText`/`refDisplayLabel` in
+[`core/schema/search.ts`](../src/core/schema/search.ts), so a search for "granny stripe" finds a
+square by design name and a filter dropdown lists design names instead of ids. The same module backs
+the live-search combobox `ref`/`reflist` fields use in the form (see
+[ADR 0014](adr/0014-live-search-combobox-for-every-ref-field.md)) and the cross-table hop a
+`derivedFilters` entry reads through (see
+[ADR 0015](adr/0015-derived-filters-instead-of-a-materialised-column.md)).
+
+Search is still a linear scan over every cell on each keystroke, resolving any `ref`/`reflist` cell it
+touches along the way. At 400 rows that is imperceptible, and an index would have to be kept in step
+with the pending queue — complexity buying nothing.
 
 ## Mobile conventions
 

@@ -42,6 +42,27 @@ export interface FieldDef {
    * one-offs — a design used by exactly one square — a separate create screen is pure friction.
    */
   quickCreate?: boolean
+  /**
+   * `ref`/`reflist` only: which fields on the *referenced* row the picker's live search matches
+   * against, e.g. a square's `design_id` searching the design's `name` and `source`. Omit to search
+   * every field on the referenced row.
+   */
+  searchFields?: string[]
+  /** Offer this field as a sort option in list views, alongside the built-in id and name sorts. */
+  sortable?: boolean
+}
+
+/**
+ * A filter computed by hopping through a `ref` field to a field on the table it points at, for
+ * filtering by something this table does not store directly — e.g. a square's design's source.
+ */
+export interface DerivedFilterDef {
+  key: string
+  label: string
+  /** A `ref` field on this table to hop through, e.g. "design_id". */
+  via: string
+  /** Field on the hopped-to table to read and offer as filter options, e.g. "source". */
+  throughField: string
 }
 
 export interface TableSchema {
@@ -72,6 +93,13 @@ export interface TableSchema {
    * fully addressable at `/<table>` and reachable by tapping a `ref` chip that points at it.
    */
   hideFromNav?: boolean
+  /**
+   * Which of this table's own fields the list search box matches against. Omit to search every
+   * field — right for a table with few enough fields that "search everything" is the honest default.
+   */
+  searchFields?: string[]
+  /** Filters computed by hopping through a `ref` field rather than read off a column directly. */
+  derivedFilters?: DerivedFilterDef[]
   fields: FieldDef[]
 }
 
@@ -91,6 +119,10 @@ export function listFields(schema: TableSchema): FieldDef[] {
 
 export function filterFields(schema: TableSchema): FieldDef[] {
   return schema.fields.filter((f) => f.filter)
+}
+
+export function sortableFields(schema: TableSchema): FieldDef[] {
+  return schema.fields.filter((f) => f.sortable)
 }
 
 /** Column order the writer should use for a table it has a schema for. */

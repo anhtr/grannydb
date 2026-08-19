@@ -94,6 +94,70 @@ describe('buildSchemaSet', () => {
     const bad = { ...yarns, fields: [...yarns.fields, { key: 'name', label: 'Again', type: 'text' }] }
     expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: bad })).toThrow(/duplicate field/)
   })
+
+  it('parses searchFields and sortable on a field', () => {
+    const withExtras = {
+      ...yarns,
+      fields: [...yarns.fields, { key: 'x', label: 'X', type: 'ref', refTable: 'yarns', searchFields: ['name'], sortable: true }],
+    }
+    const set = buildSchemaSet({ tables: ['yarns'] }, { yarns: withExtras })
+    const field = set.tables.yarns.fields.find((f) => f.key === 'x')
+    expect(field?.searchFields).toEqual(['name'])
+    expect(field?.sortable).toBe(true)
+  })
+
+  it('accepts a table-level derivedFilters entry that hops through a valid ref', () => {
+    const squares = {
+      table: 'squares',
+      file: 'data/squares.csv',
+      label: 'Squares',
+      labelSingular: 'Square',
+      idField: 'id',
+      titleField: 'id',
+      derivedFilters: [{ key: 'src', label: 'Source', via: 'ref_field', throughField: 'name' }],
+      fields: [
+        { key: 'id', label: 'ID', type: 'id' },
+        { key: 'ref_field', label: 'Ref', type: 'ref', refTable: 'yarns' },
+      ],
+    }
+    const set = buildSchemaSet({ tables: ['yarns', 'squares'] }, { yarns, squares })
+    expect(set.tables.squares.derivedFilters).toEqual([
+      { key: 'src', label: 'Source', via: 'ref_field', throughField: 'name' },
+    ])
+  })
+
+  it('rejects a derivedFilters "via" that is not a ref field', () => {
+    const squares = {
+      table: 'squares',
+      file: 'data/squares.csv',
+      label: 'Squares',
+      labelSingular: 'Square',
+      idField: 'id',
+      titleField: 'id',
+      derivedFilters: [{ key: 'src', label: 'Source', via: 'id', throughField: 'name' }],
+      fields: [{ key: 'id', label: 'ID', type: 'id' }],
+    }
+    expect(() => buildSchemaSet({ tables: ['squares'] }, { squares })).toThrow(/must name a ref field/)
+  })
+
+  it('rejects a derivedFilters "throughField" that does not exist on the target table', () => {
+    const squares = {
+      table: 'squares',
+      file: 'data/squares.csv',
+      label: 'Squares',
+      labelSingular: 'Square',
+      idField: 'id',
+      titleField: 'id',
+      derivedFilters: [{ key: 'src', label: 'Source', via: 'ref_field', throughField: 'nope' }],
+      fields: [
+        { key: 'id', label: 'ID', type: 'id' },
+        { key: 'ref_field', label: 'Ref', type: 'ref', refTable: 'yarns' },
+      ],
+    }
+    expect(() => buildSchemaSet({ tables: ['yarns', 'squares'] }, { yarns, squares })).toThrow(
+      /is not a field on "yarns"/,
+    )
+  })
 })
 
 describe('validateDataset', () => {

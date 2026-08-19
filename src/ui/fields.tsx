@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { FieldDef, FieldType } from '../core/schema'
-import { formatBool, joinList, parseBool, splitList, titleFor } from '../core/schema'
+import { formatBool, joinList, matchesSearch, parseBool, searchText, splitList, titleFor } from '../core/schema'
 import { appStore } from '../core/store'
-import { useLookup, useTableSchema } from '../app/hooks'
+import { useLookup, useResolveRef, useTableSchema } from '../app/hooks'
 import { Button, inputClass, Link, Swatch } from './components'
 
 /**
@@ -141,25 +141,99 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
   )
 }
 
-function RefSelect({ field, value, onChange, id }: FieldInputProps) {
+/**
+ * A `ref` field's picker: type to search, results narrow live. A `<select>` stops working once a
+ * table has more than a handful of rows — a design table is practically one design per square — so
+ * every `ref` gets a search box instead, matching case-insensitively against `field.searchFields`
+ * (or every field on the referenced row, if that is not set).
+ */
+function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
   const schema = useTableSchema(field.refTable ?? '')
   const lookup = useLookup(field.refTable ?? '')
-  const options = [...lookup.entries()]
+  const resolve = useResolveRef()
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+
+  const selectedRow = value !== '' ? lookup.get(value) : undefined
+  const selectedLabel = schema && selectedRow ? titleFor(schema, selectedRow) : value
+
+  const results = useMemo(() => {
+    if (!schema) return []
+    const entries = [...lookup.entries()]
+    const matched =
+      query.trim() === ''
+        ? entries
+        : entries.filter(([, row]) => matchesSearch(searchText(schema, row, resolve, field.searchFields), query))
+    return matched.sort((a, b) => titleFor(schema, a[1]).localeCompare(titleFor(schema, b[1]))).slice(0, 50)
+  }, [schema, lookup, query, resolve, field.searchFields])
 
   return (
     <div className="space-y-2">
-      <select id={id} className={inputClass} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">—</option>
-        {options.map(([rowId, row]) => (
-          <option key={rowId} value={rowId}>
-            {schema ? titleFor(schema, row) : rowId}
-          </option>
-        ))}
-        {/* Keep a dangling reference visible rather than silently resetting it to blank. */}
-        {value !== '' && !lookup.has(value) ? (
-          <option value={value}>{value} (missing)</option>
+      <div className="relative">
+        <div className="flex gap-2">
+          <input
+            id={id}
+            type="text"
+            className={inputClass}
+            placeholder={`Search ${schema?.labelSingular.toLowerCase() ?? '…'}`}
+            value={open ? query : selectedLabel}
+            onFocus={() => {
+              setOpen(true)
+              setQuery('')
+            }}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setOpen(true)
+            }}
+            onBlur={() => {
+              // Let the click on a result register before the list disappears.
+              setTimeout(() => setOpen(false), 150)
+            }}
+          />
+          {value !== '' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onChange('')
+                setQuery('')
+              }}
+            >
+              Clear
+            </Button>
+          ) : null}
+        </div>
+        {open ? (
+          <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-line bg-card shadow-lg">
+            {results.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-muted">No matches</li>
+            ) : (
+              results.map(([rowId, row]) => (
+                <li key={rowId}>
+                  <button
+                    type="button"
+                    className="tap-target flex w-full items-center gap-2 px-3 text-left text-sm hover:bg-line/40"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onChange(rowId)
+                      setQuery('')
+                      setOpen(false)
+                    }}
+                  >
+                    {schema?.swatchField ? <Swatch hex={row[schema.swatchField]} size={14} /> : null}
+                    {schema ? titleFor(schema, row) : rowId}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
         ) : null}
-      </select>
+      </div>
+      {/* Keep a dangling reference visible rather than silently resetting it to blank. */}
+      {value !== '' && !lookup.has(value) ? (
+        <p className="text-sm text-red-600 dark:text-red-400">{value} (missing)</p>
+      ) : null}
       {field.quickCreate && field.refTable ? (
         <QuickCreate refTable={field.refTable} onCreated={onChange} />
       ) : null}
@@ -168,17 +242,19 @@ function RefSelect({ field, value, onChange, id }: FieldInputProps) {
 }
 
 /**
- * Multi-reference stored in a single cell, e.g. `Y03;Y11;Y07`.
- *
- * Rendered as tap-to-toggle chips rather than a multi-select, which is close to unusable on a
- * phone. Selection order is preserved, because for a square the order the colours were worked in
- * is real information.
+ * Multi-reference stored in a single cell, e.g. `Y03;Y11;Y07`, as a live search plus tap-to-toggle
+ * chips rather than a `<select multiple>`, which is close to unusable on a phone. Search narrows
+ * which chips are offered; anything already selected stays visible regardless of the search text, so
+ * typing to find one more colour never hides the ones already picked. Selection order is preserved,
+ * because for a square the order colours were worked in is real information.
  */
 function RefListInput({ field, value, onChange }: FieldInputProps) {
   const separator = field.separator ?? ';'
   const selected = splitList(value, separator)
   const schema = useTableSchema(field.refTable ?? '')
   const lookup = useLookup(field.refTable ?? '')
+  const resolve = useResolveRef()
+  const [query, setQuery] = useState('')
 
   const toggle = (rowId: string) => {
     const next = selected.includes(rowId)
@@ -187,28 +263,49 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
     onChange(joinList(next, separator))
   }
 
+  const entries = [...lookup.entries()]
+  const visible = schema
+    ? entries.filter(
+        ([rowId, row]) =>
+          selected.includes(rowId) ||
+          matchesSearch(searchText(schema, row, resolve, field.searchFields), query),
+      )
+    : entries
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {[...lookup.entries()].map(([rowId, row]) => {
-        const active = selected.includes(rowId)
-        const position = selected.indexOf(rowId) + 1
-        return (
-          <button
-            key={rowId}
-            type="button"
-            onClick={() => toggle(rowId)}
-            aria-pressed={active}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition ${
-              active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-            }`}
-          >
-            {schema?.swatchField ? <Swatch hex={row[schema.swatchField]} size={14} /> : null}
-            {schema ? titleFor(schema, row) : rowId}
-            {active ? <span className="text-xs opacity-70">{position}</span> : null}
-          </button>
-        )
-      })}
-      {lookup.size === 0 ? <Muted>Nothing to pick from yet.</Muted> : null}
+    <div className="space-y-2">
+      {entries.length > 0 ? (
+        <input
+          type="search"
+          className={inputClass}
+          placeholder={`Search ${schema?.label.toLowerCase() ?? '…'}`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        {visible.map(([rowId, row]) => {
+          const active = selected.includes(rowId)
+          const position = selected.indexOf(rowId) + 1
+          return (
+            <button
+              key={rowId}
+              type="button"
+              onClick={() => toggle(rowId)}
+              aria-pressed={active}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition ${
+                active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+              }`}
+            >
+              {schema?.swatchField ? <Swatch hex={row[schema.swatchField]} size={14} /> : null}
+              {schema ? titleFor(schema, row) : rowId}
+              {active ? <span className="text-xs opacity-70">{position}</span> : null}
+            </button>
+          )
+        })}
+        {entries.length === 0 ? <Muted>Nothing to pick from yet.</Muted> : null}
+        {entries.length > 0 && visible.length === 0 ? <Muted>No matches.</Muted> : null}
+      </div>
     </div>
   )
 }
@@ -296,7 +393,7 @@ export const fieldRenderers: Record<FieldType, FieldRenderer> = {
   },
 
   ref: {
-    Input: RefSelect,
+    Input: RefSearchSelect,
     Display: ({ field, value }) =>
       value === '' ? <Muted>—</Muted> : <RefChip id={value} refTable={field.refTable} />,
   },

@@ -91,9 +91,9 @@ export function StatsPage() {
     // A square counts once per colour it uses, main or extra, so this measures yarn reach rather
     // than square count. Deduped per square so a colour used twice in one square counts once.
     const byYarn = new Map<string, number>()
-    // Main colour only, and only squares still in progress — which skein is actually on the hook
-    // right now, as opposed to byYarn's all-time, all-colour reach.
-    const byMainYarnInProgress = new Map<string, number>()
+    // Main colour only, and only squares actually finished (done or blocked) — which colours the
+    // finished pile is made of, as opposed to byYarn's all-status, main-plus-extra reach.
+    const byMainYarnFinished = new Map<string, number>()
 
     for (const row of rows) {
       byStatus.set(row.status || '(none)', (byStatus.get(row.status || '(none)') ?? 0) + 1)
@@ -101,8 +101,8 @@ export function StatsPage() {
       const used = new Set([row.main_yarn ?? '', ...splitList(row.extra_yarns ?? '')])
       used.delete('')
       for (const id of used) byYarn.set(id, (byYarn.get(id) ?? 0) + 1)
-      if (row.status === 'in progress' && row.main_yarn) {
-        byMainYarnInProgress.set(row.main_yarn, (byMainYarnInProgress.get(row.main_yarn) ?? 0) + 1)
+      if ((row.status === 'done' || row.status === 'blocked') && row.main_yarn) {
+        byMainYarnFinished.set(row.main_yarn, (byMainYarnFinished.get(row.main_yarn) ?? 0) + 1)
       }
     }
 
@@ -132,7 +132,7 @@ export function StatsPage() {
       byStatus: sortDesc(byStatus),
       byDesign: sortDesc(byDesign),
       byYarn: sortDesc(byYarn),
-      byMainYarnInProgress: sortDesc(byMainYarnInProgress),
+      byMainYarnFinished: sortDesc(byMainYarnFinished),
     }
   }, [squares, projectStartDate])
 
@@ -173,9 +173,9 @@ export function StatsPage() {
       />
 
       <TallyCard
-        title="In progress, by main colour"
-        note="Only squares currently in progress, and only the main colour."
-        items={stats.byMainYarnInProgress.map(([key, count]) => ({
+        title="Finished, by main colour"
+        note="Only finished squares (done or blocked), and only the main colour."
+        items={stats.byMainYarnFinished.map(([key, count]) => ({
           key,
           label: yarnLabel(yarnSchema, yarns.get(key), key),
           hex: yarns.get(key)?.hex ?? '',

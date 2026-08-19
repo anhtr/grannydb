@@ -10,6 +10,9 @@
   "titleField": "id",
   "subtitleField": "design_id",
   "goal": 400,
+  "derivedFilters": [
+    { "key": "source", "label": "Source", "via": "design_id", "throughField": "source" }
+  ],
   "fields": [
     { "key": "id", "label": "ID", "type": "id", "list": true },
     { "key": "date", "label": "Date", "type": "date", "list": true, "defaultToday": true },
@@ -23,7 +26,7 @@
       "filter": true,
       "help": "Blocked comes after done: the square is crocheted and has also been blocked."
     },
-    { "key": "design_id", "label": "Design", "type": "ref", "refTable": "designs", "list": true, "filter": true, "quickCreate": true },
+    { "key": "design_id", "label": "Design", "type": "ref", "refTable": "designs", "list": true, "filter": true, "quickCreate": true, "searchFields": ["name", "source"] },
     { "key": "customization", "label": "Customization", "type": "textarea", "help": "How you deviated from the pattern." },
     { "key": "main_yarn", "label": "Main colour", "type": "ref", "refTable": "yarns", "list": true, "filter": true },
     { "key": "extra_yarns", "label": "Extra colours", "type": "reflist", "refTable": "yarns", "separator": ";", "list": true },

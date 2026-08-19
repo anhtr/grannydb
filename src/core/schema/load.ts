@@ -1,4 +1,4 @@
-import type { FieldDef, FieldType, SchemaSet, TableSchema } from './types'
+import type { DerivedFilterDef, FieldDef, FieldType, SchemaSet, TableSchema } from './types'
 
 export class SchemaError extends Error {
   constructor(message: string) {
@@ -47,6 +47,21 @@ function parseField(raw: unknown, where: string): FieldDef {
     separator: typeof o.separator === 'string' ? o.separator : undefined,
     defaultToday: o.defaultToday === true,
     quickCreate: o.quickCreate === true,
+    searchFields: Array.isArray(o.searchFields) ? (o.searchFields as string[]) : undefined,
+    sortable: o.sortable === true,
+  }
+}
+
+function parseDerivedFilter(raw: unknown, where: string): DerivedFilterDef {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new SchemaError(`${where}: derived filter must be an object`)
+  }
+  const o = raw as Record<string, unknown>
+  return {
+    key: str(o, 'key', where),
+    label: str(o, 'label', where),
+    via: str(o, 'via', where),
+    throughField: str(o, 'throughField', where),
   }
 }
 
@@ -88,6 +103,10 @@ export function parseTableSchema(raw: unknown): TableSchema {
     swatchField: typeof o.swatchField === 'string' ? o.swatchField : undefined,
     goal: typeof o.goal === 'number' ? o.goal : undefined,
     hideFromNav: o.hideFromNav === true,
+    searchFields: Array.isArray(o.searchFields) ? (o.searchFields as string[]) : undefined,
+    derivedFilters: Array.isArray(o.derivedFilters)
+      ? o.derivedFilters.map((f) => parseDerivedFilter(f, `${where}.derivedFilters`))
+      : undefined,
     fields,
   }
 }
@@ -120,6 +139,24 @@ export function buildSchemaSet(manifest: unknown, rawTables: Record<string, unkn
       if (field.refTable && !tables[field.refTable]) {
         throw new SchemaError(
           `schema[${schema.table}].${field.key}: refTable "${field.refTable}" is not a known table`,
+        )
+      }
+    }
+  }
+
+  // Derived filters hop through a ref field to a field on the table it points at, so both ends have
+  // to exist — checkable only once every schema is loaded, same as the refTable check above.
+  for (const schema of Object.values(tables)) {
+    for (const filter of schema.derivedFilters ?? []) {
+      const where = `schema[${schema.table}].derivedFilters.${filter.key}`
+      const viaField = schema.fields.find((f) => f.key === filter.via)
+      if (!viaField || !viaField.refTable) {
+        throw new SchemaError(`${where}: "via" must name a ref field on "${schema.table}"`)
+      }
+      const viaSchema = tables[viaField.refTable]
+      if (!viaSchema.fields.some((f) => f.key === filter.throughField)) {
+        throw new SchemaError(
+          `${where}: "throughField" "${filter.throughField}" is not a field on "${viaField.refTable}"`,
         )
       }
     }
