@@ -193,4 +193,22 @@ describe('commitMessage', () => {
     expect(subject).toBe('Update 2 squares, remove 1 yarn')
     expect(message).toContain('- delete yarns/Y03')
   })
+
+  it('spells out which fields changed and what they became, using field labels', () => {
+    const message = commitMessage(
+      [
+        change({
+          table: 'squares',
+          rowId: 'S001',
+          op: 'upsert',
+          ts: 1,
+          values: { id: 'S001', main_yarn: 'Y02', notes: '' },
+        }),
+      ],
+      schemas,
+    )
+    expect(message).toContain('- save squares/S001 — Main: Y02, Notes: (blank)')
+    // The id is already in the "table/rowId" address; repeating it in the field list is noise.
+    expect(message).not.toContain('ID:')
+  })
 })

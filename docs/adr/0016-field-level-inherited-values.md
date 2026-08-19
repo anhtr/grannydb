@@ -60,7 +60,10 @@ something instead of meaning "unset."
 - One hop only, same restriction `derivedFilters` accepted for the same reason: a field that needed to
   inherit through a chain of two `ref` hops would need a second mechanism, not built because nothing
   here needs it.
-- Not built: filtering squares by *effective* construction type. `filterFields` matches a row's raw
-  stored value, which would only ever match squares that explicitly override — filtering by whatever a
-  square resolves to would need the filter machinery to call `effectiveValue` too, which is a real
-  extension but not one this change needed.
+- **Update, 2026-08-19:** filtering by effective value is now built. `squares.json` marks
+  `construction_type` `"filter": true`, and `RecordList`'s filter descriptors (`ui/RecordList.tsx`)
+  call `effectiveValue()` for any field with `inheritFrom` instead of reading the row's raw cell — so
+  filtering by "holey" now includes squares that inherit `holey` from their design, not just squares
+  that explicitly set it. Same one-hop mechanism, no new abstraction: the filter's option list and its
+  `matches` predicate both resolve through the field the same way `RecordDetail` and `RecordForm`
+  already did.

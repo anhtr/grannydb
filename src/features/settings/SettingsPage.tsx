@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { appStore } from '../../core/store'
 import { commitUrl, DEFAULT_CONFIG, repoUrl } from '../../core/github'
 import type { ConnectionCheck, RepoConfig } from '../../core/github'
-import { useAppState } from '../../app/hooks'
+import { useAppState, useTableSchema } from '../../app/hooks'
 import { Button, Card, inputClass } from '../../ui/components'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -44,16 +44,29 @@ function Field({
   )
 }
 
+function goalInputToPref(input: string): number | null {
+  const trimmed = input.trim()
+  if (trimmed === '') return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 export function SettingsPage() {
   const state = useAppState()
+  const squaresSchema = useTableSchema('squares')
   const [token, setToken] = useState('')
   const [config, setConfig] = useState<RepoConfig>(state.config)
   const [check, setCheck] = useState<ConnectionCheck | null>(null)
   const [busy, setBusy] = useState(false)
   const [startDate, setStartDate] = useState(state.prefs.projectStartDate)
+  const [goalInput, setGoalInput] = useState(
+    state.prefs.squaresGoal === null ? '' : String(state.prefs.squaresGoal),
+  )
 
   const configDirty = JSON.stringify(config) !== JSON.stringify(state.config)
   const startDateDirty = startDate !== state.prefs.projectStartDate
+  const goalDirty = goalInputToPref(goalInput) !== state.prefs.squaresGoal
+  const projectDirty = startDateDirty || goalDirty
 
   const onSaveToken = async () => {
     if (token.trim() === '') return
@@ -139,17 +152,36 @@ export function SettingsPage() {
           onChange={setStartDate}
           hint="When you started the blanket. Used to size the pace calculation on the Progress screen so it isn't diluted by weeks before you began."
         />
+        <Field
+          label="Target squares"
+          type="number"
+          value={goalInput}
+          onChange={setGoalInput}
+          hint={`How many squares finish the blanket, shown as "X / target" on Progress and Stats. Leave blank to use the schema default (currently ${squaresSchema?.goal ?? '—'}).`}
+        />
         <div className="flex flex-wrap gap-2 px-4 py-3">
           <Button
             variant="primary"
-            disabled={!startDateDirty}
-            onClick={() => appStore.setPrefs({ ...state.prefs, projectStartDate: startDate })}
+            disabled={!projectDirty}
+            onClick={() =>
+              appStore.setPrefs({
+                ...state.prefs,
+                projectStartDate: startDate,
+                squaresGoal: goalInputToPref(goalInput),
+              })
+            }
           >
             Save
           </Button>
-          {startDate !== '' ? (
-            <Button variant="ghost" onClick={() => setStartDate('')}>
-              Clear
+          {startDate !== '' || goalInput !== '' ? (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setStartDate('')
+                setGoalInput('')
+              }}
+            >
+              Clear both
             </Button>
           ) : null}
         </div>

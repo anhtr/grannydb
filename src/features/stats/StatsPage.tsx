@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import type { CsvRow } from '../../core/csv'
-import { splitList, titleFor } from '../../core/schema'
+import { effectiveGoal } from '../../core/prefs'
+import { effectiveValue, fieldByKey, splitList, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
-import { useAppState, useLookup, useTable, useTableSchema } from '../../app/hooks'
+import { useAppState, useLookup, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Card, Spinner, Swatch } from '../../ui/components'
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
@@ -60,6 +61,38 @@ function TallyCard({ title, items, note }: { title: string; items: Tally[]; note
   )
 }
 
+interface ColourImbalance {
+  key: string
+  label: string
+  hex?: string
+  /** How many more squares of this colour would be needed in each short construction, to match the fullest one. */
+  deficits: { construction: string; count: number }[]
+}
+
+function ImbalanceCard({ title, note, items }: { title: string; note?: string; items: ColourImbalance[] }) {
+  return (
+    <Card className="p-4">
+      <h2 className="font-medium">{title}</h2>
+      {note ? <p className="mt-0.5 text-xs text-muted">{note}</p> : null}
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">Nothing recorded yet.</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {items.map((item) => (
+            <li key={item.key} className="flex items-center gap-2 text-sm">
+              {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <span className="shrink-0 text-xs text-muted">
+                {item.deficits.map((d) => `${d.count} short in ${d.construction}`).join(', ')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <Card className="p-4">
@@ -76,15 +109,23 @@ export function StatsPage() {
   const yarns = useLookup('yarns')
   const yarnSchema = useTableSchema('yarns')
   const designs = useLookup('designs')
-  const projectStartDate = useAppState().prefs.projectStartDate
+  const prefs = useAppState().prefs
+  const resolve = useResolveRef()
 
   const stats = useMemo(() => {
-    if (!squares) return null
+    if (!squares || !schema) return null
     const rows = squares.rows
     // "blocked" is the stage after "done" (crocheted, then blocked) rather than a separate
     // property, so both statuses count as finished squares toward the goal.
     const finished = rows.filter((r) => r.status === 'done' || r.status === 'blocked')
     const blocked = rows.filter((r) => r.status === 'blocked')
+
+    // A square's own `construction_type` cell is usually blank and means "same as its design" (see
+    // ADR 0016), so every construction tally below reads the *effective* value rather than the raw
+    // column — otherwise squares that inherit their construction would vanish from these counts.
+    const constructionField = fieldByKey(schema, 'construction_type')
+    const constructionOf = (row: CsvRow): string =>
+      constructionField ? effectiveValue(schema, constructionField, row, resolve).value : ''
 
     const byStatus = new Map<string, number>()
     const byDesign = new Map<string, number>()
@@ -94,6 +135,11 @@ export function StatsPage() {
     // Main colour only, and only squares actually finished (done or blocked) — which colours the
     // finished pile is made of, as opposed to byYarn's all-status, main-plus-extra reach.
     const byMainYarnFinished = new Map<string, number>()
+    // Finished squares only, tallied by their effective construction type.
+    const byConstructionFinished = new Map<string, number>()
+    // Finished squares' main colour, tallied per construction type, so a colour's counts can be
+    // compared across constructions to spot ones that are lopsided.
+    const byYarnConstructionFinished = new Map<string, Map<string, number>>()
 
     for (const row of rows) {
       byStatus.set(row.status || '(none)', (byStatus.get(row.status || '(none)') ?? 0) + 1)
@@ -101,16 +147,52 @@ export function StatsPage() {
       const used = new Set([row.main_yarn ?? '', ...splitList(row.extra_yarns ?? '')])
       used.delete('')
       for (const id of used) byYarn.set(id, (byYarn.get(id) ?? 0) + 1)
-      if ((row.status === 'done' || row.status === 'blocked') && row.main_yarn) {
-        byMainYarnFinished.set(row.main_yarn, (byMainYarnFinished.get(row.main_yarn) ?? 0) + 1)
+      if (row.status === 'done' || row.status === 'blocked') {
+        const construction = constructionOf(row)
+        if (row.main_yarn) {
+          byMainYarnFinished.set(row.main_yarn, (byMainYarnFinished.get(row.main_yarn) ?? 0) + 1)
+        }
+        if (construction) {
+          byConstructionFinished.set(construction, (byConstructionFinished.get(construction) ?? 0) + 1)
+          if (row.main_yarn) {
+            const byConstruction = byYarnConstructionFinished.get(row.main_yarn) ?? new Map<string, number>()
+            byConstruction.set(construction, (byConstruction.get(construction) ?? 0) + 1)
+            byYarnConstructionFinished.set(row.main_yarn, byConstruction)
+          }
+        }
       }
     }
+
+    // A colour is "imbalanced" when it has more finished squares in one construction than another —
+    // the gap is a deficit relative to whichever construction that colour is furthest along in.
+    // Only compares constructions the schema actually defines, not just ones seen in the data, so a
+    // colour with zero squares of a construction still shows the full gap rather than being skipped.
+    const constructionTypes = constructionField?.options ?? []
+    const colourImbalances: ColourImbalance[] = []
+    for (const [yarnId, counts] of byYarnConstructionFinished) {
+      const max = Math.max(...constructionTypes.map((c) => counts.get(c) ?? 0))
+      const deficits = constructionTypes
+        .map((construction) => ({ construction, count: max - (counts.get(construction) ?? 0) }))
+        .filter((d) => d.count > 0)
+      if (deficits.length === 0) continue
+      colourImbalances.push({
+        key: yarnId,
+        label: yarnLabel(yarnSchema, yarns.get(yarnId), yarnId),
+        hex: yarns.get(yarnId)?.hex ?? '',
+        deficits,
+      })
+    }
+    colourImbalances.sort(
+      (a, b) =>
+        b.deficits.reduce((sum, d) => sum + d.count, 0) - a.deficits.reduce((sum, d) => sum + d.count, 0) ||
+        a.label.localeCompare(b.label),
+    )
 
     // Pace over a trailing window, from the dates on finished squares. The window is normally 4
     // weeks, but shrinks to however long the project has actually been running when that is less —
     // otherwise a project in its second week would have its pace divided by 4 anyway and read as a
     // quarter of the real rate.
-    const startMs = projectStartDate ? Date.parse(projectStartDate) : NaN
+    const startMs = prefs.projectStartDate ? Date.parse(prefs.projectStartDate) : NaN
     const elapsedWeeks = Number.isFinite(startMs) ? (Date.now() - startMs) / MS_PER_WEEK : Infinity
     const paceWindowWeeks = Math.min(PACE_WINDOW_WEEKS, Math.max(elapsedWeeks, 1 / 7))
     const cutoff = Date.now() - paceWindowWeeks * MS_PER_WEEK
@@ -133,12 +215,14 @@ export function StatsPage() {
       byDesign: sortDesc(byDesign),
       byYarn: sortDesc(byYarn),
       byMainYarnFinished: sortDesc(byMainYarnFinished),
+      byConstructionFinished: sortDesc(byConstructionFinished),
+      colourImbalances,
     }
-  }, [squares, projectStartDate])
+  }, [squares, schema, prefs, resolve, yarns, yarnSchema])
 
   if (!stats || !schema) return <Spinner />
 
-  const goal = schema.goal ?? 0
+  const goal = effectiveGoal(schema, prefs)
   const remaining = Math.max(0, goal - stats.done)
   const weeksLeft = stats.perWeek > 0 ? Math.ceil(remaining / stats.perWeek) : null
 
@@ -201,6 +285,18 @@ export function StatsPage() {
           label: designs.get(key)?.name ?? '(no design)',
           count,
         }))}
+      />
+
+      <TallyCard
+        title="Finished, by construction"
+        note="Only finished squares (done or blocked). A square with no construction of its own counts by its design's."
+        items={stats.byConstructionFinished.map(([key, count]) => ({ key, label: key, count }))}
+      />
+
+      <ImbalanceCard
+        title="Colour imbalance by construction"
+        note="Main colours where finished squares favour one construction over another, and by how much."
+        items={stats.colourImbalances}
       />
     </div>
   )

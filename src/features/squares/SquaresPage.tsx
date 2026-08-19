@@ -1,7 +1,8 @@
 import type { CsvRow } from '../../core/csv'
+import { effectiveGoal } from '../../core/prefs'
 import { splitList, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
-import { useLookup, useTable, useTableSchema } from '../../app/hooks'
+import { useAppState, useLookup, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, Swatch } from '../../ui/components'
 import { RecordList } from '../../ui/RecordList'
 
@@ -15,7 +16,8 @@ const statusTone: Record<string, 'neutral' | 'accent' | 'warn'> = {
 /** Progress toward the blanket, shown above the list because it is the reason for the app. */
 function ProgressHeader({ schema }: { schema: TableSchema }) {
   const table = useTable('squares')
-  const goal = schema.goal ?? 0
+  const prefs = useAppState().prefs
+  const goal = effectiveGoal(schema, prefs)
   if (!table || goal === 0) return null
 
   // `blocked` is the stage after `done`, so a blocked square still counts toward the goal.

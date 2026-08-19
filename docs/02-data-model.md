@@ -72,6 +72,10 @@ see [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
 | `notes` | textarea | |
 | `construction_type` | enum, inherited | `solid` / `holey`. Blank means "use the design's" — see [ADR 0016](adr/0016-field-level-inherited-values.md) |
 
+The goal itself — `squares.json`'s `"goal": 400` — is overridable per device from Settings → Project
+→ "Target squares," without touching the schema file. See
+[ADR 0017](adr/0017-device-local-goal-override.md).
+
 `blocked` is a `status` value, not a separate field: it is the stage *after* `done` (crocheted, then
 also blocked), so a blocked square is still counted as finished toward the goal. It used to be an
 independent boolean that could combine with any status; that let a square be `planned` and `blocked`
@@ -237,6 +241,14 @@ the design for that square alone. `effectiveValue()` (`core/schema/search.ts`) r
 if set, else the hop, else blank — and both the read view and the edit form call it, so a blank field
 shows what it actually resolves to rather than looking like a forgotten one. See
 [ADR 0016](adr/0016-field-level-inherited-values.md).
+
+Marking such a field `"filter": true` (as `squares.construction_type` now does) filters on that
+*resolved* value too, not the raw stored cell — `RecordList`'s filter descriptors call
+`effectiveValue()` the same way the read view and form do, so a square that inherits its
+construction from its design is filtered correctly even though its own cell is blank. Filtering on
+the raw cell would only ever match the rare overriding square. See the "Consequences" section of
+[ADR 0016](adr/0016-field-level-inherited-values.md), which flagged this as the one thing the
+original change deliberately left undone.
 
 A table can also set `"defaultSort"` — `{ "key": "...", "direction": "asc" | "desc" }` — the sort a
 list opens with the first time it is visited on a device, before the person picks one of their own

@@ -4,6 +4,45 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-19 — v0.1.7, verbose commit bodies, construction filter, construction stats, goal override
+
+**Data**
+- `squares.json`'s `construction_type` gains `"filter": true` — squares can now be filtered by
+  construction the same way designs already could.
+
+**App**
+- `Prefs` (`core/prefs`) gains `squaresGoal: number | null`, a device-local override for
+  `squares.json`'s `"goal": 400`, `null` meaning "use the schema's." New `effectiveGoal(schema,
+  prefs)` resolves it; the Progress header (`SquaresPage.tsx`) and Stats screen both call it instead
+  of reading `schema.goal` directly. Settings → Project gains a "Target squares" field next to
+  "Start date," sharing one Save button. Resolves
+  [issue #1](https://github.com/anhtr/grannydb/issues/1). See
+  [ADR 0017](adr/0017-device-local-goal-override.md).
+- `commitMessage()` (`core/store/message.ts`) now spells out, per row, which fields a `save` line
+  actually changed and what they became (`- save squares/S041 — Status: done, Main colour: Y004`),
+  using each field's label and its `Change.values` entry (already a diff — see
+  [sync-engine](04-sync-engine.md#partial-values-is-load-bearing)), with `(blank)` standing in for an
+  empty string. Previously the body only named the row (`- save squares/S041`), which meant `git log`
+  alone could not answer "what actually changed" without a diff. `delete` lines are unchanged.
+- `RecordList`'s filter descriptors (`ui/RecordList.tsx`) now call `effectiveValue()` for any field
+  with `inheritFrom`, so filtering matches what the field *resolves to* rather than its raw stored
+  cell — a square that leaves `construction_type` blank and inherits it from its design is now found
+  by the Construction filter, not just squares that explicitly override it. This was the one thing
+  [ADR 0016](adr/0016-field-level-inherited-values.md) deliberately left undone when `inheritFrom`
+  shipped; see its updated "Consequences".
+- Stats screen: two new breakdowns, both counting only finished (`done`/`blocked`) squares by their
+  *effective* construction type (own value, or the design's when blank — same `effectiveValue()` hop).
+  "Finished, by construction" is a tally card like the existing status/colour/design ones. "Colour
+  imbalance by construction" lists main colours whose finished-square count differs across
+  construction types — e.g. a colour made in 10 solid squares but only 6 holey ones shows "4 short in
+  holey" — comparing every construction the schema defines (`squares.json`'s `construction_type`
+  options), not just ones seen in the data, so a colour entirely missing from one construction still
+  shows the full gap instead of being silently skipped.
+
+**Tests**
+- `queue.test.ts`: `commitMessage` includes field labels and values in the body, and omits the id
+  field (already implied by the `table/rowId` address on the line).
+
 ## 2026-08-18 — v0.1.6, construction type with field-level inheritance
 
 **Data**

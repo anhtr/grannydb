@@ -5,6 +5,7 @@ import { compareIds } from '../core/csv'
 import {
   derivedFilterField,
   derivedFilterValue,
+  effectiveValue,
   fieldByKey,
   filterFields,
   matchesSearch,
@@ -53,6 +54,12 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
     if (!schema || !data) return []
 
     const direct = filterFields(schema).map((field): FilterDescriptor => {
+      // A field with `inheritFrom` (e.g. a square's blank `construction_type`) filters on what it
+      // *resolves to*, not the raw stored cell — otherwise every square that inherits rather than
+      // overrides would be invisible to the filter. See ADR 0016.
+      const fieldValue = (row: CsvRow): string =>
+        field.inheritFrom ? effectiveValue(schema, field, row, resolve).value : row[field.key] ?? ''
+
       if (field.filterMode === 'min') {
         return {
           key: field.key,
@@ -61,14 +68,14 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
           matches: (row, value) => (Number(row[field.key]) || 0) >= Number(value),
         }
       }
-      const values = [...new Set(data.rows.map((r) => r[field.key] ?? '').filter((v) => v !== ''))]
+      const values = [...new Set(data.rows.map((r) => fieldValue(r)).filter((v) => v !== ''))]
       const options =
         field.type === 'enum' && field.options
           ? field.options.map((o) => ({ value: o, label: o }))
           : values
               .map((v) => ({ value: v, label: refDisplayLabel(field, v, resolve) }))
               .sort((a, b) => a.label.localeCompare(b.label))
-      return { key: field.key, label: field.label, options, matches: (row, value) => (row[field.key] ?? '') === value }
+      return { key: field.key, label: field.label, options, matches: (row, value) => fieldValue(row) === value }
     })
 
     const derived = (schema.derivedFilters ?? []).map((filter): FilterDescriptor => {

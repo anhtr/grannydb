@@ -124,14 +124,19 @@ Generated from the batch ([`message.ts`](../src/core/store/message.ts)):
 ```
 Update 3 squares, remove 1 yarn
 
-- save squares/S041
-- save squares/S042
-- save squares/S043
+- save squares/S041 — Status: done, Main colour: Y004
+- save squares/S042 — Notes: (blank)
+- save squares/S043 — Position: row 3, col 2
 - delete yarns/Y07
 ```
 
-Subject line for `git log --oneline`, per-row detail in the body. Written for whoever reads the
-history later, which is you.
+Subject line for `git log --oneline`, field-level detail in the body: each `save` line lists the
+fields that row's `Change.values` actually touched (already a diff — see "Partial `values` is
+load-bearing" above) with their field label and new value, `(blank)` standing in for an empty
+string so a deliberate clear reads as one rather than looking like the line was cut off. `id` is
+dropped from the list since it is already the row the line is addressing. Written for whoever reads
+the history later, which is you: `git log` alone answers "what actually happened to S041", no diff
+needed.
 
 ## Queue collapsing
 
