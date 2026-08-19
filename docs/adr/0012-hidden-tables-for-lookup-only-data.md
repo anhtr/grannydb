@@ -43,9 +43,13 @@ because nothing else needed to.
 Reaching a source without a tab meant a source `ref` chip had to become a link rather than inert
 text — `RefChip` in [`ui/fields.tsx`](../../src/ui/fields.tsx) now wraps itself in a `Link` to
 `/<refTable>/<id>` whenever the target exists. Tapping the source shown on a design's detail screen
-opens that source's own record, where its `type`, `url` and `note` can be filled in — the
-`quickCreate` affordance on `designs.source` only ever sets the name, same as `design_id` did before
-it ([ADR 0010](0010-quick-create-instead-of-folding-designs.md)).
+opens that source's own record, where its `type`, `url` and `note` can be filled in — at the time
+this ADR was written, the `quickCreate` affordance on `designs.source` only ever set the name, same as
+`design_id` did before it ([ADR 0010](0010-quick-create-instead-of-folding-designs.md)), so opening
+the record was the only way to set the rest. It no longer is:
+[ADR 0018](0018-full-inline-quick-create.md) lets `type`/`url`/`note` be set inline, in the
+quick-create form itself, but the chip is still a link either way — there is always a real record
+behind it, worth opening on its own for anything quick-create did not ask for.
 
 ## Consequences
 

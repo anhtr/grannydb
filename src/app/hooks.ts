@@ -3,6 +3,7 @@ import { appStore } from '../core/store'
 import type { AppState } from '../core/store'
 import type { CsvRow, CsvTable } from '../core/csv'
 import { findRow } from '../core/csv'
+import { idSet } from '../core/schema'
 import type { RefLookup, ResolveRef, SchemaSet, TableSchema } from '../core/schema'
 
 export function useAppState(): AppState {
@@ -70,6 +71,25 @@ export function useResolveRef(): ResolveRef {
       cache.set(table, result)
       return result
     }
+  }, [state.snapshot, state.data])
+}
+
+/**
+ * Ids that exist in each table, keyed by table name — for catching a `ref` that points nowhere
+ * before it is saved. Shared by every form that validates a row, so a quick-create form gets the same
+ * referential check as the main record form without recomputing it separately.
+ */
+export function useRefIds(): Record<string, ReadonlySet<string>> {
+  const state = useAppState()
+  return useMemo(() => {
+    const map: Record<string, Set<string>> = {}
+    if (!state.snapshot) return map
+    for (const name of state.snapshot.schemas.order) {
+      const s = state.snapshot.schemas.tables[name]
+      const t = state.data[name]
+      if (s && t) map[name] = idSet(t, s.idField)
+    }
+    return map
   }, [state.snapshot, state.data])
 }
 

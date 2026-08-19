@@ -4,7 +4,7 @@ import { effectiveGoal } from '../../core/prefs'
 import { effectiveValue, fieldByKey, splitList, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
 import { useAppState, useLookup, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
-import { Card, Spinner, Swatch } from '../../ui/components'
+import { Card, Link, Spinner, Swatch } from '../../ui/components'
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
 /** The trailing window "Pace" normally averages over. */
@@ -85,6 +85,43 @@ function ImbalanceCard({ title, note, items }: { title: string; note?: string; i
               <span className="shrink-0 text-xs text-muted">
                 {item.deficits.map((d) => `${d.count} short in ${d.construction}`).join(', ')}
               </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+interface Gap {
+  id: string
+  date: string
+}
+
+/**
+ * A square missing its main colour or design silently drops out of every colour/construction tally
+ * above (they all key off `main_yarn`/`design_id`) rather than showing up as an obvious zero, which
+ * is exactly what made the colour-imbalance card go quiet instead of flagging a real gap. This card
+ * lists the rows themselves — every status, not just finished — so the gap is something to click
+ * through and fix rather than a mystery to debug from the other cards' totals.
+ */
+function GapsCard({ title, items }: { title: string; items: Gap[] }) {
+  return (
+    <Card className="p-4">
+      <h2 className="font-medium">{title}</h2>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">None — nice.</p>
+      ) : (
+        <ul className="mt-3 space-y-1.5">
+          {items.map((item) => (
+            <li key={item.id}>
+              <Link
+                to={`/squares/${item.id}`}
+                className="flex items-center justify-between rounded-lg px-1 py-0.5 text-sm text-accent hover:underline"
+              >
+                <span className="font-mono">{item.id}</span>
+                {item.date ? <span className="text-xs text-muted">{item.date}</span> : null}
+              </Link>
             </li>
           ))}
         </ul>
@@ -188,6 +225,11 @@ export function StatsPage() {
         a.label.localeCompare(b.label),
     )
 
+    // Every status, not just finished — a gap is worth fixing whether or not the square is done yet.
+    const toGap = (r: CsvRow): Gap => ({ id: r.id ?? '', date: r.date ?? '' })
+    const missingMainYarn = rows.filter((r) => !r.main_yarn).map(toGap)
+    const missingDesign = rows.filter((r) => !r.design_id).map(toGap)
+
     // Pace over a trailing window, from the dates on finished squares. The window is normally 4
     // weeks, but shrinks to however long the project has actually been running when that is less —
     // otherwise a project in its second week would have its pace divided by 4 anyway and read as a
@@ -217,6 +259,8 @@ export function StatsPage() {
       byMainYarnFinished: sortDesc(byMainYarnFinished),
       byConstructionFinished: sortDesc(byConstructionFinished),
       colourImbalances,
+      missingMainYarn,
+      missingDesign,
     }
   }, [squares, schema, prefs, resolve, yarns, yarnSchema])
 
@@ -298,6 +342,9 @@ export function StatsPage() {
         note="Main colours where finished squares favour one construction over another, and by how much."
         items={stats.colourImbalances}
       />
+
+      <GapsCard title="Missing main colour" items={stats.missingMainYarn} />
+      <GapsCard title="Missing design" items={stats.missingDesign} />
     </div>
   )
 }

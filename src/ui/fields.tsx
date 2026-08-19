@@ -1,9 +1,20 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import type { CsvRow } from '../core/csv'
+import { today } from '../core/date'
 import type { FieldDef, FieldType } from '../core/schema'
-import { formatBool, joinList, matchesSearch, parseBool, searchText, splitList, titleFor } from '../core/schema'
+import {
+  formatBool,
+  joinList,
+  matchesSearch,
+  parseBool,
+  searchText,
+  splitList,
+  titleFor,
+  validateValue,
+} from '../core/schema'
 import { appStore } from '../core/store'
-import { useLookup, useResolveRef, useTableSchema } from '../app/hooks'
-import { Button, inputClass, Link, Swatch } from './components'
+import { useLookup, useRefIds, useResolveRef, useTableSchema } from '../app/hooks'
+import { Button, FieldShell, inputClass, Link, Swatch } from './components'
 
 /**
  * The field-type registry.
@@ -74,29 +85,63 @@ function RefChip({ id, refTable }: { id: string; refTable?: string }) {
   return <Link to={`/${refTable}/${id}`}>{content}</Link>
 }
 
+/** Every field of a quick-create target except its id, which is assigned on save, not typed. */
+function quickCreateFields(fields: FieldDef[], idField: string): FieldDef[] {
+  return fields.filter((f) => f.key !== idField)
+}
+
+function initialQuickCreateDraft(fields: FieldDef[]): CsvRow {
+  const draft: CsvRow = {}
+  for (const field of fields) {
+    draft[field.key] = field.type === 'date' && field.defaultToday ? today() : (field.default ?? '')
+  }
+  return draft
+}
+
 /**
- * "+ New <thing>" inline on a `ref` field, for a target table where most rows are one-offs. Creates
- * a row with only its title field set — anything else is filled in later from that table's own
- * screen — then selects it. See ADR 0010.
+ * "+ New <thing>" inline on a `ref` field, for a target table where most rows are one-offs. Opens a
+ * full mini-form — every field on the target row, rendered with the same field renderers the main
+ * record form uses — rather than asking only for the title and deferring the rest to a second visit.
+ * A `ref` field inside that mini-form (e.g. a design's `source`) gets its own nested "+ New", one
+ * level deep, for the same reason. See ADR 0018.
  */
 function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id: string) => void }) {
   const schema = useTableSchema(refTable)
+  const refIds = useRefIds()
   const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState<CsvRow>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
   if (!schema) return null
+  const fields = quickCreateFields(schema.fields, schema.idField)
+
+  const setField = (key: string, value: string) => {
+    setDraft((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
 
   const create = async () => {
-    const title = draft.trim()
-    if (title === '' || saving) return
+    if (saving) return
+    const found: Record<string, string> = {}
+    for (const field of fields) {
+      const message = validateValue(field, draft[field.key] ?? '', field.refTable ? refIds[field.refTable] : undefined)
+      if (message) found[field.key] = message
+    }
+    setErrors(found)
+    if (Object.keys(found).length > 0) return
+
     setSaving(true)
     try {
       const newId = appStore.nextIdFor(refTable)
-      await appStore.save(refTable, newId, { [schema.titleField]: title })
+      await appStore.save(refTable, newId, draft)
       onCreated(newId)
       setOpen(false)
-      setDraft('')
     } finally {
       setSaving(false)
     }
@@ -107,7 +152,11 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
       <button
         type="button"
         className="text-sm text-accent underline-offset-2 hover:underline"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setDraft(initialQuickCreateDraft(fields))
+          setErrors({})
+          setOpen(true)
+        }}
       >
         + New {schema.labelSingular.toLowerCase()}
       </button>
@@ -115,28 +164,38 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
   }
 
   return (
-    <div className="flex gap-2">
-      <input
-        autoFocus
-        type="text"
-        className={inputClass}
-        placeholder={`New ${schema.labelSingular.toLowerCase()} name`}
-        value={draft}
-        disabled={saving}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            void create()
-          } else if (e.key === 'Escape') {
-            setOpen(false)
-            setDraft('')
-          }
-        }}
-      />
-      <Button onClick={() => void create()} disabled={saving || draft.trim() === ''}>
-        {saving ? 'Adding…' : 'Add'}
-      </Button>
+    <div className="space-y-2 rounded-xl border border-line bg-paper p-2">
+      <p className="px-1 text-xs font-medium text-muted">New {schema.labelSingular.toLowerCase()}</p>
+      <div className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-card">
+        {fields.map((field) => {
+          const { Input } = rendererFor(field)
+          const inputId = `qc-${refTable}-${field.key}`
+          return (
+            <FieldShell
+              key={field.key}
+              label={field.label}
+              help={field.help}
+              error={errors[field.key]}
+              htmlFor={inputId}
+            >
+              <Input
+                field={field}
+                value={draft[field.key] ?? ''}
+                onChange={(v) => setField(field.key, v)}
+                id={inputId}
+              />
+            </FieldShell>
+          )
+        })}
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="ghost" className="flex-1" disabled={saving} onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button type="button" variant="primary" className="flex-1" disabled={saving} onClick={() => void create()}>
+          {saving ? 'Adding…' : `Add ${schema.labelSingular.toLowerCase()}`}
+        </Button>
+      </div>
     </div>
   )
 }

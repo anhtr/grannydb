@@ -133,11 +133,15 @@ export function effectiveValue(
   row: Record<string, string>,
   resolve: ResolveRef,
 ): { value: string; inherited: boolean } {
-  const own = row[field.key] ?? ''
+  // Trimmed because a hand-edited cell can carry stray leading/trailing whitespace that
+  // `validateValue`'s enum check already tolerates (it trims before comparing to `options`) — without
+  // trimming here too, that "valid" cell would still fail every exact-match comparison downstream
+  // (stats tallies, filters) against the clean option string, and disappear from them silently.
+  const own = (row[field.key] ?? '').trim()
   if (own !== '' || !field.inheritFrom) return { value: own, inherited: false }
   const viaField = fieldByKey(schema, field.inheritFrom.via)
   if (!viaField?.refTable) return { value: '', inherited: false }
   const viaRow = resolve(viaField.refTable)?.rows.get(row[viaField.key] ?? '')
-  const value = viaRow?.[field.inheritFrom.throughField] ?? ''
+  const value = (viaRow?.[field.inheritFrom.throughField] ?? '').trim()
   return { value, inherited: value !== '' }
 }

@@ -3,14 +3,14 @@ import { effectiveGoal } from '../../core/prefs'
 import { splitList, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
 import { useAppState, useLookup, useTable, useTableSchema } from '../../app/hooks'
-import { Badge, Card, Swatch } from '../../ui/components'
+import { Badge, Card, ColourGlyph } from '../../ui/components'
 import { RecordList } from '../../ui/RecordList'
 
-const statusTone: Record<string, 'neutral' | 'accent' | 'warn'> = {
-  done: 'accent',
-  blocked: 'accent',
+const statusTone: Record<string, 'neutral' | 'accent' | 'warn' | 'danger' | 'success' | 'info'> = {
+  planned: 'danger',
   'in progress': 'warn',
-  planned: 'neutral',
+  done: 'success',
+  blocked: 'info',
 }
 
 /** Progress toward the blanket, shown above the list because it is the reason for the app. */
@@ -60,14 +60,18 @@ function SquareRow({ row }: { row: CsvRow }) {
   const design = designs.get(row.design_id ?? '')
   const status = row.status ?? ''
 
+  const glyphTitle = [yarnTitle(row.main_yarn ?? ''), ...extras.map(yarnTitle)]
+    .filter((t): t is string => !!t)
+    .join(' + ')
+
   return (
     <div className="flex items-center gap-3">
-      <span className="flex shrink-0 -space-x-1.5">
-        <Swatch hex={mainYarn?.hex} size={28} title={yarnTitle(row.main_yarn ?? '')} />
-        {extras.slice(0, 3).map((id) => (
-          <Swatch key={id} hex={yarns.get(id)?.hex} size={20} title={yarnTitle(id)} />
-        ))}
-      </span>
+      <ColourGlyph
+        mainHex={mainYarn?.hex}
+        extraHexes={extras.map((id) => yarns.get(id)?.hex)}
+        size={32}
+        title={glyphTitle || undefined}
+      />
 
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 font-medium">

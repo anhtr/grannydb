@@ -111,10 +111,11 @@ square inherits unless it sets its own, see [ADR 0016](adr/0016-field-level-inhe
 `source` used to be free text, retyped for every design that shared a book or website. It is now a
 `ref` with `quickCreate`, the same pattern `squares.design_id` uses
 ([ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md)): picking an existing source is a
-`<select>`, and typing a new one only sets its name — its `type`/`url`/`note` are filled in later by
-opening the source itself (tap the chip; `sources` has no nav tab of its own, see below). The old
-`source_url` field is gone — a source's URL now lives on the source, once, instead of being retyped
-per design that cites it.
+search-and-select, and typing a new one opens a full inline form for `type`/`url`/`note` too, not just
+the name (see [ADR 0018](adr/0018-full-inline-quick-create.md)) — though opening the source itself
+still works for anything left blank there (tap the chip; `sources` has no nav tab of its own, see
+below). The old `source_url` field is gone — a source's URL now lives on the source, once, instead of
+being retyped per design that cites it.
 
 ### `sources.csv`
 
@@ -189,11 +190,15 @@ A type is defined in two halves, deliberately split:
 Adding `image` later is one entry in each. Nothing else changes.
 
 A `ref` field can also set `"quickCreate": true`, which adds a "+ New &lt;thing&gt;" affordance to
-the field's picker that creates a row in the target table — setting only its title field — without
+the field's picker that opens a full inline form — every field on the target table except its id,
+rendered with the same `fieldRenderers` the main record form uses — and creates the row without
 leaving the current form. `squares.design_id` and `designs.source` both use it: most squares turn out
 to be a one-off design, and most designs cite a source already on file, so a separate "new X" screen
-for every one was pure friction. See
-[ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md).
+for every one was pure friction. A `ref` field inside the quick-create form that is itself
+`quickCreate` gets its own nested "+ New", one level deep — `designs.source`, reached while
+quick-creating a design from inside a square, is the case that motivated it. See
+[ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md) and
+[ADR 0018](adr/0018-full-inline-quick-create.md).
 
 A `ref`/`reflist` field is edited through a live-search combobox, not a bare `<select>` — practical
 once a table has more than a handful of rows, e.g. one design per square. `"searchFields"` on the

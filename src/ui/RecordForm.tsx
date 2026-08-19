@@ -1,18 +1,13 @@
 import { useMemo, useState } from 'react'
 import type { CsvRow } from '../core/csv'
-import { effectiveValue, fieldByKey, idSet, validateValue } from '../core/schema'
+import { today } from '../core/date'
+import { effectiveValue, fieldByKey, validateValue } from '../core/schema'
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import { appStore } from '../core/store'
-import { useAppState, useResolveRef, useRow, useTableSchema } from '../app/hooks'
+import { useAppState, useRefIds, useResolveRef, useRow, useTableSchema } from '../app/hooks'
 import { useNavigate } from '../app/router'
 import { Button, ErrorNote, FieldShell, Spinner } from './components'
 import { rendererFor } from './fields'
-
-function today(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
 
 function initialValues(schema: TableSchema, row: CsvRow | null, newId: string): CsvRow {
   const values: CsvRow = {}
@@ -81,16 +76,7 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
   const [saving, setSaving] = useState(false)
 
   // Ids available in each referenced table, so a `ref` pointing nowhere is caught before saving.
-  const refIds = useMemo(() => {
-    const map: Record<string, Set<string>> = {}
-    if (!state.snapshot) return map
-    for (const name of state.snapshot.schemas.order) {
-      const s = state.snapshot.schemas.tables[name]
-      const t = state.data[name]
-      if (s && t) map[name] = idSet(t, s.idField)
-    }
-    return map
-  }, [state.snapshot, state.data])
+  const refIds = useRefIds()
 
   if (!schema) return <Spinner label="Loading schema" />
   if (id && !existing) {

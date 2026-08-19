@@ -4,6 +4,45 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-19 — v0.1.8, data-gap stats, full inline quick-create, square colour/status glyphs, sorting
+
+**Data**
+- `squares.json`'s `date` field gains `"sortable": true` — squares can now be sorted oldest/newest
+  first, not just by id.
+- `yarns.json` gains `"defaultSort": { "key": "title" }`, so the Yarns list opens sorted by effective
+  display name (own value, or the `{product_id} ({name})` fallback when blank — the existing built-in
+  `title` sort every table already gets for free) instead of by id. Sorting by the raw `display_name`
+  column was considered and rejected: roughly 100 of the current 130 yarn rows have it blank, and a
+  raw-field sort would cluster all of them together, out of alphabetical order, ahead of the ~30 named
+  ones — the `title` sort already handles the fallback correctly per row.
+
+**App**
+- Stats screen: a new "Missing main colour" / "Missing design" pair of cards at the bottom, listing
+  (across every status, not just finished) any square whose `main_yarn` or `design_id` is blank, each
+  row linking straight to that square. Both fields are what every colour/construction tally on the
+  page keys off, so a square missing one does not show up as a visible zero anywhere — it just quietly
+  drops out of every count, which is exactly what made "Colour imbalance by construction" go quiet
+  instead of flagging a real gap for square `S007`. This card makes the gap something to click and fix
+  instead of a mystery to debug from the other cards' totals.
+- `QuickCreate` in `ui/fields.tsx` is no longer title-only: it now opens a full inline form over every
+  field on the target table (reusing the same `fieldRenderers` the main record form uses), and a `ref`
+  field inside it that is itself `quickCreate` (`designs.source`) gets its own nested "+ New", one
+  level deep. Adding a square for a not-yet-filed design, and giving that design a not-yet-filed
+  source, is now one form, not three screens. `RecordForm`'s referential-id lookup moved to a shared
+  `useRefIds()` in `app/hooks.ts` so both callers validate `ref` fields the same way instead of each
+  computing it separately. See [ADR 0018](adr/0018-full-inline-quick-create.md); updates
+  [ADR 0010](adr/0010-quick-create-instead-of-folding-designs.md) and
+  [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md), which described the title-only version.
+- `Badge` (`ui/components.tsx`) gains `danger` and `success` tones alongside the existing
+  `neutral`/`accent`/`warn`, plus dark-mode colours for all of them (`warn` previously had none). The
+  squares list's status badge now uses a distinct tone per status — `planned` orange, `in progress`
+  amber, `done` green, `blocked` cyan — rather than collapsing `done`/`blocked` onto the same tone and
+  `planned` onto plain grey.
+- New `ColourGlyph` component (`ui/components.tsx`): a square's row in the squares list now shows its
+  main colour as a filled square with a smaller circle inside for its extra colours, split into
+  equal pie wedges (a `conic-gradient`) when there is more than one, rather than a stack of overlapping
+  circles. Replaces the `-space-x-1.5` overlapping-`Swatch` layout in `SquareRow`.
+
 ## 2026-08-19 — v0.1.7, verbose commit bodies, construction filter, construction stats, goal override
 
 **Data**
@@ -38,6 +77,12 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   holey" — comparing every construction the schema defines (`squares.json`'s `construction_type`
   options), not just ones seen in the data, so a colour entirely missing from one construction still
   shows the full gap instead of being silently skipped.
+- `effectiveValue()` (`core/schema/search.ts`) now trims both the row's own value and the value found
+  via `inheritFrom` before returning them. `validateValue`'s enum check already trims before comparing
+  to `options`, so a hand-edited cell like `"solid "` passes validation — but without trimming here
+  too, that same value fails every exact-match comparison against the clean option string downstream,
+  which made a colour with such a cell vanish from "Colour imbalance by construction" entirely (every
+  deficit computed to zero) rather than showing the gap it should have.
 
 **Tests**
 - `queue.test.ts`: `commitMessage` includes field labels and values in the body, and omits the id

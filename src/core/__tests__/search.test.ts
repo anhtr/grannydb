@@ -194,4 +194,17 @@ describe('effectiveValue', () => {
     const row = { id: 'S001', status: 'done' }
     expect(effectiveValue(squares, status, row, resolve)).toEqual({ value: 'done', inherited: false })
   })
+
+  it('trims a hand-edited own value so it still exact-matches its option', () => {
+    const row = { id: 'S001', design_id: 'D01', construction_type: 'solid ' }
+    expect(effectiveValue(squares, field, row, resolve)).toEqual({ value: 'solid', inherited: false })
+  })
+
+  it('trims a hand-edited value found via the inherited hop too', () => {
+    const paddedDesignRows = new Map([['D03', { id: 'D03', construction_type: ' holey' }]])
+    const paddedResolve: ResolveRef = (table) =>
+      table === 'designs' ? { schema: designs, rows: paddedDesignRows } : undefined
+    const row = { id: 'S001', design_id: 'D03', construction_type: '' }
+    expect(effectiveValue(squares, field, row, paddedResolve)).toEqual({ value: 'holey', inherited: true })
+  })
 })

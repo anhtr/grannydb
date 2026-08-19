@@ -11,6 +11,7 @@
   "titleFallback": "{product_id} ({name})",
   "subtitleField": "product_line",
   "swatchField": "hex",
+  "defaultSort": { "key": "title" },
   "fields": [
     { "key": "id", "label": "ID", "type": "id", "list": true },
     { "key": "display_name", "label": "Display name", "type": "text", "list": true, "help": "Your own searchable nickname for this yarn — shown as \"colour\" everywhere in the app. Leave blank to fall back to \"product ID (colourway)\"." },

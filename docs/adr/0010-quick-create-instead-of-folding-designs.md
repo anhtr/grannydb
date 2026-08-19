@@ -47,6 +47,8 @@ screen if it turns out to be worth reusing.
   [`core/schema/types.ts`](../../src/core/schema/types.ts), not a new entry in the type registry.
 - A quick-created row only has its title set. Good enough to reference immediately; anything else
   about it is deferred, on the assumption that most such rows will in fact stay one-offs and never
-  need the rest filled in.
+  need the rest filled in. **No longer current** — [ADR 0018](0018-full-inline-quick-create.md)
+  expanded quick-create into a full inline form over every field, because in practice the deferred
+  fields were needed at the exact moment the row was created, not later.
 - `ui/fields.tsx` now imports `appStore` to create the row. `RecordForm.tsx` already did, so this is
   not a new dependency direction, just a second caller.
