@@ -30,6 +30,11 @@ export interface FilterDescriptor {
   label: string
   options: FilterOption[]
   matches: (row: CsvRow, value: string) => boolean
+  /** Whether more than one option can be selected at once (checkboxes, OR'd together) rather than
+   * just one (radio buttons). Defaults to `true` when omitted. A "min" threshold filter (e.g. "skeins
+   * left") sets this `false` — "3+ or 5+ at once" isn't a meaningful combination the way "product line
+   * A or B" is, since each threshold already includes every value the one above it would match. */
+  multi?: boolean
 }
 
 /**
@@ -76,6 +81,7 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
         return {
           key: field.key,
           label: field.label,
+          multi: false,
           options: minThresholdOptions(field, data),
           matches: (row, value) => (Number(row[field.key]) || 0) >= Number(value),
         }
@@ -190,14 +196,28 @@ function sortsEqual(a: SortRule[], b: SortRule[]): boolean {
   return a.length === b.length && a.every((rule, i) => rule.key === b[i].key && rule.dir === b[i].dir)
 }
 
+/** Reads a filter's value saved under the old single-string shape, from before multi-select, as a
+ * one-item array, so an existing device doesn't silently lose its saved filter the first time this
+ * ships. */
+function normalizeFilters(saved: Record<string, string | string[]> | undefined): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const [key, value] of Object.entries(saved ?? {})) {
+    const list = Array.isArray(value) ? value : value ? [value] : []
+    if (list.length > 0) out[key] = list
+  }
+  return out
+}
+
 /** This table's remembered list state, or the schema's own default when nothing was saved yet.
  * Also reads a list saved under the old single-key `sortKey`/`sortDir` shape, from before multi-sort,
  * so an existing device doesn't silently lose its saved sort the first time this ships. */
 function initialListPrefs(schema: TableSchema | null, saved: ListPrefs | undefined): ListPrefs {
   const legacy = saved as (ListPrefs & { sortKey?: string; sortDir?: SortDir }) | undefined
-  if (saved?.sorts?.length) return { filters: saved.filters ?? {}, sorts: saved.sorts }
-  if (legacy?.sortKey) return { filters: legacy.filters ?? {}, sorts: [{ key: legacy.sortKey, dir: legacy.sortDir ?? 'asc' }] }
-  return { filters: saved?.filters ?? {}, sorts: defaultSorts(schema) }
+  if (saved?.sorts?.length) return { filters: normalizeFilters(saved.filters), sorts: saved.sorts }
+  if (legacy?.sortKey) {
+    return { filters: normalizeFilters(legacy.filters), sorts: [{ key: legacy.sortKey, dir: legacy.sortDir ?? 'asc' }] }
+  }
+  return { filters: normalizeFilters(saved?.filters), sorts: defaultSorts(schema) }
 }
 
 export function RecordList({ table, renderRow, header, extraSortOptions, extraFilters }: RecordListProps) {
@@ -246,8 +266,8 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
     const filtered = data.rows.filter((row) => {
       if (!matchesSearch(searchText(schema, row, resolve, schema.searchFields), query)) return false
       return filterDescriptors.every((d) => {
-        const value = filters[d.key]
-        return !value || d.matches(row, value)
+        const values = filters[d.key]
+        return !values || values.length === 0 || values.some((value) => d.matches(row, value))
       })
     })
     return sortRows(filtered, schema, sorts.map(specFor), resolve)
@@ -256,7 +276,7 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
 
   if (!schema || !data) return <Spinner />
 
-  const activeFilters = Object.values(filters).filter((v) => v !== '').length
+  const activeFilters = Object.values(filters).filter((v) => v.length > 0).length
   const sortActive = !sortsEqual(sorts, defaultSorts(schema))
   const sortLabel = (key: string) => allSortOptions.find((o) => o.key === key)?.label ?? key
   const sortButtonText =
@@ -280,59 +300,57 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        {filterDescriptors.length > 0 || allSortOptions.length > 0 ? (
-          <div className="relative flex gap-1.5">
-            {allSortOptions.length > 0 ? (
-              <button
-                type="button"
-                aria-label="Sort"
-                aria-expanded={sortPanelOpen}
-                className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
-                  sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-                }`}
-                onClick={() => {
-                  setFilterPanelOpen(false)
-                  setSortPanelOpen((v) => !v)
-                }}
-              >
-                {sortButtonText}
-              </button>
-            ) : null}
-            {filterDescriptors.length > 0 ? (
-              <button
-                type="button"
-                aria-label="Filter"
-                aria-expanded={filterPanelOpen}
-                className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
-                  activeFilters > 0 ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-                }`}
-                onClick={() => {
-                  setSortPanelOpen(false)
-                  setFilterPanelOpen((v) => !v)
-                }}
-              >
-                Filter{activeFilters > 0 ? ` (${activeFilters})` : ''}
-              </button>
-            ) : null}
-            {sortPanelOpen ? (
-              <SortPanel
-                options={allSortOptions}
-                sorts={sorts}
-                defaultSorts={defaultSorts(schema)}
-                onChange={(next) => setListPrefs({ sorts: next })}
-                onClose={() => setSortPanelOpen(false)}
-              />
-            ) : null}
-            {filterPanelOpen ? (
-              <FilterPanel
-                descriptors={filterDescriptors}
-                filters={filters}
-                onChange={(next) => setListPrefs({ filters: next })}
-                onClose={() => setFilterPanelOpen(false)}
-              />
-            ) : null}
-          </div>
-        ) : null}
+        <div className="relative flex gap-1.5">
+          {allSortOptions.length > 0 ? (
+            <button
+              type="button"
+              aria-label="Sort"
+              aria-expanded={sortPanelOpen}
+              className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
+                sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+              }`}
+              onClick={() => {
+                setFilterPanelOpen(false)
+                setSortPanelOpen((v) => !v)
+              }}
+            >
+              {sortButtonText}
+            </button>
+          ) : null}
+          {filterDescriptors.length > 0 ? (
+            <button
+              type="button"
+              aria-label="Filter"
+              aria-expanded={filterPanelOpen}
+              className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
+                activeFilters > 0 ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+              }`}
+              onClick={() => {
+                setSortPanelOpen(false)
+                setFilterPanelOpen((v) => !v)
+              }}
+            >
+              Filter{activeFilters > 0 ? ` (${activeFilters})` : ''}
+            </button>
+          ) : null}
+          {sortPanelOpen ? (
+            <SortPanel
+              options={allSortOptions}
+              sorts={sorts}
+              defaultSorts={defaultSorts(schema)}
+              onChange={(next) => setListPrefs({ sorts: next })}
+              onClose={() => setSortPanelOpen(false)}
+            />
+          ) : null}
+          {filterPanelOpen ? (
+            <FilterPanel
+              descriptors={filterDescriptors}
+              filters={filters}
+              onChange={(next) => setListPrefs({ filters: next })}
+              onClose={() => setFilterPanelOpen(false)}
+            />
+          ) : null}
+        </div>
       </div>
 
       <p className="px-4 py-1.5 text-xs text-muted">
@@ -499,6 +517,73 @@ function SortPanel({
  * than laid out inline — a side-bar-of-filters-on-demand instead of a row that grows with every
  * filterable field the schema defines and eats space even when nothing is filtered.
  */
+/** One filter's options as a row of toggleable pills — checkboxes (any number at once, OR'd
+ * together) for a plain categorical field, radios (one at a time, "Any" clears it) for a "min"
+ * threshold field where combining values would not mean anything. */
+function FilterOptionPills({
+  descriptor,
+  selected,
+  onChange,
+}: {
+  descriptor: FilterDescriptor
+  selected: string[]
+  onChange: (values: string[]) => void
+}) {
+  const multi = descriptor.multi !== false
+  const pillClass = (active: boolean) =>
+    `tap-target rounded-lg border px-2.5 text-xs ${active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'}`
+
+  if (multi) {
+    return (
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Filter by ${descriptor.label}`}>
+        {descriptor.options.map((option) => {
+          const active = selected.includes(option.value)
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              className={pillClass(active)}
+              onClick={() =>
+                onChange(active ? selected.filter((v) => v !== option.value) : [...selected, option.value])
+              }
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={`Filter by ${descriptor.label}`}>
+      <button
+        type="button"
+        aria-pressed={selected.length === 0}
+        className={pillClass(selected.length === 0)}
+        onClick={() => onChange([])}
+      >
+        Any
+      </button>
+      {descriptor.options.map((option) => {
+        const active = selected[0] === option.value
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            className={pillClass(active)}
+            onClick={() => onChange([option.value])}
+          >
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function FilterPanel({
   descriptors,
   filters,
@@ -506,15 +591,15 @@ function FilterPanel({
   onClose,
 }: {
   descriptors: FilterDescriptor[]
-  filters: Record<string, string>
-  onChange: (filters: Record<string, string>) => void
+  filters: Record<string, string[]>
+  onChange: (filters: Record<string, string[]>) => void
   onClose: () => void
 }) {
-  const activeCount = Object.values(filters).filter((v) => v !== '').length
+  const activeCount = Object.values(filters).filter((v) => v.length > 0).length
   return (
     <>
       <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className="absolute inset-x-0 top-full z-20 mt-2 rounded-xl border border-line bg-card p-3 shadow-lg">
+      <div className="absolute inset-x-0 top-full z-20 mt-2 max-h-[70vh] overflow-y-auto rounded-xl border border-line bg-card p-3 shadow-lg">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs font-medium text-muted">Filter by</p>
           {activeCount > 0 ? (
@@ -523,23 +608,15 @@ function FilterPanel({
             </button>
           ) : null}
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {descriptors.map((d) => (
             <div key={d.key}>
               <label className="mb-1 block text-xs text-muted">{d.label}</label>
-              <select
-                aria-label={`Filter by ${d.label}`}
-                className={inputClass}
-                value={filters[d.key] ?? ''}
-                onChange={(e) => onChange({ ...filters, [d.key]: e.target.value })}
-              >
-                <option value="">Any</option>
-                {d.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <FilterOptionPills
+                descriptor={d}
+                selected={filters[d.key] ?? []}
+                onChange={(values) => onChange({ ...filters, [d.key]: values })}
+              />
             </div>
           ))}
         </div>

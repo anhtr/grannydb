@@ -6,9 +6,11 @@ export interface SortRule {
   dir: 'asc' | 'desc'
 }
 
-/** One table list's remembered search/filter/sort, keyed by table name in `Prefs.lists`. */
+/** One table list's remembered search/filter/sort, keyed by table name in `Prefs.lists`. Each
+ * filter's value is a set of selected options (OR'd together) rather than one — see `FilterPanel`
+ * in `ui/RecordList.tsx` for which filters allow more than one selection. */
 export interface ListPrefs {
-  filters: Record<string, string>
+  filters: Record<string, string[]>
   /** Applied in order — later rules only break ties left by earlier ones. */
   sorts: SortRule[]
 }
