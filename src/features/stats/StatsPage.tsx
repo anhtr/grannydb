@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { CsvRow } from '../../core/csv'
 import { effectiveGoal } from '../../core/prefs'
-import { effectiveValue, fieldByKey, splitList, titleFor } from '../../core/schema'
+import { splitList, squareConstructionInsights, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
 import { useAppState, useLookup, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Card, Link, Spinner, Swatch } from '../../ui/components'
@@ -58,6 +59,86 @@ function TallyCard({ title, items, note }: { title: string; items: Tally[]; note
         </ul>
       )}
     </Card>
+  )
+}
+
+/**
+ * Same tally data as `TallyCard`, but collapsible: expanded shows the usual bar-chart list, collapsed
+ * shows whatever compact summary `renderCollapsed` builds instead — a colour-chip row or a
+ * comma-separated line, cheap enough to always render so toggling never re-fetches anything.
+ */
+function CollapsibleTallyCard({
+  title,
+  note,
+  items,
+  collapsed,
+  onToggle,
+  renderCollapsed,
+}: {
+  title: string
+  note?: string
+  items: Tally[]
+  collapsed: boolean
+  onToggle: () => void
+  renderCollapsed: (items: Tally[]) => ReactNode
+}) {
+  const max = items.reduce((m, i) => Math.max(m, i.count), 0)
+  return (
+    <Card className="p-4">
+      <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={onToggle}>
+        <span>
+          <span className="block font-medium">{title}</span>
+          {note ? <span className="mt-0.5 block text-xs text-muted">{note}</span> : null}
+        </span>
+        <span className="tap-target shrink-0 text-xs text-accent">{collapsed ? 'Show all' : 'Collapse'}</span>
+      </button>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">Nothing recorded yet.</p>
+      ) : collapsed ? (
+        renderCollapsed(items)
+      ) : (
+        <ul className="mt-3 space-y-2.5">
+          {items.map((item) => (
+            <li key={item.key}>
+              <div className="flex items-center gap-2 text-sm">
+                {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                <span className="tabular-nums text-muted">{item.count}</span>
+              </div>
+              <div className="mt-1">
+                <Bar value={item.count} max={max} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+/** Collapsed view for a colour tally: just the swatch and the count, gapped out in a row — the name
+ * is what the expanded list is for. */
+function collapsedColourChips(items: Tally[]): ReactNode {
+  return (
+    <div className="mt-3 flex flex-wrap gap-3">
+      {items.map((item) => (
+        <span key={item.key} className="flex items-center gap-1.5 text-sm">
+          <Swatch hex={item.hex} size={14} />
+          <span className="tabular-nums text-muted">{item.count}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/** Collapsed view for the by-design tally: only designs with more than one square are worth naming
+ * at a glance — a design with exactly one is every other list's default anyway. */
+function collapsedDesignSummary(items: Tally[]): ReactNode {
+  const notable = items.filter((i) => i.count > 1)
+  return (
+    <p className="mt-3 text-sm text-muted">
+      {notable.length > 0 ? notable.map((i) => `${i.label} (${i.count})`).join(', ') : 'None with more than one square yet.'}
+    </p>
   )
 }
 
@@ -140,6 +221,10 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   )
 }
 
+/** Collapsed by default — these three are the biggest cards on the page, and the summary line is
+ * usually all a glance needs. */
+const INITIAL_COLLAPSED = { byMainColour: true, byColour: true, byDesign: true }
+
 export function StatsPage() {
   const squares = useTable('squares')
   const schema = useTableSchema('squares')
@@ -148,6 +233,8 @@ export function StatsPage() {
   const designs = useLookup('designs')
   const prefs = useAppState().prefs
   const resolve = useResolveRef()
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(INITIAL_COLLAPSED)
+  const toggle = (key: string) => setCollapsed((c) => ({ ...c, [key]: !c[key] }))
 
   const stats = useMemo(() => {
     if (!squares || !schema) return null
@@ -157,13 +244,6 @@ export function StatsPage() {
     const finished = rows.filter((r) => r.status === 'done' || r.status === 'blocked')
     const blocked = rows.filter((r) => r.status === 'blocked')
 
-    // A square's own `construction_type` cell is usually blank and means "same as its design" (see
-    // ADR 0016), so every construction tally below reads the *effective* value rather than the raw
-    // column — otherwise squares that inherit their construction would vanish from these counts.
-    const constructionField = fieldByKey(schema, 'construction_type')
-    const constructionOf = (row: CsvRow): string =>
-      constructionField ? effectiveValue(schema, constructionField, row, resolve).value : ''
-
     const byStatus = new Map<string, number>()
     const byDesign = new Map<string, number>()
     // A square counts once per colour it uses, main or extra, so this measures yarn reach rather
@@ -172,11 +252,6 @@ export function StatsPage() {
     // Main colour only, and only squares actually finished (done or blocked) — which colours the
     // finished pile is made of, as opposed to byYarn's all-status, main-plus-extra reach.
     const byMainYarnFinished = new Map<string, number>()
-    // Finished squares only, tallied by their effective construction type.
-    const byConstructionFinished = new Map<string, number>()
-    // Finished squares' main colour, tallied per construction type, so a colour's counts can be
-    // compared across constructions to spot ones that are lopsided.
-    const byYarnConstructionFinished = new Map<string, Map<string, number>>()
 
     for (const row of rows) {
       byStatus.set(row.status || '(none)', (byStatus.get(row.status || '(none)') ?? 0) + 1)
@@ -184,51 +259,26 @@ export function StatsPage() {
       const used = new Set([row.main_yarn ?? '', ...splitList(row.extra_yarns ?? '')])
       used.delete('')
       for (const id of used) byYarn.set(id, (byYarn.get(id) ?? 0) + 1)
-      if (row.status === 'done' || row.status === 'blocked') {
-        const construction = constructionOf(row)
-        if (row.main_yarn) {
-          byMainYarnFinished.set(row.main_yarn, (byMainYarnFinished.get(row.main_yarn) ?? 0) + 1)
-        }
-        if (construction) {
-          byConstructionFinished.set(construction, (byConstructionFinished.get(construction) ?? 0) + 1)
-          if (row.main_yarn) {
-            const byConstruction = byYarnConstructionFinished.get(row.main_yarn) ?? new Map<string, number>()
-            byConstruction.set(construction, (byConstruction.get(construction) ?? 0) + 1)
-            byYarnConstructionFinished.set(row.main_yarn, byConstruction)
-          }
-        }
+      if ((row.status === 'done' || row.status === 'blocked') && row.main_yarn) {
+        byMainYarnFinished.set(row.main_yarn, (byMainYarnFinished.get(row.main_yarn) ?? 0) + 1)
       }
     }
 
-    // A colour is "imbalanced" when it has more finished squares in one construction than another —
-    // the gap is a deficit relative to whichever construction that colour is furthest along in.
-    // Only compares constructions the schema actually defines, not just ones seen in the data, so a
-    // colour with zero squares of a construction still shows the full gap rather than being skipped.
-    const constructionTypes = constructionField?.options ?? []
-    const colourImbalances: ColourImbalance[] = []
-    for (const [yarnId, counts] of byYarnConstructionFinished) {
-      const max = Math.max(...constructionTypes.map((c) => counts.get(c) ?? 0))
-      const deficits = constructionTypes
-        .map((construction) => ({ construction, count: max - (counts.get(construction) ?? 0) }))
-        .filter((d) => d.count > 0)
-      if (deficits.length === 0) continue
-      colourImbalances.push({
+    // Construction tallies, imbalance and the missing-colour/design gaps are one aggregation pass
+    // shared with the squares list's progress header — see `squareConstructionInsights`.
+    const insights = squareConstructionInsights(schema, squares, resolve)
+    const colourImbalances: ColourImbalance[] = insights.imbalancedColours
+      .map(({ yarnId, deficits }) => ({
         key: yarnId,
         label: yarnLabel(yarnSchema, yarns.get(yarnId), yarnId),
         hex: yarns.get(yarnId)?.hex ?? '',
         deficits,
-      })
-    }
-    colourImbalances.sort(
-      (a, b) =>
-        b.deficits.reduce((sum, d) => sum + d.count, 0) - a.deficits.reduce((sum, d) => sum + d.count, 0) ||
-        a.label.localeCompare(b.label),
-    )
-
-    // Every status, not just finished — a gap is worth fixing whether or not the square is done yet.
-    const toGap = (r: CsvRow): Gap => ({ id: r.id ?? '', date: r.date ?? '' })
-    const missingMainYarn = rows.filter((r) => !r.main_yarn).map(toGap)
-    const missingDesign = rows.filter((r) => !r.design_id).map(toGap)
+      }))
+      .sort(
+        (a, b) =>
+          b.deficits.reduce((sum, d) => sum + d.count, 0) - a.deficits.reduce((sum, d) => sum + d.count, 0) ||
+          a.label.localeCompare(b.label),
+      )
 
     // Pace over a trailing window, from the dates on finished squares. The window is normally 4
     // weeks, but shrinks to however long the project has actually been running when that is less —
@@ -257,10 +307,10 @@ export function StatsPage() {
       byDesign: sortDesc(byDesign),
       byYarn: sortDesc(byYarn),
       byMainYarnFinished: sortDesc(byMainYarnFinished),
-      byConstructionFinished: sortDesc(byConstructionFinished),
+      byConstructionFinished: insights.byConstructionFinished,
       colourImbalances,
-      missingMainYarn,
-      missingDesign,
+      missingMainYarn: insights.missingMainYarn.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
+      missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
     }
   }, [squares, schema, prefs, resolve, yarns, yarnSchema])
 
@@ -300,7 +350,7 @@ export function StatsPage() {
         items={stats.byStatus.map(([key, count]) => ({ key, label: key, count }))}
       />
 
-      <TallyCard
+      <CollapsibleTallyCard
         title="Finished, by main colour"
         note="Only finished squares (done or blocked), and only the main colour."
         items={stats.byMainYarnFinished.map(([key, count]) => ({
@@ -309,9 +359,12 @@ export function StatsPage() {
           hex: yarns.get(key)?.hex ?? '',
           count,
         }))}
+        collapsed={collapsed.byMainColour}
+        onToggle={() => toggle('byMainColour')}
+        renderCollapsed={collapsedColourChips}
       />
 
-      <TallyCard
+      <CollapsibleTallyCard
         title="By colour"
         note="Counts every square a colour appears in, main or extra."
         items={stats.byYarn.map(([key, count]) => ({
@@ -320,21 +373,27 @@ export function StatsPage() {
           hex: yarns.get(key)?.hex ?? '',
           count,
         }))}
+        collapsed={collapsed.byColour}
+        onToggle={() => toggle('byColour')}
+        renderCollapsed={collapsedColourChips}
       />
 
-      <TallyCard
+      <CollapsibleTallyCard
         title="By design"
         items={stats.byDesign.map(([key, count]) => ({
           key: key || '(none)',
           label: designs.get(key)?.name ?? '(no design)',
           count,
         }))}
+        collapsed={collapsed.byDesign}
+        onToggle={() => toggle('byDesign')}
+        renderCollapsed={collapsedDesignSummary}
       />
 
       <TallyCard
         title="Finished, by construction"
         note="Only finished squares (done or blocked). A square with no construction of its own counts by its design's."
-        items={stats.byConstructionFinished.map(([key, count]) => ({ key, label: key, count }))}
+        items={stats.byConstructionFinished.map((c) => ({ key: c.construction, label: c.construction, count: c.count }))}
       />
 
       <ImbalanceCard
