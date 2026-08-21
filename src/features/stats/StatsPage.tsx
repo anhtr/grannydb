@@ -329,6 +329,11 @@ export function StatsPage() {
 
   return (
     <div className="space-y-2 px-4 pb-24">
+      <TallyCard
+        title="By status"
+        items={stats.byStatus.map(([key, count]) => ({ key, label: key, count }))}
+      />
+
       <div className="grid grid-cols-2 gap-2">
         <Stat
           label="Finished"
@@ -365,9 +370,19 @@ export function StatsPage() {
       </div>
 
       <TallyCard
-        title="By status"
-        items={stats.byStatus.map(([key, count]) => ({ key, label: key, count }))}
+        title="Finished, by construction"
+        note="Only finished squares (done or blocked). A square with no construction of its own counts by its design's."
+        items={stats.byConstructionFinished.map((c) => ({ key: c.construction, label: c.construction, count: c.count }))}
       />
+
+      <ImbalanceCard
+        title="Colour imbalance by construction"
+        note="Main colours where finished squares favour one construction over another, and by how much."
+        items={stats.colourImbalances}
+      />
+
+      <GapsCard title="Missing main colour" items={stats.missingMainYarn} />
+      <GapsCard title="Missing design" items={stats.missingDesign} />
 
       <CollapsibleTallyCard
         title="Finished, by main colour"
@@ -408,21 +423,6 @@ export function StatsPage() {
         onToggle={() => toggle('byDesign')}
         renderCollapsed={collapsedDesignSummary}
       />
-
-      <TallyCard
-        title="Finished, by construction"
-        note="Only finished squares (done or blocked). A square with no construction of its own counts by its design's."
-        items={stats.byConstructionFinished.map((c) => ({ key: c.construction, label: c.construction, count: c.count }))}
-      />
-
-      <ImbalanceCard
-        title="Colour imbalance by construction"
-        note="Main colours where finished squares favour one construction over another, and by how much."
-        items={stats.colourImbalances}
-      />
-
-      <GapsCard title="Missing main colour" items={stats.missingMainYarn} />
-      <GapsCard title="Missing design" items={stats.missingDesign} />
     </div>
   )
 }
