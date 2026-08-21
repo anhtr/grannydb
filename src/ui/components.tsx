@@ -72,7 +72,7 @@ export function Badge({
     info: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300',
   }
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>
+    <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium ${tones[tone]}`}>
       {children}
     </span>
   )
@@ -211,10 +211,12 @@ export function ColourGlyph({
 }
 
 /**
- * Rows of badges floated to the right of a list row, so the title/subtitle text flows around them
- * (wrapping onto a second line under the badges when it's long) instead of being truncated to make
- * room. `rows` is one entry per visual row, outermost first; falsy badges and empty rows are dropped,
- * so a caller can pass conditional badges without pre-filtering.
+ * Rows of badges docked to the right of a list row, as a plain flex sibling rather than a CSS float —
+ * a float lets sibling text reflow into the narrow column beside it, which is what wrapping long
+ * titles/subtitles around the badges instead of truncating them used to look like. `rows` is one
+ * entry per visual row, outermost first; falsy badges and empty rows are dropped, so a caller can pass
+ * conditional badges without pre-filtering. `shrink-0` keeps the stack its natural width when the text
+ * beside it is truncating; the parent row's `items-center` is what actually centres it vertically.
  */
 export function BadgeStack({
   rows,
@@ -228,7 +230,7 @@ export function BadgeStack({
     .filter((row) => row.length > 0)
   if (cleaned.length === 0) return null
   return (
-    <div className={`float-right ml-3 mb-1 flex flex-col items-end gap-1 ${className}`}>
+    <div className={`flex shrink-0 flex-col items-end gap-1 ${className}`}>
       {cleaned.map((row, i) => (
         <div key={i} className="flex flex-wrap items-center justify-end gap-1.5">
           {row}
@@ -248,7 +250,7 @@ export function PageHeader({
   action?: ReactNode
 }) {
   return (
-    <header className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
+    <header className="flex items-start justify-between gap-2 px-4 pt-3 pb-1.5">
       <div className="min-w-0">
         <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
         {subtitle ? <p className="mt-0.5 text-sm text-muted">{subtitle}</p> : null}
@@ -301,11 +303,11 @@ export function FieldShell({
   children: ReactNode
 }) {
   return (
-    <div className="px-4 py-3">
+    <div className="px-4 py-2.5">
       <label htmlFor={htmlFor} className="block text-sm font-medium text-muted">
         {label}
       </label>
-      <div className="mt-1.5">{children}</div>
+      <div className="mt-1">{children}</div>
       {error ? (
         <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
       ) : help ? (

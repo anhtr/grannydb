@@ -208,6 +208,7 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
   const canEdit = useCanEdit()
   const [query, setQuery] = useState('')
   const [sortPanelOpen, setSortPanelOpen] = useState(false)
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [listPrefs, setListPrefsState] = useState<ListPrefs>(() =>
     initialListPrefs(schema, state.prefs.lists[table]),
   )
@@ -269,7 +270,7 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
     <div className="pb-32">
       {header}
 
-      <div className="sticky top-0 z-10 space-y-2 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur">
+      <div className="sticky top-0 z-10 space-y-1.5 border-b border-line bg-paper/95 px-4 py-2.5 backdrop-blur">
         <input
           type="search"
           inputMode="search"
@@ -280,40 +281,39 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
           onChange={(e) => setQuery(e.target.value)}
         />
         {filterDescriptors.length > 0 || allSortOptions.length > 0 ? (
-          <div className="relative">
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-              {allSortOptions.length > 0 ? (
-                <button
-                  type="button"
-                  aria-label="Sort"
-                  aria-expanded={sortPanelOpen}
-                  className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
-                    sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-                  }`}
-                  onClick={() => setSortPanelOpen((v) => !v)}
-                >
-                  {sortButtonText}
-                </button>
-              ) : null}
-              {filterDescriptors.map((d) => (
-                <select
-                  key={d.key}
-                  aria-label={`Filter by ${d.label}`}
-                  className={`tap-target shrink-0 rounded-xl border px-3 text-sm ${
-                    filters[d.key] ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-                  }`}
-                  value={filters[d.key] ?? ''}
-                  onChange={(e) => setListPrefs({ filters: { ...filters, [d.key]: e.target.value } })}
-                >
-                  <option value="">{d.label}: any</option>
-                  {d.options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              ))}
-            </div>
+          <div className="relative flex gap-1.5">
+            {allSortOptions.length > 0 ? (
+              <button
+                type="button"
+                aria-label="Sort"
+                aria-expanded={sortPanelOpen}
+                className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
+                  sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+                }`}
+                onClick={() => {
+                  setFilterPanelOpen(false)
+                  setSortPanelOpen((v) => !v)
+                }}
+              >
+                {sortButtonText}
+              </button>
+            ) : null}
+            {filterDescriptors.length > 0 ? (
+              <button
+                type="button"
+                aria-label="Filter"
+                aria-expanded={filterPanelOpen}
+                className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
+                  activeFilters > 0 ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+                }`}
+                onClick={() => {
+                  setSortPanelOpen(false)
+                  setFilterPanelOpen((v) => !v)
+                }}
+              >
+                Filter{activeFilters > 0 ? ` (${activeFilters})` : ''}
+              </button>
+            ) : null}
             {sortPanelOpen ? (
               <SortPanel
                 options={allSortOptions}
@@ -323,11 +323,19 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
                 onClose={() => setSortPanelOpen(false)}
               />
             ) : null}
+            {filterPanelOpen ? (
+              <FilterPanel
+                descriptors={filterDescriptors}
+                filters={filters}
+                onChange={(next) => setListPrefs({ filters: next })}
+                onClose={() => setFilterPanelOpen(false)}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>
 
-      <p className="px-4 py-2 text-xs text-muted">
+      <p className="px-4 py-1.5 text-xs text-muted">
         {rows.length} of {data.rows.length}
         {activeFilters > 0 || query !== '' ? ' (filtered)' : ''}
       </p>
@@ -338,20 +346,20 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
           hint="Try clearing the search or filters."
         />
       ) : (
-        <ul className="space-y-2 px-4">
+        <ul className="space-y-1.5 px-4">
           {rows.map((row) => {
             const id = row[schema.idField] ?? ''
             return (
               <li key={id}>
                 <Link to={`/${table}/${id}`} className="block">
-                  <Card className="p-3 transition hover:border-accent">
+                  <Card className="p-2.5 transition hover:border-accent">
                     {renderRow ? (
                       renderRow(row, schema)
                     ) : (
                       <DefaultRow row={row} schema={schema} resolve={resolve} />
                     )}
                     {pending.has(id) ? (
-                      <div className="mt-2">
+                      <div className="mt-1.5">
                         <Badge tone="warn">Unsynced</Badge>
                       </div>
                     ) : null}
@@ -487,6 +495,65 @@ function SortPanel({
 }
 
 /**
+ * All the list's filter dropdowns in one floating panel, opened from a single "Filter" button rather
+ * than laid out inline — a side-bar-of-filters-on-demand instead of a row that grows with every
+ * filterable field the schema defines and eats space even when nothing is filtered.
+ */
+function FilterPanel({
+  descriptors,
+  filters,
+  onChange,
+  onClose,
+}: {
+  descriptors: FilterDescriptor[]
+  filters: Record<string, string>
+  onChange: (filters: Record<string, string>) => void
+  onClose: () => void
+}) {
+  const activeCount = Object.values(filters).filter((v) => v !== '').length
+  return (
+    <>
+      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
+      <div className="absolute inset-x-0 top-full z-20 mt-2 rounded-xl border border-line bg-card p-3 shadow-lg">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-medium text-muted">Filter by</p>
+          {activeCount > 0 ? (
+            <button type="button" className="text-xs text-accent" onClick={() => onChange({})}>
+              Clear all
+            </button>
+          ) : null}
+        </div>
+        <div className="space-y-2">
+          {descriptors.map((d) => (
+            <div key={d.key}>
+              <label className="mb-1 block text-xs text-muted">{d.label}</label>
+              <select
+                aria-label={`Filter by ${d.label}`}
+                className={inputClass}
+                value={filters[d.key] ?? ''}
+                onChange={(e) => onChange({ ...filters, [d.key]: e.target.value })}
+              >
+                <option value="">Any</option>
+                {d.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button type="button" className="tap-target text-xs text-muted" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/**
  * Floating above the bottom nav rather than up in the header, so adding a record stays in thumb
  * reach no matter how far the list has been scrolled. `pointer-events-none` on the wrapper lets taps
  * pass through to the list on either side of the button; only the button itself re-enables them.
@@ -522,18 +589,18 @@ function DefaultRow({
   const swatch = schema.swatchField ? row[schema.swatchField] : undefined
 
   return (
-    <div className="overflow-hidden">
+    <div className="flex items-center gap-3">
       {schema.swatchField ? (
         <span
-          className="float-left mr-3 size-9 shrink-0 rounded-full border border-black/10"
+          className="size-9 shrink-0 rounded-full border border-black/10"
           style={{ background: swatch || 'transparent' }}
         />
       ) : null}
-      <BadgeStack rows={[[<span key="id" className="font-mono text-xs text-muted">{row[schema.idField]}</span>]]} />
-      <div>
-        <p className="font-medium">{title}</p>
-        {subtitle ? <p className="text-sm text-muted">{subtitle}</p> : null}
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium">{title}</p>
+        {subtitle ? <p className="truncate text-sm text-muted">{subtitle}</p> : null}
       </div>
+      <BadgeStack rows={[[<span key="id" className="font-mono text-xs text-muted">{row[schema.idField]}</span>]]} />
     </div>
   )
 }

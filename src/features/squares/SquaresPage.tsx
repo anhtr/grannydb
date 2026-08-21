@@ -32,7 +32,7 @@ function ProgressHeader({ schema }: { schema: TableSchema }) {
     insights.missingDesign.length > 0
 
   return (
-    <Card className="mx-4 mt-2 p-4">
+    <Card className="mx-4 mt-2 p-3">
       <div className="flex items-baseline justify-between">
         <p className="text-sm text-muted">Squares finished</p>
         <p className="text-sm font-medium">
@@ -40,7 +40,7 @@ function ProgressHeader({ schema }: { schema: TableSchema }) {
         </p>
       </div>
       <div
-        className="mt-2 h-2 overflow-hidden rounded-full bg-line"
+        className="mt-1.5 h-2 overflow-hidden rounded-full bg-line"
         role="progressbar"
         aria-valuenow={done}
         aria-valuemin={0}
@@ -50,7 +50,7 @@ function ProgressHeader({ schema }: { schema: TableSchema }) {
       </div>
 
       {hasInsights ? (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {insights.byConstructionFinished.map((c) => (
             <Badge key={c.construction} tone="neutral">
               {c.count} {c.construction}
@@ -100,14 +100,29 @@ function SquareRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
   const glyphTitle = [mainTitle, ...extraTitles].filter((t): t is string => !!t).join(' + ')
 
   return (
-    <div className="overflow-hidden">
+    <div className="flex items-center gap-3">
       <ColourGlyph
         mainHex={mainYarn?.hex}
         extraHexes={extras.map((id) => yarns.get(id)?.hex)}
         size={32}
         title={glyphTitle || undefined}
-        className="float-left mr-3"
+        className="shrink-0"
       />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium">
+          <span className="font-mono text-sm">{row.id}</span>
+          {colourNames ? (
+            <>
+              <span className="text-muted"> • </span>
+              <span className="text-xs font-normal text-muted">{colourNames}</span>
+            </>
+          ) : null}
+        </p>
+        <p className="truncate text-sm text-muted">
+          {design?.name ?? '(no design)'}
+          {row.date ? ` · ${row.date}` : ''}
+        </p>
+      </div>
       <BadgeStack
         rows={[
           [
@@ -126,22 +141,6 @@ function SquareRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
           ],
         ]}
       />
-
-      <div>
-        <p className="flex items-baseline gap-1.5 font-medium">
-          <span className="font-mono text-sm">{row.id}</span>
-          {colourNames ? (
-            <>
-              <span className="text-muted">•</span>
-              <span className="text-xs font-normal text-muted">{colourNames}</span>
-            </>
-          ) : null}
-        </p>
-        <p className="text-sm text-muted">
-          {design?.name ?? '(no design)'}
-          {row.date ? ` · ${row.date}` : ''}
-        </p>
-      </div>
     </div>
   )
 }

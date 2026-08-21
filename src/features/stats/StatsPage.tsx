@@ -37,13 +37,13 @@ function Bar({ value, max }: { value: number; max: number }) {
 function TallyCard({ title, items, note }: { title: string; items: Tally[]; note?: string }) {
   const max = items.reduce((m, i) => Math.max(m, i.count), 0)
   return (
-    <Card className="p-4">
+    <Card className="p-3">
       <h2 className="font-medium">{title}</h2>
       {note ? <p className="mt-0.5 text-xs text-muted">{note}</p> : null}
       {items.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">Nothing recorded yet.</p>
+        <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
       ) : (
-        <ul className="mt-3 space-y-2.5">
+        <ul className="mt-2 space-y-2">
           {items.map((item) => (
             <li key={item.key}>
               <div className="flex items-center gap-2 text-sm">
@@ -84,8 +84,8 @@ function CollapsibleTallyCard({
 }) {
   const max = items.reduce((m, i) => Math.max(m, i.count), 0)
   return (
-    <Card className="p-4">
-      <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={onToggle}>
+    <Card className="p-3">
+      <button type="button" className="flex w-full items-start justify-between gap-2 text-left" onClick={onToggle}>
         <span>
           <span className="block font-medium">{title}</span>
           {note ? <span className="mt-0.5 block text-xs text-muted">{note}</span> : null}
@@ -93,11 +93,11 @@ function CollapsibleTallyCard({
         <span className="tap-target shrink-0 text-xs text-accent">{collapsed ? 'Show all' : 'Collapse'}</span>
       </button>
       {items.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">Nothing recorded yet.</p>
+        <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
       ) : collapsed ? (
         renderCollapsed(items)
       ) : (
-        <ul className="mt-3 space-y-2.5">
+        <ul className="mt-2 space-y-2">
           {items.map((item) => (
             <li key={item.key}>
               <div className="flex items-center gap-2 text-sm">
@@ -120,7 +120,7 @@ function CollapsibleTallyCard({
  * is what the expanded list is for. */
 function collapsedColourChips(items: Tally[]): ReactNode {
   return (
-    <div className="mt-3 flex flex-wrap gap-3">
+    <div className="mt-2 flex flex-wrap gap-2">
       {items.map((item) => (
         <span key={item.key} className="flex items-center gap-1.5 text-sm">
           <Swatch hex={item.hex} size={14} />
@@ -136,7 +136,7 @@ function collapsedColourChips(items: Tally[]): ReactNode {
 function collapsedDesignSummary(items: Tally[]): ReactNode {
   const notable = items.filter((i) => i.count > 1)
   return (
-    <p className="mt-3 text-sm text-muted">
+    <p className="mt-2 text-sm text-muted">
       {notable.length > 0 ? notable.map((i) => `${i.label} (${i.count})`).join(', ') : 'None with more than one square yet.'}
     </p>
   )
@@ -152,13 +152,13 @@ interface ColourImbalance {
 
 function ImbalanceCard({ title, note, items }: { title: string; note?: string; items: ColourImbalance[] }) {
   return (
-    <Card className="p-4">
+    <Card className="p-3">
       <h2 className="font-medium">{title}</h2>
       {note ? <p className="mt-0.5 text-xs text-muted">{note}</p> : null}
       {items.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">Nothing recorded yet.</p>
+        <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
       ) : (
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-2 space-y-2">
           {items.map((item) => (
             <li key={item.key} className="flex items-center gap-2 text-sm">
               {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
@@ -188,12 +188,12 @@ interface Gap {
  */
 function GapsCard({ title, items }: { title: string; items: Gap[] }) {
   return (
-    <Card className="p-4">
+    <Card className="p-3">
       <h2 className="font-medium">{title}</h2>
       {items.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">None — nice.</p>
+        <p className="mt-2 text-sm text-muted">None — nice.</p>
       ) : (
-        <ul className="mt-3 space-y-1.5">
+        <ul className="mt-2 space-y-1">
           {items.map((item) => (
             <li key={item.id}>
               <Link
@@ -211,12 +211,13 @@ function GapsCard({ title, items }: { title: string; items: Gap[] }) {
   )
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Stat({ label, value, sub, extra }: { label: string; value: string; sub?: string; extra?: ReactNode }) {
   return (
-    <Card className="p-4">
+    <Card className="p-3">
       <p className="text-sm text-muted">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
       {sub ? <p className="text-xs text-muted">{sub}</p> : null}
+      {extra}
     </Card>
   )
 }
@@ -293,6 +294,10 @@ export function StatsPage() {
       return Number.isFinite(t) && t >= cutoff
     }).length
 
+    // Lifetime pace, for comparison against the trailing window above — null when there's no
+    // project start date to measure the "since when" from.
+    const overallPerWeek = Number.isFinite(startMs) && elapsedWeeks > 0 ? finished.length / elapsedWeeks : null
+
     const sortDesc = (m: Map<string, number>) =>
       [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
 
@@ -302,6 +307,7 @@ export function StatsPage() {
       blocked: blocked.length,
       unblocked: finished.length - blocked.length,
       perWeek: recent / paceWindowWeeks,
+      overallPerWeek,
       paceWindowWeeks,
       byStatus: sortDesc(byStatus),
       byDesign: sortDesc(byDesign),
@@ -319,10 +325,11 @@ export function StatsPage() {
   const goal = effectiveGoal(schema, prefs)
   const remaining = Math.max(0, goal - stats.done)
   const weeksLeft = stats.perWeek > 0 ? Math.ceil(remaining / stats.perWeek) : null
+  const completionDate = weeksLeft !== null ? new Date(Date.now() + weeksLeft * MS_PER_WEEK) : null
 
   return (
-    <div className="space-y-3 px-4 pb-24">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-2 px-4 pb-24">
+      <div className="grid grid-cols-2 gap-2">
         <Stat
           label="Finished"
           value={goal > 0 ? `${stats.done} / ${goal}` : String(stats.done)}
@@ -337,11 +344,23 @@ export function StatsPage() {
               ? `${PACE_WINDOW_WEEKS} weeks`
               : `${stats.paceWindowWeeks.toFixed(1)} week${stats.paceWindowWeeks >= 1.05 ? 's' : ''}`
           }`}
+          extra={
+            stats.overallPerWeek !== null ? (
+              <p className="text-[10px] text-muted">{stats.overallPerWeek.toFixed(1)}/week overall</p>
+            ) : null
+          }
         />
         <Stat
           label="At this rate"
           value={weeksLeft === null ? '—' : `${weeksLeft}w`}
           sub={weeksLeft === null ? 'no recent squares' : 'until the last square'}
+          extra={
+            completionDate ? (
+              <p className="text-[11px] italic text-muted">
+                ({completionDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })})
+              </p>
+            ) : null
+          }
         />
       </div>
 

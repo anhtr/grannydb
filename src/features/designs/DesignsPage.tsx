@@ -24,7 +24,11 @@ function DesignRow({
   const construction = row.construction_type ?? ''
 
   return (
-    <div className="overflow-hidden">
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium">{title}</p>
+        {subtitle ? <p className="truncate text-sm text-muted">{subtitle}</p> : null}
+      </div>
       <BadgeStack
         rows={[
           [
@@ -38,10 +42,6 @@ function DesignRow({
           [construction ? <Badge key="construction" tone="neutral">{construction}</Badge> : null],
         ]}
       />
-      <div>
-        <p className="font-medium">{title}</p>
-        {subtitle ? <p className="text-sm text-muted">{subtitle}</p> : null}
-      </div>
     </div>
   )
 }
