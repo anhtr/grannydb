@@ -150,26 +150,24 @@ interface ColourImbalance {
   deficits: { construction: string; count: number }[]
 }
 
+/** Only rendered by the caller when `items` is non-empty — see the "only show up when there's
+ * something to display" cards on `StatsPage`. */
 function ImbalanceCard({ title, note, items }: { title: string; note?: string; items: ColourImbalance[] }) {
   return (
     <Card className="p-3">
       <h2 className="font-medium">{title}</h2>
       {note ? <p className="mt-0.5 text-xs text-muted">{note}</p> : null}
-      {items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
-      ) : (
-        <ul className="mt-2 space-y-2">
-          {items.map((item) => (
-            <li key={item.key} className="flex items-center gap-2 text-sm">
-              {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              <span className="shrink-0 text-xs text-muted">
-                {item.deficits.map((d) => `${d.count} short in ${d.construction}`).join(', ')}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="mt-2 space-y-2">
+        {items.map((item) => (
+          <li key={item.key} className="flex items-center gap-2 text-sm">
+            {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            <span className="shrink-0 text-xs text-muted">
+              {item.deficits.map((d) => `${d.count} short in ${d.construction}`).join(', ')}
+            </span>
+          </li>
+        ))}
+      </ul>
     </Card>
   )
 }
@@ -184,29 +182,27 @@ interface Gap {
  * above (they all key off `main_yarn`/`design_id`) rather than showing up as an obvious zero, which
  * is exactly what made the colour-imbalance card go quiet instead of flagging a real gap. This card
  * lists the rows themselves — every status, not just finished — so the gap is something to click
- * through and fix rather than a mystery to debug from the other cards' totals.
+ * through and fix rather than a mystery to debug from the other cards' totals. Only rendered by the
+ * caller when `items` is non-empty — see the "only show up when there's something to display" cards
+ * on `StatsPage`.
  */
 function GapsCard({ title, items }: { title: string; items: Gap[] }) {
   return (
     <Card className="p-3">
       <h2 className="font-medium">{title}</h2>
-      {items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted">None — nice.</p>
-      ) : (
-        <ul className="mt-2 space-y-1">
-          {items.map((item) => (
-            <li key={item.id}>
-              <Link
-                to={`/squares/${item.id}`}
-                className="flex items-center justify-between rounded-lg px-1 py-0.5 text-sm text-accent hover:underline"
-              >
-                <span className="font-mono">{item.id}</span>
-                {item.date ? <span className="text-xs text-muted">{item.date}</span> : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="mt-2 space-y-1">
+        {items.map((item) => (
+          <li key={item.id}>
+            <Link
+              to={`/squares/${item.id}`}
+              className="flex items-center justify-between rounded-lg px-1 py-0.5 text-sm text-accent hover:underline"
+            >
+              <span className="font-mono">{item.id}</span>
+              {item.date ? <span className="text-xs text-muted">{item.date}</span> : null}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </Card>
   )
 }
@@ -375,14 +371,16 @@ export function StatsPage() {
         items={stats.byConstructionFinished.map((c) => ({ key: c.construction, label: c.construction, count: c.count }))}
       />
 
-      <ImbalanceCard
-        title="Colour imbalance by construction"
-        note="Main colours where finished squares favour one construction over another, and by how much."
-        items={stats.colourImbalances}
-      />
+      {stats.colourImbalances.length > 0 ? (
+        <ImbalanceCard
+          title="Colour imbalance by construction"
+          note="Main colours where finished squares favour one construction over another, and by how much."
+          items={stats.colourImbalances}
+        />
+      ) : null}
 
-      <GapsCard title="Missing main colour" items={stats.missingMainYarn} />
-      <GapsCard title="Missing design" items={stats.missingDesign} />
+      {stats.missingMainYarn.length > 0 ? <GapsCard title="Missing main colour" items={stats.missingMainYarn} /> : null}
+      {stats.missingDesign.length > 0 ? <GapsCard title="Missing design" items={stats.missingDesign} /> : null}
 
       <CollapsibleTallyCard
         title="Finished, by main colour"
