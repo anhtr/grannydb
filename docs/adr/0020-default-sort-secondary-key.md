@@ -1,6 +1,7 @@
 # ADR 0020 — `defaultSort` gets an optional secondary key, not a compound sort picker
 
-**Status:** accepted · 2026-08-19
+**Status:** accepted · 2026-08-19 · the "no compound picker" call is superseded by
+[ADR 0023](0023-priority-ordered-multi-key-sort.md); `thenBy` itself is unchanged
 
 ## Context
 
@@ -35,13 +36,15 @@ wants the same shape of default without new code.
 [`core/schema/load.ts`](../../src/core/schema/load.ts) with the same "must be id/title/sortable" check
 `key` already gets. `squares.json` sets `{ "key": "main_yarn", "thenBy": "construction_type" }`.
 
-In [`ui/RecordList.tsx`](../../src/ui/RecordList.tsx), `sortRows`/`compareValues` now take a `SortSpec`
+In [`ui/RecordList.tsx`](../../src/ui/RecordList.tsx), `sortRows`/`compareValues` now took a `SortSpec`
 (`{ key, field, dir }`) instead of three loose parameters, so a primary and an optional secondary spec
-share one comparison function. The secondary spec is only built when the list's *current* sort key
-still equals `defaultSort.key` — the moment a person picks a different primary sort from the dropdown,
-the secondary tie-break is dropped and the list falls back to the ordinary title/id tie-break every
-sort gets, since a person who asked to sort by Design was not asking for construction to keep quietly
-shaping the order underneath it.
+shared one comparison function. The secondary spec was only built when the list's *current* sort key
+still equalled `defaultSort.key` — the moment a person picked a different primary sort from the
+dropdown, the secondary tie-break was dropped, since a person who asked to sort by Design was not
+asking for construction to keep quietly shaping the order underneath it.
+**As of [ADR 0023](0023-priority-ordered-multi-key-sort.md), this paragraph is history, not current
+behaviour**: `sortRows` takes a `SortSpec[]` now, `thenBy` only seeds the person's own editable list of
+sort rules, and the gating condition described above no longer exists.
 
 Making `construction_type` sortable also exposed a latent gap: `compareValues` was reading a sort
 field's raw stored cell, which for an `inheritFrom` field like `construction_type` is usually blank —
@@ -56,7 +59,6 @@ of its actual effective value. Fixed alongside this change: sorting an inheritin
   mounting a component — see `ui/__tests__/RecordList.sort.test.ts`.
 - Any table can add a `thenBy` to its own `defaultSort` for free; nothing beyond the two schema keys
   is required.
-- A compound *user-facing* sort picker is still not built. If a second table wants the same default
-  shape, `thenBy` already covers it; if someone wants to *choose* a secondary sort themselves rather
-  than accept the schema's default one, that is a materially different feature and should get its own
-  ADR when it is actually asked for, not built speculatively now.
+- A compound *user-facing* sort picker was not built at the time — superseded by
+  [ADR 0023](0023-priority-ordered-multi-key-sort.md), which built exactly that once it was actually
+  asked for.

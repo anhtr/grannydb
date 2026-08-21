@@ -4,6 +4,44 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-20 — v0.1.13, floated badge rows, construction on lists, and a person-editable multi-key sort
+
+**App**
+- New `BadgeStack` (`ui/components.tsx`): rows of badges floated to one side of a list row, so a long
+  title or subtitle wraps under them instead of being truncated to make room. Adopted by every list row
+  renderer (`YarnsPage`, `SquaresPage`, `DesignsPage`, `RecordList`'s generic `DefaultRow`). `Swatch`
+  and `ColourGlyph` gain an optional `className` so they can be floated too.
+- Yarns list: a partial skein is now shown as a `◖` on the end of the skein-count badge instead of its
+  own separate "Partial" badge, and the skein/partial badge sits on its own row above the main/extra
+  usage badges (previously all four badges competed for one row).
+- Squares and Designs lists: construction type (`solid`/`holey`) now shows as a badge on its own row,
+  under the status badge (Squares) or the square-count badge (Designs) — reads the *effective* value
+  for squares, same as everywhere else `construction_type` is inherited from a design. See
+  [ADR 0016](adr/0016-field-level-inherited-values.md).
+- New `squareConstructionInsights` (`core/schema/relations.ts`): finished-squares-by-construction,
+  which main colours are imbalanced across constructions, and which squares are missing a main colour
+  or a design — one aggregation pass over `squares`, shared by the Squares list's progress header and
+  the Progress screen. The progress header now shows these counts under the finished/goal bar; the
+  missing-colour and missing-design counts only appear when they are non-zero.
+- Progress screen: "Finished, by main colour", "By colour" and "By design" are now collapsible, and
+  start collapsed. Collapsed, the two colour tallies show just a swatch and a count per colour (no
+  name), gapped out in a row; the design tally shows only designs with more than one square, as
+  `"Name (n)"` comma-separated. `StatsPage` now gets its construction/imbalance/missing-gap numbers
+  from `squareConstructionInsights` instead of its own copy of that aggregation.
+- `RecordList`'s sort control is now a person-editable, priority-ordered list of sort keys (any number,
+  reorderable, each with its own direction) instead of one field plus a direction toggle. `thenBy` still
+  seeds the initial list a table's `defaultSort` opens with, but no longer gates a runtime tie-break —
+  see [ADR 0023](adr/0023-priority-ordered-multi-key-sort.md), which supersedes that part of
+  [ADR 0020](adr/0020-default-sort-secondary-key.md). `ListPrefs.sortKey`/`sortDir` (`core/prefs`)
+  become `sorts: SortRule[]`; an existing device's saved single-key sort is read once and converted on
+  load, so this does not reset anyone's remembered sort.
+
+**Docs**
+- [Data model](02-data-model.md) corrects the `defaultSort`/`thenBy` paragraph to describe seeding a
+  person-editable list rather than a gated tie-break. [App architecture](05-app-architecture.md)
+  documents the sort panel, `BadgeStack`, and `squareConstructionInsights`. [ADR 0020](adr/0020-default-sort-secondary-key.md)
+  is marked superseded on the one point ADR 0023 replaces; its history otherwise stands.
+
 ## 2026-08-19 — v0.1.12, active yarn, and squares-used counts for yarns and designs
 
 **App**

@@ -129,17 +129,25 @@ Three components in `ui/` serve every table:
 - **[`RecordList`](../src/ui/RecordList.tsx)** — search across cells (restricted to the table's
   `searchFields` if it sets any, otherwise every field), filter dropdowns built from fields marked
   `"filter": true` (numeric ones can set `"filterMode": "min"` for "N or more" thresholds instead of
-  an exact-match dropdown) plus the schema's `derivedFilters`, a sort control (id and title always
-  offered, plus any field marked `"sortable": true`) with an ascending/descending toggle, unsynced
-  badges. Accepts a `renderRow` override. Every sort breaks ties by title then id, so the result order
-  is always fully determined. The list opens on the schema's `defaultSort` (or id, if it sets none)
-  the first time it is visited on a device; after that, whatever filters and sort the person chooses
-  are saved to `Prefs.lists[table]` (`core/prefs`) and restored next time — device-local, not synced.
+  an exact-match dropdown) plus the schema's `derivedFilters`, a sort panel, unsynced badges. Accepts a
+  `renderRow` override. The sort panel offers id, title and any field marked `"sortable": true` as a
+  priority-ordered list the person builds themselves — add a key, toggle its direction, reorder or
+  remove it — not a single field-plus-direction pair; every rule breaks ties left by the ones before
+  it, then title, then id, so the result order is always fully determined. See
+  [ADR 0023](adr/0023-priority-ordered-multi-key-sort.md). The list opens on the schema's `defaultSort`
+  (plus `defaultSort.thenBy`, or id if it sets neither) the first time it is visited on a device; after
+  that, whatever filters and sort rules the person builds are saved to `Prefs.lists[table]`
+  (`core/prefs`) and restored next time — device-local, not synced.
   A page can also pass `extraSortOptions`/`extraFilters` — the same shapes `sortableFields`/
   `filterFields` build from the schema, but supplied by the caller for a value that has no field to
   scan, e.g. a cross-table count. `YarnsPage` and `DesignsPage` both use this for counts computed by
   [`core/schema/relations.ts`](../src/core/schema/relations.ts); see
-  [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md).
+  [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md). The same module's
+  `squareConstructionInsights` (construction-type tallies, colour imbalance, and squares missing a
+  main colour or design) backs both the Squares list's progress header and the Progress screen's
+  matching cards, one aggregation pass shared instead of two.
+  List rows generally float their badges to one side (`BadgeStack` in `ui/components.tsx`) so a long
+  title or subtitle wraps under them instead of being truncated to make room.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, edit and delete,
   a link to the underlying CSV on github.com.
 - **[`RecordForm`](../src/ui/RecordForm.tsx)** — every field via its `Input`, validation on save

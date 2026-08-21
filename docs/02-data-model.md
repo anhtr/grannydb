@@ -302,10 +302,11 @@ id, since browsing "everything from this book" is the more common way to want to
 `defaultSort` can also set `"thenBy"` (plus optional `"thenDirection"`), a second key breaking ties on
 the first — `squares.json` sets `{ "key": "main_yarn", "thenBy": "construction_type" }` so the Squares
 list opens grouped by colour, then by construction within a colour, rather than falling straight
-through to the generic title/id tie-break. `thenBy` only applies while `key` is still the active sort;
-picking a different sort from the dropdown drops it, since a person who explicitly asked to sort by
-Design was not asking for construction to keep quietly influencing the order underneath it. See
-[ADR 0020](adr/0020-default-sort-secondary-key.md).
+through to the generic title/id tie-break. `key`/`thenBy` only *seed* the list's sort the first time it
+is opened on a device: from there, the person can add, remove and reorder sort keys of their own
+choosing in the sort panel (any number, not just two), and what they build is what gets remembered —
+see [ADR 0020](adr/0020-default-sort-secondary-key.md) for why `thenBy` exists as a schema field at all,
+and [ADR 0023](adr/0023-priority-ordered-multi-key-sort.md) for the person-editable list it now seeds.
 
 ## Schema evolution policy
 
