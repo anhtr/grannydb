@@ -1,6 +1,6 @@
 import type { CsvRow } from '../../core/csv'
 import { effectiveGoal } from '../../core/prefs'
-import { effectiveValue, fieldByKey, splitList, titleFor } from '../../core/schema'
+import { effectiveValue, fieldByKey, splitList, squareConstructionInsights, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
 import { useAppState, useLookup, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, BadgeStack, Card, ColourGlyph } from '../../ui/components'
@@ -16,6 +16,7 @@ const statusTone: Record<string, 'neutral' | 'accent' | 'warn' | 'danger' | 'suc
 /** Progress toward the blanket, shown above the list because it is the reason for the app. */
 function ProgressHeader({ schema }: { schema: TableSchema }) {
   const table = useTable('squares')
+  const resolve = useResolveRef()
   const prefs = useAppState().prefs
   const goal = effectiveGoal(schema, prefs)
   if (!table || goal === 0) return null
@@ -23,6 +24,12 @@ function ProgressHeader({ schema }: { schema: TableSchema }) {
   // `blocked` is the stage after `done`, so a blocked square still counts toward the goal.
   const done = table.rows.filter((r) => r.status === 'done' || r.status === 'blocked').length
   const percent = Math.min(100, Math.round((done / goal) * 100))
+  const insights = squareConstructionInsights(schema, table, resolve)
+  const hasInsights =
+    insights.byConstructionFinished.length > 0 ||
+    insights.imbalancedColours.length > 0 ||
+    insights.missingMainYarn.length > 0 ||
+    insights.missingDesign.length > 0
 
   return (
     <Card className="mx-4 mt-2 p-4">
@@ -41,6 +48,29 @@ function ProgressHeader({ schema }: { schema: TableSchema }) {
       >
         <div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
       </div>
+
+      {hasInsights ? (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {insights.byConstructionFinished.map((c) => (
+            <Badge key={c.construction} tone="neutral">
+              {c.count} {c.construction}
+            </Badge>
+          ))}
+          {/* Only surfaced when non-zero — a "0 imbalanced" or "0 missing" badge is noise, not a status. */}
+          {insights.imbalancedColours.length > 0 ? (
+            <Badge tone="warn">
+              {insights.imbalancedColours.length} colour{insights.imbalancedColours.length === 1 ? '' : 's'}{' '}
+              imbalanced
+            </Badge>
+          ) : null}
+          {insights.missingMainYarn.length > 0 ? (
+            <Badge tone="danger">{insights.missingMainYarn.length} missing main colour</Badge>
+          ) : null}
+          {insights.missingDesign.length > 0 ? (
+            <Badge tone="danger">{insights.missingDesign.length} missing design</Badge>
+          ) : null}
+        </div>
+      ) : null}
     </Card>
   )
 }
