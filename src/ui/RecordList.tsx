@@ -290,17 +290,17 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
     <div className="pb-32">
       {header}
 
-      <div className="sticky top-0 z-10 space-y-1.5 border-b border-line bg-paper/95 px-4 py-2.5 backdrop-blur">
-        <input
-          type="search"
-          inputMode="search"
-          enterKeyHint="search"
-          className={inputClass}
-          placeholder={`Search ${schema.label.toLowerCase()}`}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      <div className="sticky top-0 z-10 border-b border-line bg-paper/95 px-4 py-2.5 backdrop-blur">
         <div className="relative flex gap-1.5">
+          <input
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            className={`${inputClass} min-w-0 flex-1`}
+            placeholder={`Search ${schema.label.toLowerCase()}`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
           {allSortOptions.length > 0 ? (
             <button
               type="button"
