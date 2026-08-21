@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sortRows } from '../RecordList'
 import type { SortSpec } from '../RecordList'
-import type { ResolveRef, TableSchema } from '../../core/schema'
+import type { FieldDef, ResolveRef, TableSchema } from '../../core/schema'
 
 const yarnsSchema: TableSchema = {
   table: 'yarns',
@@ -87,22 +87,22 @@ const rows = [
 describe('sortRows', () => {
   it('sorts a ref field by the referenced row title, not the stored id', () => {
     const primary: SortSpec = { key: 'main_yarn', field: mainYarnField, dir: 'asc' }
-    const sorted = sortRows(rows, squaresSchema, primary, resolve)
+    const sorted = sortRows(rows, squaresSchema, [primary], resolve)
     expect(sorted.map((r) => r.id)).toEqual(['S003', 'S001', 'S002']) // Amber before Blue
   })
 
   it('resolves an inheriting field to its effective value, not the blank stored cell', () => {
     const primary: SortSpec = { key: 'construction_type', field: constructionField, dir: 'asc' }
-    const sorted = sortRows(rows, squaresSchema, primary, resolve)
+    const sorted = sortRows(rows, squaresSchema, [primary], resolve)
     // holey < solid alphabetically; every row's own cell is blank, so this only works if the
     // inherited design value is what actually gets compared.
     expect(sorted.map((r) => r.id)).toEqual(['S002', 'S001', 'S003'])
   })
 
-  it('breaks ties on the primary sort using a secondary SortSpec (defaultSort.thenBy)', () => {
+  it('breaks ties on the primary sort using a second SortSpec in priority order', () => {
     const primary: SortSpec = { key: 'main_yarn', field: mainYarnField, dir: 'asc' }
     const secondary: SortSpec = { key: 'construction_type', field: constructionField, dir: 'asc' }
-    const sorted = sortRows(rows, squaresSchema, primary, resolve, secondary)
+    const sorted = sortRows(rows, squaresSchema, [primary, secondary], resolve)
     // Amber first; within the Blue tie, holey (S002) sorts before solid (S001).
     expect(sorted.map((r) => r.id)).toEqual(['S003', 'S002', 'S001'])
   })
@@ -121,7 +121,7 @@ describe('sortRows', () => {
       { id: 'S003', design_id: 'D1', construction_type: '', main_yarn: 'Y3' }, // P03
     ]
     const primary: SortSpec = { key: 'main_yarn', field: mainYarnField, dir: 'asc' }
-    const sorted = sortRows(numericRows, squaresSchema, primary, numericResolve)
+    const sorted = sortRows(numericRows, squaresSchema, [primary], numericResolve)
     // 77 before 129 (numeric, not lexicographic), P03 last (letters sort after digits).
     expect(sorted.map((r) => r.id)).toEqual(['S002', 'S001', 'S003'])
   })
@@ -136,7 +136,23 @@ describe('sortRows', () => {
       dir: 'asc',
       computed: { key: 'squareCount', label: 'Squares', value: (row) => squaresPerDesign[row.id] ?? 0 },
     }
-    const sorted = sortRows(rows, squaresSchema, primary, resolve)
+    const sorted = sortRows(rows, squaresSchema, [primary], resolve)
+    expect(sorted.map((r) => r.id)).toEqual(['S002', 'S003', 'S001'])
+  })
+
+  it('breaks ties across three priority levels, not just two', () => {
+    const threeWayRows = [
+      { id: 'S001', design_id: 'D1', construction_type: '', main_yarn: 'Y1', notes: 'b' },
+      { id: 'S002', design_id: 'D2', construction_type: '', main_yarn: 'Y1', notes: 'a' },
+      { id: 'S003', design_id: 'D1', construction_type: '', main_yarn: 'Y1', notes: 'a' },
+    ]
+    const notesField: FieldDef = { key: 'notes', label: 'Notes', type: 'text' }
+    const byMain: SortSpec = { key: 'main_yarn', field: mainYarnField, dir: 'asc' }
+    const byConstruction: SortSpec = { key: 'construction_type', field: constructionField, dir: 'asc' }
+    const byNotes: SortSpec = { key: 'notes', field: notesField, dir: 'asc' }
+    // All three share the same main colour, so the order only settles once the third level runs:
+    // S002 is the lone holey square; S001/S003 (both solid) are then split by notes.
+    const sorted = sortRows(threeWayRows, squaresSchema, [byMain, byConstruction, byNotes], resolve)
     expect(sorted.map((r) => r.id)).toEqual(['S002', 'S003', 'S001'])
   })
 })

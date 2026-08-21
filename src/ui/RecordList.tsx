@@ -15,7 +15,7 @@ import {
   titleFor,
 } from '../core/schema'
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
-import type { ListPrefs } from '../core/prefs'
+import type { ListPrefs, SortRule } from '../core/prefs'
 import { appStore, pendingRowIds } from '../core/store'
 import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema } from '../app/hooks'
 import { Badge, BadgeStack, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
@@ -115,6 +115,11 @@ export interface SortSpec {
   computed?: ComputedSortOption
 }
 
+export interface SortOption {
+  key: SortKey
+  label: string
+}
+
 /** A sortable field's own value on `row` — the *effective* one when it has `inheritFrom`, same as
  * filtering already does (see `useFilterDescriptors`), so sorting a square by Construction groups
  * squares that inherit it from their design correctly instead of stranding them at whichever end of
@@ -140,26 +145,17 @@ function compareValues(a: CsvRow, b: CsvRow, schema: TableSchema, spec: SortSpec
 }
 
 /**
- * Sorted by `primary`, ties broken by `secondary` when the schema's `defaultSort.thenBy` applies (see
- * `secondarySort` below), then by title alphabetically (always ascending, regardless of either
- * direction) and then by id, so the order is fully determined instead of falling back to whatever
- * order the rows happened to already be in.
+ * Sorted by `specs` in order — each one only breaks ties left by the ones before it — then by title
+ * alphabetically (always ascending, regardless of any spec's direction) and then by id, so the order
+ * is fully determined instead of falling back to whatever order the rows happened to already be in.
+ * `specs` is normally what the person built in the sort panel (see `SortPanel`), seeded from the
+ * schema's own `defaultSort`/`defaultSort.thenBy` the first time a list is opened.
  */
-export function sortRows(
-  rows: CsvRow[],
-  schema: TableSchema,
-  primary: SortSpec,
-  resolve: ResolveRef,
-  secondary?: SortSpec,
-): CsvRow[] {
-  const sign = primary.dir === 'desc' ? -1 : 1
-  const secondSign = secondary && secondary.dir === 'desc' ? -1 : 1
+export function sortRows(rows: CsvRow[], schema: TableSchema, specs: SortSpec[], resolve: ResolveRef): CsvRow[] {
   return [...rows].sort((a, b) => {
-    const byPrimary = compareValues(a, b, schema, primary, resolve)
-    if (byPrimary !== 0) return sign * byPrimary
-    if (secondary) {
-      const bySecondary = compareValues(a, b, schema, secondary, resolve)
-      if (bySecondary !== 0) return secondSign * bySecondary
+    for (const spec of specs) {
+      const cmp = compareValues(a, b, schema, spec, resolve)
+      if (cmp !== 0) return spec.dir === 'desc' ? -cmp : cmp
     }
     const byTitle = compareIds(titleFor(schema, a), titleFor(schema, b))
     if (byTitle !== 0) return byTitle
@@ -179,13 +175,29 @@ export interface RecordListProps {
   extraFilters?: FilterDescriptor[]
 }
 
-/** This table's remembered list state, or the schema's own default when nothing was saved yet. */
-function initialListPrefs(schema: TableSchema | null, saved: ListPrefs | undefined): ListPrefs {
-  return {
-    filters: saved?.filters ?? {},
-    sortKey: saved?.sortKey ?? schema?.defaultSort?.key ?? 'id',
-    sortDir: saved?.sortDir ?? schema?.defaultSort?.direction ?? 'asc',
+/** The sort rules a table's list starts with, before anyone has picked their own: the schema's
+ * `defaultSort`, and its `thenBy` as a second-priority rule when it has one, else a bare id sort. */
+function defaultSorts(schema: TableSchema | null): SortRule[] {
+  if (!schema?.defaultSort) return [{ key: 'id', dir: 'asc' }]
+  const sorts: SortRule[] = [{ key: schema.defaultSort.key ?? 'id', dir: schema.defaultSort.direction ?? 'asc' }]
+  if (schema.defaultSort.thenBy) {
+    sorts.push({ key: schema.defaultSort.thenBy, dir: schema.defaultSort.thenDirection ?? 'asc' })
   }
+  return sorts
+}
+
+function sortsEqual(a: SortRule[], b: SortRule[]): boolean {
+  return a.length === b.length && a.every((rule, i) => rule.key === b[i].key && rule.dir === b[i].dir)
+}
+
+/** This table's remembered list state, or the schema's own default when nothing was saved yet.
+ * Also reads a list saved under the old single-key `sortKey`/`sortDir` shape, from before multi-sort,
+ * so an existing device doesn't silently lose its saved sort the first time this ships. */
+function initialListPrefs(schema: TableSchema | null, saved: ListPrefs | undefined): ListPrefs {
+  const legacy = saved as (ListPrefs & { sortKey?: string; sortDir?: SortDir }) | undefined
+  if (saved?.sorts?.length) return { filters: saved.filters ?? {}, sorts: saved.sorts }
+  if (legacy?.sortKey) return { filters: legacy.filters ?? {}, sorts: [{ key: legacy.sortKey, dir: legacy.sortDir ?? 'asc' }] }
+  return { filters: saved?.filters ?? {}, sorts: defaultSorts(schema) }
 }
 
 export function RecordList({ table, renderRow, header, extraSortOptions, extraFilters }: RecordListProps) {
@@ -195,10 +207,11 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
   const resolve = useResolveRef()
   const canEdit = useCanEdit()
   const [query, setQuery] = useState('')
+  const [sortPanelOpen, setSortPanelOpen] = useState(false)
   const [listPrefs, setListPrefsState] = useState<ListPrefs>(() =>
     initialListPrefs(schema, state.prefs.lists[table]),
   )
-  const { filters, sortKey, sortDir } = listPrefs
+  const { filters, sorts } = listPrefs
 
   // Saved locally (see `core/prefs`), keyed by table, so leaving and reopening a list keeps how it
   // was last narrowed and sorted — but device-local only, never part of the synced data.
@@ -213,20 +226,19 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
   const filterDescriptors = [...schemaFilterDescriptors, ...(extraFilters ?? [])]
   const sortOptions = schema ? sortableFields(schema) : []
   const computedSortOptions = extraSortOptions ?? []
-  const sortField = schema ? sortOptions.find((f) => f.key === sortKey) : undefined
-  const sortComputed = computedSortOptions.find((c) => c.key === sortKey)
-
-  // `thenBy` only kicks in while the list is showing exactly the schema's own default combination —
-  // once the person picks a different primary sort from the dropdown, ties break by title/id like any
-  // other sort, rather than by a secondary field they never asked for.
-  const secondarySort: SortSpec | undefined =
-    schema?.defaultSort?.thenBy && sortKey === (schema.defaultSort.key ?? 'id')
-      ? {
-          key: schema.defaultSort.thenBy,
-          field: sortOptions.find((f) => f.key === schema.defaultSort!.thenBy),
-          dir: schema.defaultSort.thenDirection ?? 'asc',
-        }
-      : undefined
+  // Every key the sort panel can offer, id/title first, in the order fields appear in the schema.
+  const allSortOptions: SortOption[] = [
+    { key: 'id', label: 'ID' },
+    { key: 'title', label: 'Name' },
+    ...sortOptions.map((f) => ({ key: f.key, label: f.label })),
+    ...computedSortOptions.map((c) => ({ key: c.key, label: c.label })),
+  ]
+  const specFor = (rule: SortRule): SortSpec => ({
+    key: rule.key,
+    dir: rule.dir,
+    field: sortOptions.find((f) => f.key === rule.key),
+    computed: computedSortOptions.find((c) => c.key === rule.key),
+  })
 
   const rows = useMemo(() => {
     if (!schema || !data) return []
@@ -237,19 +249,21 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
         return !value || d.matches(row, value)
       })
     })
-    return sortRows(
-      filtered,
-      schema,
-      { key: sortKey, field: sortField, dir: sortDir, computed: sortComputed },
-      resolve,
-      secondarySort,
-    )
-  }, [schema, data, query, filters, filterDescriptors, sortKey, sortField, sortComputed, sortDir, resolve, secondarySort])
+    return sortRows(filtered, schema, sorts.map(specFor), resolve)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema, data, query, filters, filterDescriptors, sorts, sortOptions, computedSortOptions, resolve])
 
   if (!schema || !data) return <Spinner />
 
   const activeFilters = Object.values(filters).filter((v) => v !== '').length
-  const sortActive = sortKey !== (schema.defaultSort?.key ?? 'id') || sortDir !== (schema.defaultSort?.direction ?? 'asc')
+  const sortActive = !sortsEqual(sorts, defaultSorts(schema))
+  const sortLabel = (key: string) => allSortOptions.find((o) => o.key === key)?.label ?? key
+  const sortButtonText =
+    sorts.length === 0
+      ? 'Sort'
+      : sorts.length === 1
+        ? `Sort: ${sortLabel(sorts[0].key)} ${sorts[0].dir === 'asc' ? '↑' : '↓'}`
+        : `Sort: ${sortLabel(sorts[0].key)} +${sorts.length - 1}`
 
   return (
     <div className="pb-32">
@@ -265,62 +279,50 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        {filterDescriptors.length > 0 || sortOptions.length > 0 || computedSortOptions.length > 0 ? (
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-            {sortOptions.length > 0 || computedSortOptions.length > 0 ? (
-              <>
-                <select
-                  aria-label="Sort by"
-                  className={`tap-target shrink-0 rounded-xl border px-3 text-sm ${
+        {filterDescriptors.length > 0 || allSortOptions.length > 0 ? (
+          <div className="relative">
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              {allSortOptions.length > 0 ? (
+                <button
+                  type="button"
+                  aria-label="Sort"
+                  aria-expanded={sortPanelOpen}
+                  className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
                     sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
                   }`}
-                  value={sortKey}
-                  onChange={(e) => setListPrefs({ sortKey: e.target.value })}
+                  onClick={() => setSortPanelOpen((v) => !v)}
                 >
-                  <option value="id">Sort: ID</option>
-                  <option value="title">Sort: Name</option>
-                  {sortOptions.map((field) => (
-                    <option key={field.key} value={field.key}>
-                      Sort: {field.label}
-                    </option>
-                  ))}
-                  {computedSortOptions.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      Sort: {option.label}
+                  {sortButtonText}
+                </button>
+              ) : null}
+              {filterDescriptors.map((d) => (
+                <select
+                  key={d.key}
+                  aria-label={`Filter by ${d.label}`}
+                  className={`tap-target shrink-0 rounded-xl border px-3 text-sm ${
+                    filters[d.key] ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+                  }`}
+                  value={filters[d.key] ?? ''}
+                  onChange={(e) => setListPrefs({ filters: { ...filters, [d.key]: e.target.value } })}
+                >
+                  <option value="">{d.label}: any</option>
+                  {d.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  aria-label={sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'}
-                  title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
-                  className={`tap-target shrink-0 rounded-xl border px-3 text-sm ${
-                    sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-                  }`}
-                  onClick={() => setListPrefs({ sortDir: sortDir === 'asc' ? 'desc' : 'asc' })}
-                >
-                  {sortDir === 'asc' ? '↑' : '↓'}
-                </button>
-              </>
+              ))}
+            </div>
+            {sortPanelOpen ? (
+              <SortPanel
+                options={allSortOptions}
+                sorts={sorts}
+                defaultSorts={defaultSorts(schema)}
+                onChange={(next) => setListPrefs({ sorts: next })}
+                onClose={() => setSortPanelOpen(false)}
+              />
             ) : null}
-            {filterDescriptors.map((d) => (
-              <select
-                key={d.key}
-                aria-label={`Filter by ${d.label}`}
-                className={`tap-target shrink-0 rounded-xl border px-3 text-sm ${
-                  filters[d.key] ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-                }`}
-                value={filters[d.key] ?? ''}
-                onChange={(e) => setListPrefs({ filters: { ...filters, [d.key]: e.target.value } })}
-              >
-                <option value="">{d.label}: any</option>
-                {d.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            ))}
           </div>
         ) : null}
       </div>
@@ -363,6 +365,124 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
 
       {canEdit ? <NewRecordButton table={table} schema={schema} /> : null}
     </div>
+  )
+}
+
+/**
+ * Sort as a priority-ordered list of rules rather than one field: each rule only breaks ties left by
+ * the ones above it (see `sortRows`), so someone can, say, sort squares by design and then by
+ * construction within a design — a single-key sort can't express that. Reordering is by up/down
+ * buttons rather than drag-and-drop, which is simpler to make work with touch and a screen reader
+ * alike than a custom drag implementation would be.
+ */
+function SortPanel({
+  options,
+  sorts,
+  defaultSorts,
+  onChange,
+  onClose,
+}: {
+  options: SortOption[]
+  sorts: SortRule[]
+  defaultSorts: SortRule[]
+  onChange: (sorts: SortRule[]) => void
+  onClose: () => void
+}) {
+  const activeKeys = new Set(sorts.map((s) => s.key))
+  const available = options.filter((o) => !activeKeys.has(o.key))
+
+  const move = (index: number, dir: -1 | 1) => {
+    const target = index + dir
+    if (target < 0 || target >= sorts.length) return
+    const next = [...sorts]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    onChange(next)
+  }
+  const toggleDir = (index: number) => {
+    onChange(sorts.map((s, i) => (i === index ? { ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' } : s)))
+  }
+  const remove = (index: number) => {
+    const next = sorts.filter((_, i) => i !== index)
+    onChange(next.length > 0 ? next : [{ key: 'id', dir: 'asc' }])
+  }
+  const add = (key: string) => {
+    if (key) onChange([...sorts, { key, dir: 'asc' }])
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
+      <div className="absolute inset-x-0 top-full z-20 mt-2 rounded-xl border border-line bg-card p-3 shadow-lg">
+        <p className="mb-2 text-xs font-medium text-muted">Sort by, in priority order</p>
+        <ol className="space-y-1.5">
+          {sorts.map((sort, i) => (
+            <li key={sort.key} className="flex items-center gap-1.5">
+              <span className="w-4 shrink-0 text-center text-xs text-muted">{i + 1}</span>
+              <span className="min-w-0 flex-1 truncate text-sm">
+                {options.find((o) => o.key === sort.key)?.label ?? sort.key}
+              </span>
+              <button
+                type="button"
+                aria-label={sort.dir === 'asc' ? 'Ascending' : 'Descending'}
+                className="tap-target rounded-lg border border-line px-2 text-xs"
+                onClick={() => toggleDir(i)}
+              >
+                {sort.dir === 'asc' ? '↑' : '↓'}
+              </button>
+              <button
+                type="button"
+                aria-label="Move up in priority"
+                disabled={i === 0}
+                className="tap-target rounded-lg border border-line px-2 text-xs disabled:opacity-30"
+                onClick={() => move(i, -1)}
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                aria-label="Move down in priority"
+                disabled={i === sorts.length - 1}
+                className="tap-target rounded-lg border border-line px-2 text-xs disabled:opacity-30"
+                onClick={() => move(i, 1)}
+              >
+                ▼
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove ${options.find((o) => o.key === sort.key)?.label ?? sort.key} from sort`}
+                className="tap-target rounded-lg border border-line px-2 text-xs text-muted"
+                onClick={() => remove(i)}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ol>
+        {available.length > 0 ? (
+          <select
+            aria-label="Add sort field"
+            className={`${inputClass} mt-2`}
+            value=""
+            onChange={(e) => add(e.target.value)}
+          >
+            <option value="">+ Add sort field…</option>
+            {available.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <div className="mt-2 flex items-center justify-between">
+          <button type="button" className="text-xs text-accent" onClick={() => onChange(defaultSorts)}>
+            Reset to default
+          </button>
+          <button type="button" className="tap-target text-xs text-muted" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 

@@ -1,10 +1,16 @@
 import type { TableSchema } from '../schema'
 
+/** One sort key and direction, and its priority in a list's `sorts` array (earlier wins ties). */
+export interface SortRule {
+  key: string
+  dir: 'asc' | 'desc'
+}
+
 /** One table list's remembered search/filter/sort, keyed by table name in `Prefs.lists`. */
 export interface ListPrefs {
   filters: Record<string, string>
-  sortKey: string
-  sortDir: 'asc' | 'desc'
+  /** Applied in order — later rules only break ties left by earlier ones. */
+  sorts: SortRule[]
 }
 
 /**
