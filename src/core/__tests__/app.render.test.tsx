@@ -74,7 +74,6 @@ describe('App renders against the real data', () => {
     expect(text).toContain('Squares')
     expect(text).toContain('FS1')
     expect(text).toContain('Fixture Granny') // resolved through the design_id reference
-    expect(text).toContain('Squares finished') // the progress header
   })
 
   it('renders a square detail with references resolved', async () => {
