@@ -4,6 +4,38 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-20 — v0.1.14, multi-select filters, a leaner Squares tab, and a reshuffled Progress screen
+
+**App**
+- `RecordList`'s filter panel now renders each filter as toggleable pills instead of a `<select>`.
+  Plain fields (e.g. Product line) are checkboxes — any number selected at once, OR'd together — since
+  "this colour or that one" is a meaningful combination. A `"filterMode": "min"` threshold field (e.g.
+  Yarns' Skeins left) stays radios, one at a time, because thresholds already nest and combining two
+  wouldn't mean anything beyond the lower one. `ListPrefs.filters` (`core/prefs`) changes shape from
+  `Record<string, string>` to `Record<string, string[]>` to hold a selection instead of one value; an
+  existing device's saved single-value filters are read once and converted to one-item arrays on load.
+- The search box, the Sort button and the Filter button now share one row instead of search sitting on
+  its own row above them, so the list starts higher on the screen.
+- Squares list: the "Squares finished" progress bar and its construction/imbalance/gap badges are
+  gone — that summary already has a dedicated home on the Progress screen, so showing it twice was
+  redundant. `squareConstructionInsights` (`core/schema/relations.ts`) now backs only the Progress
+  screen.
+- Progress screen reordered: "By status" now leads, immediately followed by the four stat tiles
+  (Finished/Blocked/Pace/At this rate) that used to sit above it. The colour and design breakdowns
+  ("Finished, by main colour", "By colour", "By design") move to the bottom of the page instead of
+  sitting in the middle. "Colour imbalance by construction", "Missing main colour" and "Missing design"
+  now render only when they have something to show, instead of a card with a "Nothing recorded"/"None
+  — nice" placeholder.
+- New "By source" card on the Progress screen: for each source, squares made from it and how many of
+  its designs have at least one square — two numbers per source rather than one, since a source used
+  for one design ten times and a source with ten designs used once would otherwise tally identically.
+  Collapsed (its default), it drops the bars and shows just the source name and the two counts.
+
+**Docs**
+- [App architecture](05-app-architecture.md) updates the `RecordList` description for the combined
+  search/sort/filter row, the pill-based multi/single-select filters, and `squareConstructionInsights`
+  now backing only the Progress screen.
+
 ## 2026-08-20 — v0.1.13, floated badge rows, construction on lists, and a person-editable multi-key sort
 
 **App**

@@ -126,14 +126,20 @@ Fixed routes are checked before `/:table` so `/settings` is not read as a table 
 
 Three components in `ui/` serve every table:
 
-- **[`RecordList`](../src/ui/RecordList.tsx)** — search across cells (restricted to the table's
-  `searchFields` if it sets any, otherwise every field), filter dropdowns built from fields marked
-  `"filter": true` (numeric ones can set `"filterMode": "min"` for "N or more" thresholds instead of
-  an exact-match dropdown) plus the schema's `derivedFilters`, a sort panel, unsynced badges. Accepts a
-  `renderRow` override. The sort panel offers id, title and any field marked `"sortable": true` as a
-  priority-ordered list the person builds themselves — add a key, toggle its direction, reorder or
-  remove it — not a single field-plus-direction pair; every rule breaks ties left by the ones before
-  it, then title, then id, so the result order is always fully determined. See
+- **[`RecordList`](../src/ui/RecordList.tsx)** — search, sort and filter controls share a single row
+  (search box plus a "Sort" and a "Filter" button, each opening its own panel) rather than each eating
+  its own row, so the list below starts higher on the screen. Search reads across cells (restricted to
+  the table's `searchFields` if it sets any, otherwise every field). Filters are built from fields
+  marked `"filter": true` plus the schema's `derivedFilters`, and rendered as toggleable pills: plain
+  fields are checkboxes, any number selected at once and OR'd together (an id matches if it equals
+  *any* of the selected options), because "product line A or B" is a meaningful combination. A numeric
+  field with `"filterMode": "min"` ("N or more" thresholds, e.g. skeins left) instead renders as
+  radios, one at a time, because thresholds already nest — "5+ or 3+" would just mean "3+", so offering
+  both as if they combined would be misleading. `ListPrefs.filters` (`core/prefs`) stores each filter's
+  selection as `string[]`, empty meaning "no filter". The sort panel offers id, title and any field
+  marked `"sortable": true` as a priority-ordered list the person builds themselves — add a key, toggle
+  its direction, reorder or remove it — not a single field-plus-direction pair; every rule breaks ties
+  left by the ones before it, then title, then id, so the result order is always fully determined. See
   [ADR 0023](adr/0023-priority-ordered-multi-key-sort.md). The list opens on the schema's `defaultSort`
   (plus `defaultSort.thenBy`, or id if it sets neither) the first time it is visited on a device; after
   that, whatever filters and sort rules the person builds are saved to `Prefs.lists[table]`
@@ -144,8 +150,9 @@ Three components in `ui/` serve every table:
   [`core/schema/relations.ts`](../src/core/schema/relations.ts); see
   [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md). The same module's
   `squareConstructionInsights` (construction-type tallies, colour imbalance, and squares missing a
-  main colour or design) backs both the Squares list's progress header and the Progress screen's
-  matching cards, one aggregation pass shared instead of two.
+  main colour or design) backs the Progress screen's matching cards — the Squares list itself carries
+  no summary header, on the reasoning that anyone wanting those numbers already has a dedicated screen
+  for them.
   List rows generally float their badges to one side (`BadgeStack` in `ui/components.tsx`) so a long
   title or subtitle wraps under them instead of being truncated to make room.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, edit and delete,
