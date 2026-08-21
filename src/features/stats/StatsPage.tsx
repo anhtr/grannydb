@@ -142,6 +142,73 @@ function collapsedDesignSummary(items: Tally[]): ReactNode {
   )
 }
 
+interface SourceTally {
+  key: string
+  label: string
+  squares: number
+  designs: number
+}
+
+/**
+ * Two counts per source rather than one — squares made and unique designs drawn on — so a single box
+ * answers both "how much have I used this source" and "how much of it have I actually tried", which a
+ * single tally couldn't distinguish (a source with one design used ten times looks identical to ten
+ * designs used once under a squares-only count). Collapsed drops the bars and shows just the two
+ * numbers per source, per the owner's steer that they're self-explanatory without a legend.
+ */
+function SourceStatsCard({
+  title,
+  items,
+  collapsed,
+  onToggle,
+}: {
+  title: string
+  items: SourceTally[]
+  collapsed: boolean
+  onToggle: () => void
+}) {
+  const maxSquares = items.reduce((m, i) => Math.max(m, i.squares), 0)
+  const maxDesigns = items.reduce((m, i) => Math.max(m, i.designs), 0)
+  return (
+    <Card className="p-3">
+      <button type="button" className="flex w-full items-center justify-between gap-2 text-left" onClick={onToggle}>
+        <span className="font-medium">{title}</span>
+        <span className="tap-target shrink-0 text-xs text-accent">{collapsed ? 'Show all' : 'Collapse'}</span>
+      </button>
+      {items.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
+      ) : collapsed ? (
+        <ul className="mt-2 space-y-1.5">
+          {items.map((item) => (
+            <li key={item.key} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <span className="shrink-0 tabular-nums text-muted">
+                {item.squares} / {item.designs}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="mt-3 space-y-3">
+          {items.map((item) => (
+            <li key={item.key}>
+              <p className="truncate text-sm">{item.label}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <Bar value={item.squares} max={maxSquares} />
+                <span className="w-6 shrink-0 text-right text-xs tabular-nums text-muted">{item.squares}</span>
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <Bar value={item.designs} max={maxDesigns} />
+                <span className="w-6 shrink-0 text-right text-xs tabular-nums text-muted">{item.designs}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 interface ColourImbalance {
   key: string
   label: string
@@ -218,9 +285,9 @@ function Stat({ label, value, sub, extra }: { label: string; value: string; sub?
   )
 }
 
-/** Collapsed by default — these three are the biggest cards on the page, and the summary line is
- * usually all a glance needs. */
-const INITIAL_COLLAPSED = { byMainColour: true, byColour: true, byDesign: true }
+/** Collapsed by default — these are the biggest cards on the page, and the summary line is usually
+ * all a glance needs. */
+const INITIAL_COLLAPSED = { byMainColour: true, byColour: true, byDesign: true, bySource: true }
 
 export function StatsPage() {
   const squares = useTable('squares')
@@ -228,6 +295,7 @@ export function StatsPage() {
   const yarns = useLookup('yarns')
   const yarnSchema = useTableSchema('yarns')
   const designs = useLookup('designs')
+  const sources = useLookup('sources')
   const prefs = useAppState().prefs
   const resolve = useResolveRef()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(INITIAL_COLLAPSED)
@@ -261,8 +329,32 @@ export function StatsPage() {
       }
     }
 
-    // Construction tallies, imbalance and the missing-colour/design gaps are one aggregation pass
-    // shared with the squares list's progress header — see `squareConstructionInsights`.
+    // Squares per source, and how many distinct designs from that source have at least one square —
+    // the second number is what tells "one design worked ten times" apart from "ten designs tried
+    // once", which the squares count alone can't. Both hop through the square's design to reach its
+    // source, so a square whose design (or a design without a source) is missing contributes to
+    // neither — it's already counted by `missingDesign`/an equivalent gap, not silently folded in here.
+    const squaresBySource = new Map<string, number>()
+    const designsBySource = new Map<string, Set<string>>()
+    for (const row of rows) {
+      const sourceId = designs.get(row.design_id ?? '')?.source
+      if (!sourceId) continue
+      squaresBySource.set(sourceId, (squaresBySource.get(sourceId) ?? 0) + 1)
+      const seen = designsBySource.get(sourceId) ?? new Set<string>()
+      seen.add(row.design_id ?? '')
+      designsBySource.set(sourceId, seen)
+    }
+    const bySource: SourceTally[] = [...squaresBySource.entries()]
+      .map(([sourceId, squareCount]) => ({
+        key: sourceId,
+        label: sources.get(sourceId)?.name ?? sourceId,
+        squares: squareCount,
+        designs: designsBySource.get(sourceId)?.size ?? 0,
+      }))
+      .sort((a, b) => b.squares - a.squares || a.label.localeCompare(b.label))
+
+    // Construction tallies, imbalance and the missing-colour/design gaps are computed in one
+    // aggregation pass rather than each inline here — see `squareConstructionInsights`.
     const insights = squareConstructionInsights(schema, squares, resolve)
     const colourImbalances: ColourImbalance[] = insights.imbalancedColours
       .map(({ yarnId, deficits }) => ({
@@ -309,12 +401,13 @@ export function StatsPage() {
       byDesign: sortDesc(byDesign),
       byYarn: sortDesc(byYarn),
       byMainYarnFinished: sortDesc(byMainYarnFinished),
+      bySource,
       byConstructionFinished: insights.byConstructionFinished,
       colourImbalances,
       missingMainYarn: insights.missingMainYarn.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
       missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
     }
-  }, [squares, schema, prefs, resolve, yarns, yarnSchema])
+  }, [squares, schema, prefs, resolve, yarns, yarnSchema, designs, sources])
 
   if (!stats || !schema) return <Spinner />
 
@@ -381,6 +474,13 @@ export function StatsPage() {
 
       {stats.missingMainYarn.length > 0 ? <GapsCard title="Missing main colour" items={stats.missingMainYarn} /> : null}
       {stats.missingDesign.length > 0 ? <GapsCard title="Missing design" items={stats.missingDesign} /> : null}
+
+      <SourceStatsCard
+        title="By source"
+        items={stats.bySource}
+        collapsed={collapsed.bySource}
+        onToggle={() => toggle('bySource')}
+      />
 
       <CollapsibleTallyCard
         title="Finished, by main colour"
