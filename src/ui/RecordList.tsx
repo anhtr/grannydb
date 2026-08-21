@@ -18,7 +18,7 @@ import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import type { ListPrefs } from '../core/prefs'
 import { appStore, pendingRowIds } from '../core/store'
 import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema } from '../app/hooks'
-import { Badge, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
+import { Badge, BadgeStack, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
 
 interface FilterOption {
   value: string
@@ -402,18 +402,18 @@ function DefaultRow({
   const swatch = schema.swatchField ? row[schema.swatchField] : undefined
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="overflow-hidden">
       {schema.swatchField ? (
         <span
-          className="size-9 shrink-0 rounded-full border border-black/10"
+          className="float-left mr-3 size-9 shrink-0 rounded-full border border-black/10"
           style={{ background: swatch || 'transparent' }}
         />
       ) : null}
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{title}</p>
-        {subtitle ? <p className="truncate text-sm text-muted">{subtitle}</p> : null}
+      <BadgeStack rows={[[<span key="id" className="font-mono text-xs text-muted">{row[schema.idField]}</span>]]} />
+      <div>
+        <p className="font-medium">{title}</p>
+        {subtitle ? <p className="text-sm text-muted">{subtitle}</p> : null}
       </div>
-      <span className="shrink-0 font-mono text-xs text-muted">{row[schema.idField]}</span>
     </div>
   )
 }

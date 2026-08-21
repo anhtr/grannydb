@@ -95,13 +95,23 @@ function splitHexList(value?: string): string[] {
  * and at the 14px sizes used in chips a stripe stays readable where a dot inside a fill did not.
  * Falls back to a dashed outline when no colour is recorded.
  */
-export function Swatch({ hex, size = 20, title }: { hex?: string; size?: number; title?: string }) {
+export function Swatch({
+  hex,
+  size = 20,
+  title,
+  className = '',
+}: {
+  hex?: string
+  size?: number
+  title?: string
+  className?: string
+}) {
   const colours = splitHexList(hex)
   return (
     <span
       title={title}
       aria-hidden={title ? undefined : true}
-      className={`inline-flex shrink-0 overflow-hidden rounded-full border ${colours.length > 0 ? 'border-black/15' : 'border-dashed border-line'}`}
+      className={`inline-flex shrink-0 overflow-hidden rounded-full border ${colours.length > 0 ? 'border-black/15' : 'border-dashed border-line'} ${className}`}
       style={{ width: size, height: size, background: stripeBackground(colours) }}
     />
   )
@@ -154,11 +164,13 @@ export function ColourGlyph({
   extraHexes = [],
   size = 32,
   title,
+  className = '',
 }: {
   mainHex?: string
   extraHexes?: (string | undefined)[]
   size?: number
   title?: string
+  className?: string
 }) {
   const mainColours = splitHexList(mainHex)
   const extraGroups = extraHexes.map((h) => splitHexList(h)).filter((g) => g.length > 0)
@@ -170,7 +182,7 @@ export function ColourGlyph({
       aria-hidden={title ? undefined : true}
       className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border ${
         mainColours.length > 0 ? 'border-black/15' : 'border-dashed border-line'
-      }`}
+      } ${className}`}
       style={{ width: size, height: size, background: stripeBackground(mainColours) }}
     >
       {extraGroups.length > 0 ? (
@@ -195,6 +207,34 @@ export function ColourGlyph({
         </span>
       ) : null}
     </span>
+  )
+}
+
+/**
+ * Rows of badges floated to the right of a list row, so the title/subtitle text flows around them
+ * (wrapping onto a second line under the badges when it's long) instead of being truncated to make
+ * room. `rows` is one entry per visual row, outermost first; falsy badges and empty rows are dropped,
+ * so a caller can pass conditional badges without pre-filtering.
+ */
+export function BadgeStack({
+  rows,
+  className = '',
+}: {
+  rows: (ReactNode | null | false | undefined)[][]
+  className?: string
+}) {
+  const cleaned = rows
+    .map((row) => row.filter((badge) => badge !== null && badge !== false && badge !== undefined))
+    .filter((row) => row.length > 0)
+  if (cleaned.length === 0) return null
+  return (
+    <div className={`float-right ml-3 mb-1 flex flex-col items-end gap-1 ${className}`}>
+      {cleaned.map((row, i) => (
+        <div key={i} className="flex flex-wrap items-center justify-end gap-1.5">
+          {row}
+        </div>
+      ))}
+    </div>
   )
 }
 
