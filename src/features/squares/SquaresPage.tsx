@@ -40,7 +40,9 @@ function SquareRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
     <div className="flex items-center gap-3">
       <ColourGlyph
         mainHex={mainYarn?.hex}
+        mainPattern={mainYarn?.pattern}
         extraHexes={extras.map((id) => yarns.get(id)?.hex)}
+        extraPatterns={extras.map((id) => yarns.get(id)?.pattern)}
         size={32}
         title={glyphTitle || undefined}
         className="shrink-0"

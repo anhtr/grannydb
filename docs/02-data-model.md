@@ -93,6 +93,7 @@ deleted rather than tracked as a state.
 | `product_line` | text | The manufacturer's yarn line (e.g. "Scheepjes Chunky Monkey") rather than the manufacturer alone — that is the level yarn is actually bought and matched at |
 | `product_id` | text | Manufacturer's shade or product code, kept separate so it can drive a reorder link later without overloading a free-text field |
 | `hex` | colorlist | Drives every colour swatch in the app, which is what makes a list of 400 squares scannable on a phone. Usually one hex value; more than one (`;`-joined) is a variegated colourway |
+| `pattern` | enum | `solid` / `print` / `speckled`, optional. How `hex`'s colours are drawn — blank means "solid" for one colour or "print" (stripes) for more than one. See [ADR 0024](adr/0024-speckled-yarn-pattern.md) |
 | `skeins` | number | |
 | `partial_skein` | bool | At least one skein on hand has been started |
 | `notes` | textarea | |
@@ -216,12 +217,18 @@ Adding `image` later is one entry in each. Nothing else changes.
 
 `colorlist` is `color`'s multi-value counterpart, the same `;`-joined-single-cell pattern `reflist`
 uses for `extra_yarns` rather than a second field or a join table — `yarns.hex` is one (`"#2a7f8c"`,
-or `"#2a7f8c;#a7c7e7"` for a variegated colourway). No hex is primary: `swatchField` names the
-column, and every colour in it is drawn as an equal stripe filling whatever shape holds the yarn — the
-`Swatch` circle, a square's glyph, one wedge of it (see
-[ADR 0021](adr/0021-colourway-as-stripes-clipped-to-its-shape.md)). A single hex value is already a
-valid one-item `colorlist`, so existing single-colour data reads unchanged. See
-[ADR 0019](adr/0019-multiple-colours-per-yarn.md).
+or `"#2a7f8c;#a7c7e7"` for a variegated colourway). `swatchField` names the column, and every colour
+in it is drawn filling whatever shape holds the yarn — the `Swatch` circle, a square's glyph, one wedge
+of it. A single hex value is already a valid one-item `colorlist`, so existing single-colour data reads
+unchanged. See [ADR 0019](adr/0019-multiple-colours-per-yarn.md).
+
+*How* those colours are drawn is a second, optional field: a table can set `patternField` to name a
+sibling `enum` column (`yarns.pattern`: `solid` / `print` / `speckled`), read alongside `swatchField`
+everywhere that column is. `print` (or a blank cell) is equal parallel stripes, no colour primary — the
+default from [ADR 0021](adr/0021-colourway-as-stripes-clipped-to-its-shape.md). `speckled` instead
+treats the *first* colour as a base fill and scatters the rest across it as small repeating dot
+clusters, for a yarn that is mostly one colour with a few flecked accents rather than genuinely
+striped shades. See [ADR 0024](adr/0024-speckled-yarn-pattern.md).
 
 A `ref` field can also set `"quickCreate": true`, which adds a "+ New &lt;thing&gt;" affordance to
 the field's picker that opens a full inline form — every field on the target table except its id,

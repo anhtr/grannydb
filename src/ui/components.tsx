@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { navigate } from '../app/router'
 
 export function Link({
@@ -90,18 +90,19 @@ function splitHexList(value?: string): string[] {
 
 /**
  * A yarn colour chip. `hex` can hold more than one colour in a single cell — a variegated yarn's
- * colourway (see `colorlist`, ADR 0019) — in which case the chip splits into equal stripes, one per
- * colour, filling the whole circle. Every colour gets the same weight: a colourway has no "primary",
- * and at the 14px sizes used in chips a stripe stays readable where a dot inside a fill did not.
- * Falls back to a dashed outline when no colour is recorded.
+ * colourway (see `colorlist`, ADR 0019) — drawn per `pattern` (see `colourStyle`): stripes by
+ * default, or speckles for a `speckled` yarn. Falls back to a dashed outline when no colour is
+ * recorded.
  */
 export function Swatch({
   hex,
+  pattern,
   size = 20,
   title,
   className = '',
 }: {
   hex?: string
+  pattern?: string
   size?: number
   title?: string
   className?: string
@@ -112,7 +113,7 @@ export function Swatch({
       title={title}
       aria-hidden={title ? undefined : true}
       className={`inline-flex shrink-0 overflow-hidden rounded-full border ${colours.length > 0 ? 'border-black/15' : 'border-dashed border-line'} ${className}`}
-      style={{ width: size, height: size, background: stripeBackground(colours) }}
+      style={{ width: size, height: size, ...colourStyle(colours, pattern) }}
     />
   )
 }
@@ -125,6 +126,50 @@ function stripeBackground(colours: string[]): string {
   return `linear-gradient(90deg, ${colours
     .map((hex, i) => `${hex} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`)
     .join(', ')})`
+}
+
+/**
+ * A speckled background: `colours[0]` fills the whole shape, every other colour scattered across it
+ * as small repeating dot clusters, each its own `radial-gradient` layer tiled at its own size and
+ * phase so the dots don't all land on one grid — see ADR 0024. Unlike `stripeBackground`, colour
+ * order matters here: the first is the base, everything else is a fleck on top of it.
+ */
+function speckleStyle(colours: string[]): CSSProperties {
+  const [base, ...speckles] = colours
+  const images: string[] = []
+  const sizes: string[] = []
+  const positions: string[] = []
+  speckles.forEach((hex, i) => {
+    // Tile sizes cycle through three coprime-ish values and phase offsets scale with the index, so
+    // consecutive speckle colours don't repeat in lockstep and overlap into one blended dot.
+    const tile = 7 + (i % 3) * 4
+    images.push(`radial-gradient(circle, ${hex} 1.1px, transparent 1.5px)`)
+    sizes.push(`${tile}px ${tile}px`)
+    positions.push(`${(i * 5) % tile}px ${(i * 11) % tile}px`)
+  })
+  return {
+    backgroundColor: base,
+    backgroundImage: images.join(', '),
+    backgroundSize: sizes.join(', '),
+    backgroundPosition: positions.join(', '),
+  }
+}
+
+/**
+ * The `background` for a list of colours, per `pattern`:
+ *  - one colour: always a flat fill.
+ *  - `speckled`: the first colour as a base fill, the rest scattered across it as flecks
+ *    (`speckleStyle`) — for a colourway where one shade dominates and the others are accents, not
+ *    even bands. See issue #3 and ADR 0024.
+ *  - anything else (`print`, blank, or `solid` with more than one colour on file): equal stripes,
+ *    the pre-existing default (`stripeBackground`, ADR 0021) — `print` names that default explicitly
+ *    so a schema author can pick it over leaving `pattern` blank.
+ */
+function colourStyle(colours: string[], pattern?: string): CSSProperties {
+  if (colours.length === 0) return { background: 'transparent' }
+  if (colours.length === 1) return { background: colours[0] }
+  if (pattern === 'speckled') return speckleStyle(colours)
+  return { background: stripeBackground(colours) }
 }
 
 /**
@@ -151,29 +196,35 @@ function sectorClipPath(startTurn: number, endTurn: number): string {
 
 /**
  * A square's colour at a glance: the outer square shows the main yarn's colours as side-by-side
- * stripes, and a smaller circle inside gives each extra yarn its own pie wedge (`extra_yarns`' order is
- * meaningful, see `RefListInput`) — one wedge per yarn, in the order they were selected, matching the
- * pie-chart glyph this replaced (see ADR 0019, colour-imbalance stats work). A yarn's own `hex` can
- * itself be a `colorlist` (a variegated colourway); every colour in it gets its own stripe, so a
- * colourway reads the same way wherever it is drawn — across the outer square for the main yarn, and
- * clipped to that yarn's wedge of the inner circle for an extra one, never as wedges inside a wedge.
- * A single colour collapses to a solid fill, the trivial one-stripe case.
+ * stripes (or speckles, see `colourStyle`), and a smaller circle inside gives each extra yarn its own
+ * pie wedge (`extra_yarns`' order is meaningful, see `RefListInput`) — one wedge per yarn, in the
+ * order they were selected, matching the pie-chart glyph this replaced (see ADR 0019, colour-imbalance
+ * stats work). A yarn's own `hex` can itself be a `colorlist` (a variegated colourway); every colour
+ * in it is drawn per that yarn's own `pattern`, so a colourway reads the same way wherever it is drawn
+ * — across the outer square for the main yarn, and clipped to that yarn's wedge of the inner circle
+ * for an extra one, never as wedges inside a wedge. A single colour collapses to a solid fill.
  */
 export function ColourGlyph({
   mainHex,
+  mainPattern,
   extraHexes = [],
+  extraPatterns = [],
   size = 32,
   title,
   className = '',
 }: {
   mainHex?: string
+  mainPattern?: string
   extraHexes?: (string | undefined)[]
+  extraPatterns?: (string | undefined)[]
   size?: number
   title?: string
   className?: string
 }) {
   const mainColours = splitHexList(mainHex)
-  const extraGroups = extraHexes.map((h) => splitHexList(h)).filter((g) => g.length > 0)
+  const extraGroups = extraHexes
+    .map((h, i) => ({ colours: splitHexList(h), pattern: extraPatterns[i] }))
+    .filter((g) => g.colours.length > 0)
   const innerSize = Math.round(size * 0.52)
 
   return (
@@ -183,19 +234,19 @@ export function ColourGlyph({
       className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border ${
         mainColours.length > 0 ? 'border-black/15' : 'border-dashed border-line'
       } ${className}`}
-      style={{ width: size, height: size, background: stripeBackground(mainColours) }}
+      style={{ width: size, height: size, ...colourStyle(mainColours, mainPattern) }}
     >
       {extraGroups.length > 0 ? (
         <span
           className="relative overflow-hidden rounded-full border border-black/20 shadow-sm"
           style={{ width: innerSize, height: innerSize }}
         >
-          {extraGroups.map((colours, i) => (
+          {extraGroups.map(({ colours, pattern }, i) => (
             <span
               key={i}
               className="absolute inset-0"
               style={{
-                background: stripeBackground(colours),
+                ...colourStyle(colours, pattern),
                 // A lone extra yarn owns the whole circle, so it needs no clip at all.
                 clipPath:
                   extraGroups.length > 1

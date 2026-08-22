@@ -4,6 +4,35 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-22 — v0.1.15, speckled yarn pattern
+
+**App**
+- `yarns.json` gains an optional `pattern` field (`solid` / `print` / `speckled`), named by a new
+  table-level `patternField` (parallel to `swatchField`) so every place that already reads a row's
+  swatch colour now reads its pattern alongside it: `Swatch`, `ColourGlyph`, ref chips, the ref-picker
+  dropdown and multi-select chips, and the yarn's own "Colour" field on its detail page.
+- `speckled` fills a colourway with its first colour as a base and scatters the rest across it as
+  small repeating dot clusters (`speckleStyle`, `ui/components.tsx`), distinct from the existing
+  `print` stripes (ADR 0021) — for a yarn that is mostly one colour with a few flecked accents rather
+  than genuinely alternating shades. Blank `pattern` keeps the old behaviour: `solid` for one colour,
+  `print` for more than one, so no existing data needed to change to keep rendering the same way. See
+  [ADR 0024](adr/0024-speckled-yarn-pattern.md).
+- `ColorListInput` (the `hex` field's editor) gained ▲/▼ buttons per colour row, so the colour order —
+  which now matters for picking a speckled yarn's base shade — can be rearranged without deleting and
+  re-adding colours.
+- `FieldDisplayProps`/`FieldInputProps` (`ui/fields.tsx`) gained optional `row`/`schema`, so the
+  `colorlist` renderer can look up a sibling `pattern` column on the same row; every other field type
+  ignores the two new props.
+- `data/yarns.csv` migrated: every yarn with exactly one recorded hex got `pattern: solid`, every yarn
+  with more than one got `pattern: print` — an explicit record of the previously-implicit default.
+
+**Docs**
+- [Data model](02-data-model.md) documents the `pattern` column and `patternField`, and splits the
+  `colorlist` section into "how many colours" (ADR 0019) and "how they're drawn" (ADR 0021/0024).
+- New [ADR 0024](adr/0024-speckled-yarn-pattern.md): a `pattern` field over inferring the pattern from
+  colour count, and tiled repeating `radial-gradient` layers over an SVG or generated-texture overlay
+  for drawing speckles.
+
 ## 2026-08-20 — v0.1.14, multi-select filters, a leaner Squares tab, and a reshuffled Progress screen
 
 **App**

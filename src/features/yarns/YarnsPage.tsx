@@ -20,7 +20,7 @@ function YarnRow({ row, schema, usage }: { row: CsvRow; schema: TableSchema; usa
 
   return (
     <div className="flex items-center gap-3">
-      <Swatch hex={row.hex} size={36} className="shrink-0" />
+      <Swatch hex={row.hex} pattern={row.pattern} size={36} className="shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{title}</p>
         <p className="truncate text-sm text-muted">

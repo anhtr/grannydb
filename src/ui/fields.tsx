@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { CsvRow } from '../core/csv'
 import { today } from '../core/date'
-import type { FieldDef, FieldType } from '../core/schema'
+import type { FieldDef, FieldType, TableSchema } from '../core/schema'
 import {
   formatBool,
   joinList,
@@ -32,11 +32,17 @@ export interface FieldInputProps {
   value: string
   onChange: (value: string) => void
   id: string
+  /** The whole row being edited, and its schema — only `colorlist`'s pattern-aware preview uses these. */
+  row?: CsvRow
+  schema?: TableSchema
 }
 
 export interface FieldDisplayProps {
   field: FieldDef
   value: string
+  /** The whole row being shown, and its schema — only `colorlist`'s pattern-aware swatch uses these. */
+  row?: CsvRow
+  schema?: TableSchema
 }
 
 interface FieldRenderer {
@@ -52,13 +58,14 @@ function Muted({ children }: { children: ReactNode }) {
 function useRefInfo(refTable: string | undefined) {
   const schema = useTableSchema(refTable ?? '')
   const lookup = useLookup(refTable ?? '')
-  return (id: string): { label: string; hex?: string; missing: boolean } => {
+  return (id: string): { label: string; hex?: string; pattern?: string; missing: boolean } => {
     if (!schema) return { label: id, missing: false }
     const row = lookup.get(id)
     if (!row) return { label: id, missing: id !== '' }
     return {
       label: titleFor(schema, row),
       hex: schema.swatchField ? row[schema.swatchField] : undefined,
+      pattern: schema.patternField ? row[schema.patternField] : undefined,
       missing: false,
     }
   }
@@ -76,7 +83,7 @@ function RefChip({ id, refTable }: { id: string; refTable?: string }) {
         info.missing ? 'text-red-600 dark:text-red-400' : ''
       }`}
     >
-      {info.hex !== undefined ? <Swatch hex={info.hex} size={14} /> : null}
+      {info.hex !== undefined ? <Swatch hex={info.hex} pattern={info.pattern} size={14} /> : null}
       {info.label}
       {info.missing ? ' (missing)' : ''}
     </span>
@@ -280,7 +287,13 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
                       setOpen(false)
                     }}
                   >
-                    {schema?.swatchField ? <Swatch hex={row[schema.swatchField]} size={14} /> : null}
+                    {schema?.swatchField ? (
+                      <Swatch
+                        hex={row[schema.swatchField]}
+                        pattern={schema.patternField ? row[schema.patternField] : undefined}
+                        size={14}
+                      />
+                    ) : null}
                     {schema ? titleFor(schema, row) : rowId}
                   </button>
                 </li>
@@ -359,7 +372,13 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
                 active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
               }`}
             >
-              {schema?.swatchField ? <Swatch hex={row[schema.swatchField]} size={14} /> : null}
+              {schema?.swatchField ? (
+                <Swatch
+                  hex={row[schema.swatchField]}
+                  pattern={schema.patternField ? row[schema.patternField] : undefined}
+                  size={14}
+                />
+              ) : null}
               {schema ? titleFor(schema, row) : rowId}
               {active ? <span className="text-xs opacity-70">{position}</span> : null}
             </button>
@@ -449,8 +468,10 @@ function ColorPickerRow({
 /**
  * More than one colour in a single cell (`#111;#222`), same `;`-joined-list-in-one-cell pattern as
  * `reflist` — a variegated yarn's colourway is a handful of hex values, not enough to earn a join
- * table. The first is the yarn's primary colour (what `Swatch` fills with); "+" appends another,
- * each added one gets its own "−". See ADR 0019.
+ * table. The first is the colour a `solid`/`print` `Swatch` fills with, or the base a `speckled` one
+ * scatters the rest across (see `colourStyle`) — so order matters, and the ▲▼ buttons move a colour
+ * without retyping it, e.g. to bring a speckled yarn's base shade to the front. "+" appends another,
+ * each added one gets its own "−". See ADR 0019, ADR 0024.
  */
 function ColorListInput({ field, value, onChange, id }: FieldInputProps) {
   const separator = field.separator ?? ';'
@@ -463,6 +484,13 @@ function ColorListInput({ field, value, onChange, id }: FieldInputProps) {
   }
   const addColour = () => onChange(joinList([...colours, '#cccccc'], separator))
   const removeColour = (i: number) => onChange(joinList(colours.filter((_, idx) => idx !== i), separator))
+  const moveColour = (i: number, direction: -1 | 1) => {
+    const j = i + direction
+    if (j < 0 || j >= colours.length) return
+    const next = [...colours]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    onChange(joinList(next, separator))
+  }
 
   if (colours.length === 0) {
     return (
@@ -476,6 +504,28 @@ function ColorListInput({ field, value, onChange, id }: FieldInputProps) {
     <div className="space-y-2">
       {colours.map((hex, i) => (
         <div key={i} className="flex items-center gap-2">
+          {colours.length > 1 ? (
+            <div className="flex shrink-0 flex-col">
+              <button
+                type="button"
+                className="px-1 text-xs leading-tight text-muted hover:text-ink disabled:opacity-30"
+                disabled={i === 0}
+                onClick={() => moveColour(i, -1)}
+                aria-label="Move colour earlier"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                className="px-1 text-xs leading-tight text-muted hover:text-ink disabled:opacity-30"
+                disabled={i === colours.length - 1}
+                onClick={() => moveColour(i, 1)}
+                aria-label="Move colour later"
+              >
+                ▼
+              </button>
+            </div>
+          ) : null}
           <ColorPickerRow value={hex} onChange={(v) => setColour(i, v)} id={i === 0 ? id : undefined} />
           {i === 0 ? (
             <Button type="button" variant="ghost" className="shrink-0 px-3" onClick={addColour} aria-label="Add another colour">
@@ -616,12 +666,16 @@ export const fieldRenderers: Record<FieldType, FieldRenderer> = {
 
   colorlist: {
     Input: ColorListInput,
-    Display: ({ field, value }) => {
+    Display: ({ field, value, row, schema }) => {
       const colours = splitList(value, field.separator ?? ';')
       if (colours.length === 0) return <Muted>—</Muted>
+      // Only meaningful when this colorlist field is the row's swatch — a table could in principle
+      // have more than one colorlist field, and `patternField` describes just the one.
+      const pattern =
+        row && schema?.patternField && schema.swatchField === field.key ? row[schema.patternField] : undefined
       return (
         <span className="inline-flex items-center gap-2">
-          <Swatch hex={value} size={28} />
+          <Swatch hex={value} pattern={pattern} size={28} />
           <span className="font-mono text-sm">{colours.join(', ')}</span>
         </span>
       )

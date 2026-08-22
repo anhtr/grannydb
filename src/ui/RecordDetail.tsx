@@ -46,7 +46,7 @@ export function RecordDetail({ table, id }: { table: string; id: string }) {
             <div key={field.key} className="flex gap-4 px-4 py-3">
               <span className="w-32 shrink-0 text-sm text-muted">{field.label}</span>
               <span className="min-w-0 flex-1">
-                <Display field={field} value={value} />
+                <Display field={field} value={value} row={row} schema={schema} />
                 {inherited ? (
                   <span className="ml-2 text-xs text-muted">
                     (from {viaField ? viaField.label.toLowerCase() : 'related record'})

@@ -151,6 +151,7 @@ export function parseTableSchema(raw: unknown): TableSchema {
     titleFallback: typeof o.titleFallback === 'string' ? o.titleFallback : undefined,
     subtitleField: typeof o.subtitleField === 'string' ? o.subtitleField : undefined,
     swatchField: typeof o.swatchField === 'string' ? o.swatchField : undefined,
+    patternField: typeof o.patternField === 'string' ? o.patternField : undefined,
     goal: typeof o.goal === 'number' ? o.goal : undefined,
     hideFromNav: o.hideFromNav === true,
     searchFields: Array.isArray(o.searchFields) ? (o.searchFields as string[]) : undefined,

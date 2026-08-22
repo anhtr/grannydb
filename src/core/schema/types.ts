@@ -109,6 +109,11 @@ export interface TableSchema {
   subtitleField?: string
   /** Field holding a hex colour, used to draw a swatch. */
   swatchField?: string
+  /**
+   * Field holding a colourway's drawing pattern (`solid`/`print`/`speckled`), read alongside
+   * `swatchField` wherever that field is drawn — see `colourStyle` in `ui/components.tsx`.
+   */
+  patternField?: string
   /** Target count, if this table is something you are working toward. */
   goal?: number
   /**

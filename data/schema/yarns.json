@@ -11,6 +11,7 @@
   "titleFallback": "{product_id} ({name})",
   "subtitleField": "product_line",
   "swatchField": "hex",
+  "patternField": "pattern",
   "defaultSort": { "key": "title" },
   "fields": [
     { "key": "id", "label": "ID", "type": "id", "list": true },
@@ -18,7 +19,8 @@
     { "key": "name", "label": "Colourway", "type": "text", "required": true, "list": true, "sortable": true },
     { "key": "product_line", "label": "Product line", "type": "text", "list": true, "filter": true },
     { "key": "product_id", "label": "Product ID", "type": "text", "help": "Manufacturer's shade or product code, for reordering the exact yarn." },
-    { "key": "hex", "label": "Colour", "type": "colorlist", "list": true, "help": "Drives the swatches shown across the app. Add more than one for a variegated colourway — the first is used as the swatch's background, the rest show as small dots inside it." },
+    { "key": "hex", "label": "Colour", "type": "colorlist", "list": true, "help": "Drives the swatches shown across the app. Add more than one for a variegated colourway — order them with the arrows, first to last, since \"pattern\" below reads the first as the main colour." },
+    { "key": "pattern", "label": "Pattern", "type": "enum", "options": ["solid", "print", "speckled"], "help": "How more than one colour is drawn. Leave blank for the default: \"solid\" for one colour, \"print\" (equal stripes) for several. \"Speckled\" fills with the first colour and scatters the rest as small flecks — put the base shade first." },
     { "key": "skeins", "label": "Skeins left", "type": "number", "list": true, "sortable": true, "filter": true, "filterMode": "min" },
     { "key": "partial_skein", "label": "Partial skein", "type": "bool", "default": "no", "list": true, "filter": true, "help": "At least one skein has been started." },
     { "key": "notes", "label": "Notes", "type": "textarea" }

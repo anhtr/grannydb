@@ -143,6 +143,8 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
                 value={current[field.key] ?? ''}
                 onChange={(v) => setField(field.key, v)}
                 id={inputId}
+                row={current}
+                schema={schema}
               />
               {field.inheritFrom ? (
                 <InheritHint field={field} schema={schema} draft={current} resolve={resolve} />
