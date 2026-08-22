@@ -106,12 +106,12 @@ Y104,P04 (Peonie),Peonie,Hobbii Friends Cotton 8/4 Print,04,,,0,no,
 Y105,P05 (Wildberry Smoothie),Wildberry Smoothie,Hobbii Friends Cotton 8/4 Print,05,,,0,no,
 Y106,P06 (Raspberry Sorbet),Raspberry Sorbet,Hobbii Friends Cotton 8/4 Print,06,,,0,no,
 Y107,P07 (Lavender Potpourri),Lavender Potpourri,Hobbii Friends Cotton 8/4 Print,07,,,0,no,
-Y108,P08 (Sky Notions),Sky Notions,Hobbii Friends Cotton 8/4 Print,08,,,2,yes,
+Y108,P08 (Sky Notions),Sky Notions,Hobbii Friends Cotton 8/4 Print,08,,print,2,yes,
 Y109,P09 (Tropical Ocean),Tropical Ocean,Hobbii Friends Cotton 8/4 Print,09,#469ba6;#489dcb;#2352a5,print,2,yes,
-Y110,P10 (Fresh Mint),Fresh Mint,Hobbii Friends Cotton 8/4 Print,10,,,01,yes,
-Y111,P11 (Mangrove Forest),Mangrove Forest,Hobbii Friends Cotton 8/4 Print,11,,,2,no,
-Y112,P12 (Jungle Green),Jungle Green,Hobbii Friends Cotton 8/4 Print,12,,,1,no,
-Y113,P13 (Spring Greenery),Spring Greenery,Hobbii Friends Cotton 8/4 Print,13,,,1,no,
+Y110,P10 (Fresh Mint),Fresh Mint,Hobbii Friends Cotton 8/4 Print,10,,print,01,yes,
+Y111,P11 (Mangrove Forest),Mangrove Forest,Hobbii Friends Cotton 8/4 Print,11,,print,2,no,
+Y112,P12 (Jungle Green),Jungle Green,Hobbii Friends Cotton 8/4 Print,12,,print,1,no,
+Y113,P13 (Spring Greenery),Spring Greenery,Hobbii Friends Cotton 8/4 Print,13,,print,1,no,
 Y114,P14 (Terracotta),Terracotta,Hobbii Friends Cotton 8/4 Print,14,,,0,no,
 Y115,P15 (Latte Macchiato),Latte Macchiato,Hobbii Friends Cotton 8/4 Print,15,,,0,no,
 Y116,P16 (Shades of Gray),Shades of Gray,Hobbii Friends Cotton 8/4 Print,16,,,0,no,
@@ -126,8 +126,8 @@ Y124,P25 (Bold Rainbow),Bold Rainbow,Hobbii Friends Cotton 8/4 Print,25,,,0,no,
 Y125,P32 (Lemon Sorbet),Lemon Sorbet,Hobbii Friends Cotton 8/4 Print,32,,,0,no,
 Y126,P33 (Young Love),Young Love,Hobbii Friends Cotton 8/4 Print,33,,,0,no,
 Y127,P34 (Violets),Violets,Hobbii Friends Cotton 8/4 Print,34,,,0,no,
-Y128,P35 (Teal),Teal,Hobbii Friends Cotton 8/4 Print,35,,,1,yes,
-Y129,P36 (Rain Clouds),Rain Clouds,Hobbii Friends Cotton 8/4 Print,36,,,1,yes,
+Y128,P35 (Teal),Teal,Hobbii Friends Cotton 8/4 Print,35,,print,1,yes,
+Y129,P36 (Rain Clouds),Rain Clouds,Hobbii Friends Cotton 8/4 Print,36,,print,1,yes,
 Y130,P37 (Camouflage),Camouflage,Hobbii Friends Cotton 8/4 Print,37,,,0,no,
 Y131,,Waterfall,Hobbii Friends Cotton 8/4,129,#cbdae1,solid,2,yes,
 Y132,GS016 (Light Grey Silver),Light Grey Silver,Rainbow 8/4 Glitter Silver,016,#c6c5c3,solid,2,no,
@@ -135,7 +135,7 @@ Y133,GS009 (Black Silver),Black Silver,Rainbow 8/4 Glitter Silver,009,#181514,so
 Y134,GS001 (Optic White Silver),Optic White Silver,Rainbow 8/4 Glitter Silver,001,#f4f4f4,solid,16,no,
 Y135,Q2033 (Wedgwood),Wedgwood,Queensland Coastal Cotton Fine,2033,#52738d,solid,1,yes,
 Y136,Q2035 (Granny Smith),Granny Smith,Queensland Coastal Cotton Fine,2035,#7e9a59,solid,1,yes,
-Y137,Q4027 (Malibu),Malibu,Queensland Coastal Cotton Fine Ocean Mist,4027,,,1,no,100g skein
-Y138,Q4012 (Coral Reef),Coral Reef,Queensland Coastal Cotton Fine Ocean Mist,4012,,,1,no,100g skein
-Y139,Q4011 (Playa Verde),Playa Verde,Queensland Coastal Cotton Fine Ocean Mist,4011,,,1,no,100g skein
-Y140,Q4025 (Pfeiffer Beach),Pfeiffer Beach,Queensland Coastal Cotton Fine Ocean Mist,4025,,,1,no,100g skein
+Y137,Q4027 (Malibu),Malibu,Queensland Coastal Cotton Fine Ocean Mist,4027,,speckled,1,no,100g skein
+Y138,Q4012 (Coral Reef),Coral Reef,Queensland Coastal Cotton Fine Ocean Mist,4012,,speckled,1,no,100g skein
+Y139,Q4011 (Playa Verde),Playa Verde,Queensland Coastal Cotton Fine Ocean Mist,4011,,speckled,1,no,100g skein
+Y140,Q4025 (Pfeiffer Beach),Pfeiffer Beach,Queensland Coastal Cotton Fine Ocean Mist,4025,,speckled,1,no,100g skein
