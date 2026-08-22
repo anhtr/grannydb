@@ -61,6 +61,11 @@ npm run validate-data  # data contract check only, seconds
 Note that `npm run dev` with a token in Settings writes to the **real repo**. Point Settings →
 Branch at a scratch branch when experimenting.
 
+## Commits
+
+One commit per numbered ask or GitHub issue, even when several land in the same conversation or
+message. Don't bundle unrelated asks into one commit just because they were requested together.
+
 ## Style
 
 Match the surrounding code. Comments explain *why* a non-obvious choice was made, not what the line
