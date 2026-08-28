@@ -418,11 +418,6 @@ export function StatsPage() {
 
   return (
     <div className="space-y-2 px-4 pb-24">
-      <TallyCard
-        title="By status"
-        items={stats.byStatus.map(([key, count]) => ({ key, label: key, count }))}
-      />
-
       <div className="grid grid-cols-2 gap-2">
         <Stat
           label="Finished"
@@ -459,6 +454,11 @@ export function StatsPage() {
       </div>
 
       <TallyCard
+        title="By status"
+        items={stats.byStatus.map(([key, count]) => ({ key, label: key, count }))}
+      />
+
+      <TallyCard
         title="Finished, by construction"
         note="Only finished squares (done or blocked). A square with no construction of its own counts by its design's."
         items={stats.byConstructionFinished.map((c) => ({ key: c.construction, label: c.construction, count: c.count }))}
@@ -474,13 +474,6 @@ export function StatsPage() {
 
       {stats.missingMainYarn.length > 0 ? <GapsCard title="Missing main colour" items={stats.missingMainYarn} /> : null}
       {stats.missingDesign.length > 0 ? <GapsCard title="Missing design" items={stats.missingDesign} /> : null}
-
-      <SourceStatsCard
-        title="By source"
-        items={stats.bySource}
-        collapsed={collapsed.bySource}
-        onToggle={() => toggle('bySource')}
-      />
 
       <CollapsibleTallyCard
         title="Finished, by main colour"
@@ -508,6 +501,13 @@ export function StatsPage() {
         collapsed={collapsed.byColour}
         onToggle={() => toggle('byColour')}
         renderCollapsed={collapsedColourChips}
+      />
+
+      <SourceStatsCard
+        title="By source"
+        items={stats.bySource}
+        collapsed={collapsed.bySource}
+        onToggle={() => toggle('bySource')}
       />
 
       <CollapsibleTallyCard
