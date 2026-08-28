@@ -49,6 +49,14 @@ export interface FieldDef {
    * every field on the referenced row.
    */
   searchFields?: string[]
+  /**
+   * `ref` only: fields on the *referenced* row to show as a small annotation line under the chip on
+   * the record detail page, e.g. a square's `design_id` showing the design's `source` and
+   * `construction_type` so that context is visible without opening the design itself. Resolved the
+   * same way a filter/sort label is (`refDisplayLabel`) — a nested `ref` shows its own title, not its
+   * raw id. Detail view only; list rows and edit forms are unaffected.
+   */
+  detailFields?: string[]
   /** Offer this field as a sort option in list views, alongside the built-in id and name sorts. */
   sortable?: boolean
   /**

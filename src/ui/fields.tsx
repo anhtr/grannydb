@@ -3,10 +3,12 @@ import type { CsvRow } from '../core/csv'
 import { today } from '../core/date'
 import type { FieldDef, FieldType, TableSchema } from '../core/schema'
 import {
+  fieldByKey,
   formatBool,
   joinList,
   matchesSearch,
   parseBool,
+  refDisplayLabel,
   searchText,
   splitList,
   titleFor,
@@ -90,6 +92,30 @@ function RefChip({ id, refTable }: { id: string; refTable?: string }) {
   )
   if (info.missing || !refTable) return content
   return <Link to={`/${refTable}/${id}`}>{content}</Link>
+}
+
+/**
+ * The small annotation line a `ref` field's `detailFields` adds under its chip on the detail page —
+ * e.g. a design's source and construction, so that context is visible without opening the design
+ * itself. Renders nothing while the referenced row is missing or every named field is blank, rather
+ * than a line of empty labels.
+ */
+function RefDetailFields({ id, refTable, keys }: { id: string; refTable: string; keys: string[] }) {
+  const schema = useTableSchema(refTable)
+  const lookup = useLookup(refTable)
+  const resolve = useResolveRef()
+  if (!schema) return null
+  const row = lookup.get(id)
+  if (!row) return null
+  const parts = keys
+    .map((key) => fieldByKey(schema, key))
+    .filter((f): f is FieldDef => f !== undefined)
+    .map((f) => ({ label: f.label, value: refDisplayLabel(f, row[f.key] ?? '', resolve) }))
+    .filter((p) => p.value !== '')
+  if (parts.length === 0) return null
+  return (
+    <p className="mt-0.5 text-xs text-muted">{parts.map((p) => `${p.label}: ${p.value}`).join(' · ')}</p>
+  )
 }
 
 /** Every field of a quick-create target except its id, which is assigned on save, not typed. */
@@ -632,8 +658,17 @@ export const fieldRenderers: Record<FieldType, FieldRenderer> = {
 
   ref: {
     Input: RefSearchSelect,
-    Display: ({ field, value }) =>
-      value === '' ? <Muted>—</Muted> : <RefChip id={value} refTable={field.refTable} />,
+    Display: ({ field, value }) => {
+      if (value === '') return <Muted>—</Muted>
+      return (
+        <span className="block">
+          <RefChip id={value} refTable={field.refTable} />
+          {field.detailFields && field.refTable ? (
+            <RefDetailFields id={value} refTable={field.refTable} keys={field.detailFields} />
+          ) : null}
+        </span>
+      )
+    },
   },
 
   reflist: {

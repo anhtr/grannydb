@@ -4,6 +4,20 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-27 — v0.1.16, design source and construction on a square's page
+
+**App**
+- `FieldDef` gains an optional `"detailFields"`, `ref`-only: field keys on the *referenced* row shown
+  as a small muted annotation line under the chip, but only on the record detail page. `squares.json`
+  sets it on `design_id` to `["source", "construction_type"]`, so a square's page shows which book and
+  which construction its design uses at a glance, without a tap through to the design. Resolved with
+  `refDisplayLabel`, the same label a filter or sort uses — a nested `ref` (the design's `source`)
+  reads as a name, not a row id. New `RefDetailFields` in `ui/fields.tsx`; nothing renders when the
+  referenced row is missing or every named field is blank.
+
+**Docs**
+- [Data model](02-data-model.md) documents `detailFields` alongside the rest of the `ref` field knobs.
+
 ## 2026-08-22 — v0.1.15, speckled yarn pattern
 
 **App**

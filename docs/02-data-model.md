@@ -248,6 +248,14 @@ field names which fields on the *referenced* row the search matches against (`sq
 every field on the referenced row. See
 [ADR 0014](adr/0014-live-search-combobox-for-every-ref-field.md).
 
+A `ref` field can also set `"detailFields"` — fields on the *referenced* row shown as a small
+annotation line under the chip, but only on the record detail page (list rows and the edit form are
+unaffected, since `Display` is what `RecordDetail` renders and nothing else calls). `squares.json`
+sets `["source", "construction_type"]` on `design_id`, so a square's page shows which book and which
+construction the design uses without a tap through to the design itself. Resolved through
+`refDisplayLabel`, the same label a filter dropdown or sort would show — a nested `ref` (a design's
+`source`) reads as the source's name, not its row id.
+
 Three more knobs live on the *table*, not a field:
 
 - `titleFallback` — a template like `"{product_id} ({name})"`, shown when `titleField` is blank
