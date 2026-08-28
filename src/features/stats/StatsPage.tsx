@@ -5,7 +5,8 @@ import { effectiveGoal } from '../../core/prefs'
 import { splitList, squareConstructionInsights, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
 import { useAppState, useLookup, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
-import { Card, Link, Spinner, Swatch } from '../../ui/components'
+import { Card, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
+import type { DonutSlice } from '../../ui/components'
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
 /** The trailing window "Pace" normally averages over. */
@@ -149,12 +150,46 @@ interface SourceTally {
   designs: number
 }
 
+/** The categorical chart palette's five fixed slots (`styles.css`), in order. A source past the cap
+ * folds into a shared muted "Other" slice rather than cycling past it — see `DonutChart`. */
+const CHART_COLORS = [
+  'var(--color-chart-1)',
+  'var(--color-chart-2)',
+  'var(--color-chart-3)',
+  'var(--color-chart-4)',
+  'var(--color-chart-5)',
+]
+
+/** The colour a source's row dot and donut slice share, by its rank in `items` (already sorted
+ * squares-desc) — a source past the palette's five slots reads as "Other" everywhere alike. */
+function sourceChartColor(index: number): string {
+  return index < CHART_COLORS.length ? CHART_COLORS[index] : 'var(--color-muted)'
+}
+
+/** Squares-by-source as donut slices: one per source within the palette's five slots, the rest
+ * summed into a single "Other" so the chart never cycles past its fixed hues (see
+ * `references/anti-patterns.md` in the dataviz skill — past a handful of slices a donut stops being
+ * readable at a glance anyway). */
+function sourceDonutSlices(items: SourceTally[]): DonutSlice[] {
+  const top = items.slice(0, CHART_COLORS.length)
+  const rest = items.slice(CHART_COLORS.length)
+  const slices = top.map((item, i) => ({ key: item.key, label: item.label, value: item.squares, color: sourceChartColor(i) }))
+  const otherSquares = rest.reduce((sum, item) => sum + item.squares, 0)
+  if (otherSquares > 0) slices.push({ key: '__other', label: 'Other', value: otherSquares, color: 'var(--color-muted)' })
+  return slices
+}
+
 /**
  * Two counts per source rather than one — squares made and unique designs drawn on — so a single box
  * answers both "how much have I used this source" and "how much of it have I actually tried", which a
  * single tally couldn't distinguish (a source with one design used ten times looks identical to ten
- * designs used once under a squares-only count). Collapsed drops the bars and shows just the two
- * numbers per source, per the owner's steer that they're self-explanatory without a legend.
+ * designs used once under a squares-only count). Collapsed drops straight to just the two numbers per
+ * source, per the owner's steer that they're self-explanatory without a legend. Expanded keeps that
+ * same list rather than switching to a bar-per-source view — which turned out to read as more
+ * detailed without actually being more useful — and instead adds a donut of each source's share of
+ * squares, capped at a handful of slices (see `sourceDonutSlices`) with a matching colour dot and
+ * percentage on each row so the chart and the list read as one system, not two separate views of the
+ * same data.
  */
 function SourceStatsCard({
   title,
@@ -167,8 +202,8 @@ function SourceStatsCard({
   collapsed: boolean
   onToggle: () => void
 }) {
-  const maxSquares = items.reduce((m, i) => Math.max(m, i.squares), 0)
-  const maxDesigns = items.reduce((m, i) => Math.max(m, i.designs), 0)
+  const totalSquares = items.reduce((sum, i) => sum + i.squares, 0)
+  const showChart = !collapsed && items.length >= 3
   return (
     <Card className="p-3">
       <button type="button" className="flex w-full items-center justify-between gap-2 text-left" onClick={onToggle}>
@@ -177,33 +212,40 @@ function SourceStatsCard({
       </button>
       {items.length === 0 ? (
         <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
-      ) : collapsed ? (
-        <ul className="mt-2 space-y-1.5">
-          {items.map((item) => (
-            <li key={item.key} className="flex items-center justify-between gap-2 text-sm">
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              <span className="shrink-0 tabular-nums text-muted">
-                {item.squares} / {item.designs}
-              </span>
-            </li>
-          ))}
-        </ul>
       ) : (
-        <ul className="mt-3 space-y-3">
-          {items.map((item) => (
-            <li key={item.key}>
-              <p className="truncate text-sm">{item.label}</p>
-              <div className="mt-1 flex items-center gap-2">
-                <Bar value={item.squares} max={maxSquares} />
-                <span className="w-6 shrink-0 text-right text-xs tabular-nums text-muted">{item.squares}</span>
-              </div>
-              <div className="mt-1 flex items-center gap-2">
-                <Bar value={item.designs} max={maxDesigns} />
-                <span className="w-6 shrink-0 text-right text-xs tabular-nums text-muted">{item.designs}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          {showChart ? (
+            <div className="mt-3 flex justify-center">
+              <DonutChart
+                data={sourceDonutSlices(items)}
+                centerLabel={String(totalSquares)}
+                centerSub={totalSquares === 1 ? 'square' : 'squares'}
+              />
+            </div>
+          ) : null}
+          <ul className="mt-2 space-y-1.5">
+            {items.map((item, i) => (
+              <li key={item.key} className="flex items-center gap-2 text-sm">
+                {collapsed ? null : (
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ background: sourceChartColor(i) }}
+                    aria-hidden
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                {collapsed ? null : (
+                  <span className="shrink-0 text-xs tabular-nums text-muted">
+                    {totalSquares > 0 ? Math.round((item.squares / totalSquares) * 100) : 0}%
+                  </span>
+                )}
+                <span className="shrink-0 tabular-nums text-muted">
+                  {item.squares} / {item.designs}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </Card>
   )

@@ -4,6 +4,24 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-27 — v0.1.17, a donut chart for By source
+
+**App**
+- Progress screen: expanding "By source" (its "Show all" toggle) no longer switches to a
+  bar-per-source view — that turned out to read as more detailed without being more useful. It now
+  keeps the same collapsed row list and adds a donut chart of each source's share of squares above
+  it, plus a matching colour dot and percentage on each row so the chart and the list read as one
+  system. The donut only renders once there are 3+ sources with squares — below that the two counts
+  on the rows already tell the whole story, and a 1–2-slice pie adds nothing a stat couldn't. The
+  collapsed view (the card's default) is untouched.
+- New `DonutChart` (`ui/components.tsx`): an SVG stroke-dasharray ring, not `ColourGlyph`'s clip-path
+  wedges — a chart needs independently-hoverable segments (each carries its own tooltip), where a
+  colour glyph only ever needs a rough visual split. Capped at 5 slices, matching a new fixed
+  5-colour categorical palette (`--color-chart-1`..`5` in `styles.css`, light and dark); anything past
+  the cap folds into one muted "Other" slice rather than cycling past the palette. Colours were
+  chosen and order-checked with the project's data-viz colourblind-safety validator against this
+  app's own card surface, not a generic default.
+
 ## 2026-08-27 — v0.1.16, design source and construction on a square's page
 
 **App**

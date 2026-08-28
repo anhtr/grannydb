@@ -261,6 +261,87 @@ export function ColourGlyph({
   )
 }
 
+export interface DonutSlice {
+  key: string
+  label: string
+  value: number
+  /** A `--color-chart-N` value, or a text token like `var(--color-muted)` for a folded "Other" slice. */
+  color: string
+}
+
+/** Gap between adjacent segments, in the same px units as the ring's circumference — the "surface
+ * gap" spacer (see `marks-and-anatomy.md`) rather than a border, so segments read as distinct
+ * without adding non-data ink. */
+const DONUT_GAP = 3
+
+/**
+ * A part-to-whole donut: SVG stroke-dasharray rings rather than `ColourGlyph`'s clip-path wedges,
+ * because a chart needs precise, independently-hoverable segments (each carries its own `<title>`
+ * tooltip) where a colour glyph only ever needs a rough visual split. Segments are capped by the
+ * caller at a handful of slices — a donut is a part-to-whole-at-a-glance form, not a place to
+ * compare many close values (see the dataviz skill's anti-patterns) — with the remainder folded
+ * into a single "Other" slice rather than cycling past the categorical palette's fixed hues.
+ * `centerLabel`/`centerSub` sit in the hole, e.g. the total the percentages are of.
+ */
+export function DonutChart({
+  data,
+  size = 160,
+  thickness = 22,
+  centerLabel,
+  centerSub,
+}: {
+  data: DonutSlice[]
+  size?: number
+  thickness?: number
+  centerLabel?: string
+  centerSub?: string
+}) {
+  const total = data.reduce((sum, d) => sum + d.value, 0)
+  const radius = (size - thickness) / 2
+  const circumference = 2 * Math.PI * radius
+  let cumulative = 0
+
+  return (
+    <div className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--color-line)" strokeWidth={thickness} />
+        {total > 0
+          ? data
+              .filter((d) => d.value > 0)
+              .map((d) => {
+                const fraction = d.value / total
+                const length = Math.max(0, fraction * circumference - DONUT_GAP)
+                const dashoffset = -cumulative
+                cumulative += fraction * circumference
+                return (
+                  <circle
+                    key={d.key}
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="none"
+                    stroke={d.color}
+                    strokeWidth={thickness}
+                    strokeLinecap="round"
+                    strokeDasharray={`${length} ${circumference - length}`}
+                    strokeDashoffset={dashoffset}
+                  >
+                    <title>{`${d.label}: ${Math.round(fraction * 100)}%`}</title>
+                  </circle>
+                )
+              })
+          : null}
+      </svg>
+      {centerLabel || centerSub ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {centerLabel ? <span className="text-lg font-semibold">{centerLabel}</span> : null}
+          {centerSub ? <span className="text-[10px] text-muted">{centerSub}</span> : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 /**
  * Rows of badges docked to the right of a list row, as a plain flex sibling rather than a CSS float —
  * a float lets sibling text reflow into the narrow column beside it, which is what wrapping long

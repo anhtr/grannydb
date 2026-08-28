@@ -12,6 +12,23 @@
   --color-line: #e7e2da;
   --color-accent: #9a5b4c;
   --color-accent-soft: #f2e4e0;
+
+  /*
+    Categorical chart palette — identity colours for a multi-series chart (currently just the
+    "By source" donut), distinct from `--color-accent`'s single-series use everywhere else. Fixed
+    hue order, never cycled or reassigned by rank — a 6th category folds into a shared "Other"
+    slot instead of a 6th hue. Validated with the dataviz skill's colourblind-safety checker
+    against this app's own light/dark card surface (not the tool's default): adjacent-pair CVD
+    (protanopia/deuteranopia, OKLab) clears the 8-point target in both modes, worst pair 9.1
+    light / 8.4 dark. Three of the five sit under 3:1 contrast on the light surface by design (a
+    light aqua/yellow/magenta reads as identity, not as text) — the "By source" card's row list is
+    the required relief channel, so a value is always readable without relying on the colour.
+  */
+  --color-chart-1: #2a78d6; /* blue */
+  --color-chart-2: #eb6834; /* orange */
+  --color-chart-3: #1baf7a; /* aqua */
+  --color-chart-4: #eda100; /* yellow */
+  --color-chart-5: #e87ba4; /* magenta */
 }
 
 @layer base {
@@ -42,6 +59,12 @@
       --color-line: #44403c;
       --color-accent: #d99a88;
       --color-accent-soft: #3a2b27;
+
+      --color-chart-1: #3987e5;
+      --color-chart-2: #d95926;
+      --color-chart-3: #199e70;
+      --color-chart-4: #c98500;
+      --color-chart-5: #d55181;
     }
   }
 
