@@ -4,6 +4,21 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-08-27 — v0.1.18, searchable filters for high-option fields
+
+**App**
+- `RecordList`'s filter panel: a filter with more than 8 options (a square's Design or Main colour —
+  easily a hundred-plus) now renders as a search box instead of a flat row of pills. Empty, it shows
+  only what is already selected, not every option the filter has; typing narrows to matches. Same
+  "type to narrow, tap to toggle" pattern `RefListInput` already uses for a `ref` field's multi-select
+  (a square's extra colours), so the app now has one search-and-select behaviour instead of two. A
+  filter at or under 8 options (Status, Construction, Source) is unaffected — every option still fits
+  as a glance-able row. New `SearchableFilterPills` in `ui/RecordList.tsx`. Closes issue #4.
+
+**Docs**
+- [App architecture](05-app-architecture.md) documents the search-box filter and its threshold
+  alongside the rest of the filter-panel description.
+
 ## 2026-08-27 — v0.1.17, a donut chart for By source
 
 **App**

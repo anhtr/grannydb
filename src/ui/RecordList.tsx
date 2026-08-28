@@ -517,9 +517,98 @@ function SortPanel({
  * than laid out inline — a side-bar-of-filters-on-demand instead of a row that grows with every
  * filterable field the schema defines and eats space even when nothing is filtered.
  */
+function pillClass(active: boolean): string {
+  return `tap-target rounded-lg border px-2.5 text-xs ${active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'}`
+}
+
+/** A filter past this many options gets a search box instead of a flat pill row — see
+ * `SearchableFilterPills`. Below it, every option fits as a glance-able row; a status or
+ * construction filter (a handful of enum values) never crosses this. */
+const SEARCHABLE_FILTER_THRESHOLD = 8
+
+/**
+ * A filter with more options than fit as a glance-able row (design, colour — issue #4) gets a search
+ * box instead of listing every one. Same "type to narrow, tap to toggle" pattern a `ref` field's
+ * multi-select already uses (`RefListInput`'s extra-colours picker): with the box empty, only what is
+ * already selected shows, not every option the filter has — so this stays usable once a filter has
+ * hundreds of values, the same way the colour picker stays usable once the yarn table does.
+ */
+function SearchableFilterPills({
+  descriptor,
+  selected,
+  onChange,
+}: {
+  descriptor: FilterDescriptor
+  selected: string[]
+  onChange: (values: string[]) => void
+}) {
+  const multi = descriptor.multi !== false
+  const [query, setQuery] = useState('')
+  const searching = query.trim() !== ''
+  const visible = descriptor.options.filter(
+    (option) => selected.includes(option.value) || (searching && matchesSearch(option.label, query)),
+  )
+
+  const toggle = (value: string) => {
+    if (!multi) {
+      onChange(selected[0] === value ? [] : [value])
+      return
+    }
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value])
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <input
+        type="search"
+        className={`${inputClass} px-2.5 py-1.5 text-xs`}
+        placeholder={`Search ${descriptor.label.toLowerCase()}`}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <div
+        className="flex flex-wrap gap-1.5"
+        role={multi ? 'group' : 'radiogroup'}
+        aria-label={`Filter by ${descriptor.label}`}
+      >
+        {!multi ? (
+          <button
+            type="button"
+            aria-pressed={selected.length === 0}
+            className={pillClass(selected.length === 0)}
+            onClick={() => onChange([])}
+          >
+            Any
+          </button>
+        ) : null}
+        {visible.map((option) => {
+          const active = multi ? selected.includes(option.value) : selected[0] === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              className={pillClass(active)}
+              onClick={() => toggle(option.value)}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+        {!searching && selected.length === 0 ? (
+          <span className="py-1.5 text-xs text-muted">Type to search — nothing selected yet.</span>
+        ) : null}
+        {searching && visible.length === 0 ? <span className="py-1.5 text-xs text-muted">No matches.</span> : null}
+      </div>
+    </div>
+  )
+}
+
 /** One filter's options as a row of toggleable pills — checkboxes (any number at once, OR'd
  * together) for a plain categorical field, radios (one at a time, "Any" clears it) for a "min"
- * threshold field where combining values would not mean anything. */
+ * threshold field where combining values would not mean anything. Past
+ * `SEARCHABLE_FILTER_THRESHOLD` options, delegates to `SearchableFilterPills` instead of laying
+ * every one out flat. */
 function FilterOptionPills({
   descriptor,
   selected,
@@ -530,8 +619,10 @@ function FilterOptionPills({
   onChange: (values: string[]) => void
 }) {
   const multi = descriptor.multi !== false
-  const pillClass = (active: boolean) =>
-    `tap-target rounded-lg border px-2.5 text-xs ${active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'}`
+
+  if (descriptor.options.length > SEARCHABLE_FILTER_THRESHOLD) {
+    return <SearchableFilterPills descriptor={descriptor} selected={selected} onChange={onChange} />
+  }
 
   if (multi) {
     return (

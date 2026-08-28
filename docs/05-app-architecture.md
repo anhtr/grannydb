@@ -135,7 +135,12 @@ Three components in `ui/` serve every table:
   *any* of the selected options), because "product line A or B" is a meaningful combination. A numeric
   field with `"filterMode": "min"` ("N or more" thresholds, e.g. skeins left) instead renders as
   radios, one at a time, because thresholds already nest — "5+ or 3+" would just mean "3+", so offering
-  both as if they combined would be misleading. `ListPrefs.filters` (`core/prefs`) stores each filter's
+  both as if they combined would be misleading. A filter past `SEARCHABLE_FILTER_THRESHOLD` (8) options —
+  a square's Design or Main colour filter, easily past a hundred — renders as a search box instead of a
+  flat pill row: empty, it shows only what is already selected; typing narrows to matches, the same
+  "type to narrow, tap to toggle" pattern `RefListInput`'s multi-select `ref` picker already uses for a
+  square's extra colours, so the app's two search-and-select affordances behave identically
+  (`SearchableFilterPills` in `ui/RecordList.tsx`; see issue #4). `ListPrefs.filters` (`core/prefs`) stores each filter's
   selection as `string[]`, empty meaning "no filter". The sort panel offers id, title and any field
   marked `"sortable": true` as a priority-ordered list the person builds themselves — add a key, toggle
   its direction, reorder or remove it — not a single field-plus-direction pair; every rule breaks ties
