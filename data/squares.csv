@@ -105,3 +105,6 @@ S102,2026-08-28,done,D75,"Puff of 3 instead of 4. ",Y89,,,,
 S103,2026-08-28,done,D76,Add extra border rounds (dc+ch and dc),Y77,,,,
 S104,2026-08-29,done,D77,"Add border rounds (sc, dc)",Y77,,,,
 S105,2026-08-29,done,D78,"Omit last round, adjust the stitches to match counts",Y89,Y19,,,
+S106,2026-08-30,done,D79,"2 colors only, reduce height of second to last round.",Y90,Y82,,,
+S107,2026-08-30,done,D80,"Add border rounds (dc, hdc)
+",Y90,Y16;Y58,,,
