@@ -109,4 +109,5 @@ S106,2026-08-30,done,D79,"2 colors only, reduce height of second to last round."
 S107,2026-08-30,done,D80,"Add border rounds (dc, hdc)
 ",Y90,Y16;Y58,,,
 S108,2026-08-31,done,D81,"Extra border rounds (bpdc, hdc, hdc)",Y62,Y17;Y93,,,
-S109,2026-08-31,done,D82,2dc on the sides.,Y66,Y72,,,
+S109,2026-08-31,done,D82,2dc on the sides. Use WS pattern.,Y66,Y72,,,
+S110,2026-09-03,done,D83,,Y93,Y07;Y88,,,
