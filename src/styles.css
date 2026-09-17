@@ -29,6 +29,26 @@
   --color-chart-3: #1baf7a; /* aqua */
   --color-chart-4: #eda100; /* yellow */
   --color-chart-5: #e87ba4; /* magenta */
+
+  /*
+    Status marks. A square's status already has a colour — the badge tones on a Squares row — so a
+    chart of statuses has no business inventing a second set: the badge and the bar segment are the
+    same value and are the same colour. These are the solid-fill weights of those same four families;
+    the badge itself stays a pale tint with dark text, which is right for a chip and far too light for
+    a mark.
+
+    "In progress" is a yellow rather than the badge's amber, because in a stacked bar it lands next to
+    "planned" and the two ambers were within ΔE 7 of each other under normal vision — indistinguishable
+    exactly where they touch. Checked with the dataviz skill's validator in bar order (blocked → done →
+    in progress → planned) against this app's card surface in each mode: adjacent-pair CVD and the
+    normal-vision floor pass in both. The light yellow sits at 2.2:1 on white, under the 3:1 mark
+    floor, which is legal only because the segment labels and the expanded list mean no value is ever
+    colour-only — the same relief the "By source" donut leans on.
+  */
+  --color-status-planned: #ea580c; /* orange, the badge's "danger" tone */
+  --color-status-progress: #eda100; /* yellow, a shade off the badge's "warn" amber */
+  --color-status-done: #16a34a; /* green, "success" */
+  --color-status-blocked: #0891b2; /* cyan, "info" */
 }
 
 @layer base {
@@ -65,6 +85,13 @@
       --color-chart-3: #199e70;
       --color-chart-4: #c98500;
       --color-chart-5: #d55181;
+
+      /* Lifted off the dark surface rather than reused from light: the same four families, a step
+         brighter, so a mark stays a mark on #292524 — and re-checked as a set, not flipped. */
+      --color-status-planned: #fb923c;
+      --color-status-progress: #fde047;
+      --color-status-done: #22c55e;
+      --color-status-blocked: #06b6d4;
     }
   }
 

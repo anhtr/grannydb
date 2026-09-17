@@ -56,11 +56,13 @@ export function Card({ className = '', children }: { className?: string; childre
   )
 }
 
+export type BadgeTone = 'neutral' | 'accent' | 'warn' | 'danger' | 'success' | 'info'
+
 export function Badge({
   tone = 'neutral',
   children,
 }: {
-  tone?: 'neutral' | 'accent' | 'warn' | 'danger' | 'success' | 'info'
+  tone?: BadgeTone
   children: ReactNode
 }) {
   const tones = {

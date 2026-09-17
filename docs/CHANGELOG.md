@@ -4,6 +4,43 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-09-17 — v0.1.19, By status as one bar drawn to the goal
+
+**App**
+- Progress screen: "By status" is now a single part-to-whole bar measured against the **goal**, not
+  against the squares made so far. The full width is all 400; each status is a segment, ordered
+  most-advanced first (blocked → planned) so the coloured part grows from the left; and what is left
+  over is the blanket that doesn't exist yet, in grey, labelled "to go". The old card drew one bar per
+  status scaled against the *largest* status, which answered "how many are blocked" but not "how much
+  of the blanket is that" — and scaling to the goal is what lets one picture carry composition and
+  progress at once, instead of a bar that is always exactly full. With no goal set it falls back to
+  the squares recorded.
+- Segments take their colour from the **status badge colours the Squares list already uses** — cyan
+  for blocked, green for done — rather than a new chart scale, so a status is one colour wherever it
+  is drawn and the list keeps the reading it has always had. The one mapping now lives in
+  `ui/status.ts` (`statusTone` for the badge, `statusMark` for a chart mark; solid `--color-status-*`
+  fills in `styles.css`, light and dark). "In progress" is a yellow on the chart rather than the
+  badge's amber: in a bar it lands next to "planned" and the two ambers were within ΔE 7 under normal
+  vision — a pair you cannot separate at the one place they touch. See
+  [ADR 0025](adr/0025-one-status-one-colour-and-a-bar-drawn-to-the-goal.md).
+- Each segment is labelled above with its status and count. At the goal's scale a status is a narrow
+  slice, so the name stacks over the count when the two don't fit side by side, and every segment uses
+  the same form so names sit on one line and numbers on the next. A segment too thin even for its
+  number keeps its hover tooltip. Labels are never clipped or truncated; the card measures the bar
+  (`useMeasuredWidth` in `features/stats/StatsPage.tsx`) rather than estimating, because an estimate
+  is wrong in both directions — assume a narrow screen and a 390px phone loses labels it had room for,
+  assume a wide one and a 320px phone clips them.
+- The card is now expandable, like "By colour" and "By source". Collapsed (the default) is the bar
+  alone; expanding adds the old bar-per-status list underneath, for the one comparison a stacked bar
+  is bad at — reading two middling segments against each other. Both views take the same colours.
+
+**Docs**
+- [ADR 0025](adr/0025-one-status-one-colour-and-a-bar-drawn-to-the-goal.md) records both decisions —
+  reusing the badge colours rather than building a scale for the chart (including the ordinal ramp
+  that was built and rejected), and drawing the bar to the goal rather than to the pile.
+- [App architecture](05-app-architecture.md) states where a chart's colours come from, so the next one
+  starts from that rather than from whichever palette is nearest.
+
 ## 2026-08-27 — v0.1.18, searchable filters for high-option fields
 
 **App**

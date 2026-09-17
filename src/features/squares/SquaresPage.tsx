@@ -4,13 +4,7 @@ import type { TableSchema } from '../../core/schema'
 import { useLookup, useResolveRef, useTableSchema } from '../../app/hooks'
 import { Badge, BadgeStack, ColourGlyph } from '../../ui/components'
 import { RecordList } from '../../ui/RecordList'
-
-const statusTone: Record<string, 'neutral' | 'accent' | 'warn' | 'danger' | 'success' | 'info'> = {
-  planned: 'danger',
-  'in progress': 'warn',
-  done: 'success',
-  blocked: 'info',
-}
+import { statusTone } from '../../ui/status'
 
 function SquareRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
   const yarns = useLookup('yarns')
@@ -66,7 +60,7 @@ function SquareRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
         rows={[
           [
             status ? (
-              <Badge key="status" tone={statusTone[status] ?? 'neutral'}>
+              <Badge key="status" tone={statusTone(status)}>
                 {status}
               </Badge>
             ) : null,

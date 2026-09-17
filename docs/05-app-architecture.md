@@ -193,6 +193,12 @@ Used mostly one-handed, on a phone, sometimes standing up:
 - **Colour swatches everywhere** — the fastest way to recognise a square on a small screen. One
   yarn's colours are always equal stripes filling its shape; a wedge always means a separate yarn
   ([ADR 0021](adr/0021-colourway-as-stripes-clipped-to-its-shape.md)).
+- **A value that already has a colour keeps it.** A square's status is coloured by the badge families
+  the Squares list has always used — one mapping in [`ui/status.ts`](../src/ui/status.ts), `statusTone`
+  for the badge and `statusMark` for a chart mark — so the Progress screen's status bar and the badge
+  on a row agree by construction ([ADR 0025](adr/0025-one-status-one-colour-and-a-bar-drawn-to-the-goal.md)).
+  Only a value with no colour of its own, like a design's source, draws from the categorical chart
+  palette (`--color-chart-*`).
 - **No hover-dependent affordances.**
 - **Dark mode** via `prefers-color-scheme`, both palettes defined explicitly in
   [`styles.css`](../src/styles.css).
