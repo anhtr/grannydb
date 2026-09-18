@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vitest/config'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -63,10 +65,61 @@ function dataBundlePlugin(): Plugin {
   }
 }
 
+/**
+ * Ships `src/sw/sw.js` as `dist/sw.js` with the hashed asset names baked in.
+ *
+ * The worker cannot import the manifest and cannot guess the filenames, since they only exist once
+ * rollup has hashed them — so the list is substituted here, where it is known. Only the shell is
+ * precached: the HTML document and the JS/CSS it loads. Sourcemaps and `data/bundle.json` are left
+ * out on purpose (see the header comment in `sw.js`).
+ */
+function serviceWorkerPlugin(): Plugin {
+  let base = '/'
+
+  return {
+    name: 'grannydb-service-worker',
+
+    configResolved(config) {
+      base = config.base
+    },
+
+    generateBundle(_options, bundle) {
+      const assets = Object.keys(bundle)
+        .filter((name) => name.endsWith('.js') || name.endsWith('.css'))
+        .sort()
+
+      // index.html first: the worker serves it for every navigation, hash routing having made every
+      // route the same document.
+      const precache = [`${base}index.html`, ...assets.map((name) => `${base}${name}`)]
+
+      // A build that changes nothing must produce the same worker, or every deploy would prompt an
+      // update. Hashed filenames already encode the JS and CSS; the document is hashed explicitly
+      // because editing index.html alone (a CSP change, say) leaves every asset name untouched.
+      const html = bundle['index.html']
+      const htmlSource = html && html.type === 'asset' ? String(html.source) : ''
+      const version = createHash('sha256')
+        .update(precache.join('|'))
+        .update(htmlSource)
+        .digest('hex')
+        .slice(0, 12)
+
+      const template = readFileSync('src/sw/sw.js', 'utf8')
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sw.js',
+        // replaceAll, not replace: both names appear in the worker's own header comment too.
+        source: template
+          .replaceAll('__VERSION__', version)
+          .replaceAll('__PRECACHE__', JSON.stringify(precache)),
+      })
+    },
+  }
+}
+
 export default defineConfig({
   // GitHub Pages serves this project from https://<user>.github.io/grannydb/.
   base: process.env.BASE_PATH ?? '/grannydb/',
-  plugins: [react(), tailwindcss(), dataBundlePlugin()],
+  plugins: [react(), tailwindcss(), dataBundlePlugin(), serviceWorkerPlugin()],
   build: {
     target: 'es2022',
     sourcemap: true,

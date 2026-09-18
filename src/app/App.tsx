@@ -10,8 +10,10 @@ import { DesignsPage } from '../features/designs/DesignsPage'
 import { StatsPage } from '../features/stats/StatsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { SyncPage } from '../features/sync/SyncPage'
+import { relativeTime } from '../ui/time'
 import { useAppState } from './hooks'
 import { matchRoute, useRoute } from './router'
+import { applyUpdate, registerServiceWorker } from './serviceWorker'
 
 /**
  * Feature screens that are not just "a table".
@@ -38,12 +40,19 @@ export function App() {
 
   useEffect(() => {
     void appStore.init()
+    registerServiceWorker()
+    return appStore.watchConnectivity()
   }, [])
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
       <Screen path={path} />
-      <BottomNav path={path} />
+      {/* One sticky footer: the nav, with the status line riding directly above it. Two separate
+          sticky elements would overlap by the safe-area inset on a phone with a home indicator. */}
+      <div className="sticky bottom-0 z-30">
+        <StatusBar />
+        <BottomNav path={path} />
+      </div>
       {state.phase === 'loading' && state.snapshot ? (
         <div className="pointer-events-none fixed inset-x-0 top-0 h-0.5 animate-pulse bg-accent" />
       ) : null}
@@ -156,6 +165,37 @@ function Screen({ path }: { path: string }) {
   )
 }
 
+/**
+ * One line above the nav for the two things the app knows and you cannot see: that the data on
+ * screen came off this device rather than the network, and that a newer build is waiting.
+ *
+ * Above the nav rather than under the header because it is device state, not page state — it is
+ * true of every screen, and down here it is in reach of a thumb without pushing the page around.
+ */
+function StatusBar() {
+  const { snapshot, updateReady } = useAppState()
+
+  if (updateReady) {
+    return (
+      <div className="flex items-center justify-between gap-3 border-t border-line bg-accent-soft px-4 py-2 text-sm text-accent">
+        <span>A newer version is ready.</span>
+        <button type="button" onClick={applyUpdate} className="font-medium underline underline-offset-2">
+          Reload
+        </button>
+      </div>
+    )
+  }
+
+  if (snapshot?.source !== 'cache') return null
+
+  return (
+    <div className="border-t border-line bg-card px-4 py-2 text-sm text-muted">
+      Offline — showing the copy saved on this device, {relativeTime(snapshot.fetchedAt)}. Edits are
+      queued as usual.
+    </div>
+  )
+}
+
 function Redirect({ to }: { to: string }) {
   useEffect(() => {
     window.location.replace(`#${to}`)
@@ -194,7 +234,7 @@ function BottomNav({ path }: { path: string }) {
   const active = path.split('/').filter(Boolean)[0] ?? ''
 
   return (
-    <nav className="sticky bottom-0 z-30 border-t border-line bg-paper/95 pb-safe backdrop-blur">
+    <nav className="border-t border-line bg-paper/95 pb-safe backdrop-blur">
       <ul className="mx-auto flex max-w-2xl">
         {items.map((item) => (
           <li key={item.to} className="flex-1">

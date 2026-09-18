@@ -155,7 +155,7 @@ Pinned by tests in [`queue.test.ts`](../src/core/__tests__/queue.test.ts).
 
 | What happens | Behaviour |
 |---|---|
-| Offline | Edits queue; Sync fails with a network error; nothing is lost |
+| Offline | The app still opens and renders the last snapshot saved on the device, with the queue replayed on top; edits queue as usual; Sync reports the connection and changes nothing |
 | Token expired | 401 surfaces on the sync screen; queue is untouched |
 | Branch moved | Re-read, replay, retry — up to 3 times, then reports it |
 | Edited in the GitHub web UI meanwhile | Preserved: we replay onto the version that includes it |
@@ -184,3 +184,10 @@ persistent unsynced badge in the header addresses.
 
 Auto-sync remains easy to add later: it is a debounced call to the same `syncChanges`. Nothing about
 the design would need to change.
+
+Offline support did not change this. When the device comes back, the app **re-reads** on its own —
+guarded to the case where the snapshot on screen came from the device's cache, since that is the one
+the network was actually blocking — and it does not sync. The asymmetry is the whole argument: a read
+that happens behind your back is invisible and reversible, and a commit to your repo is neither.
+(`navigator.onLine` reports whether there is an interface, not whether GitHub is reachable — true on
+a captive portal — so it triggers an attempt, never a conclusion.)

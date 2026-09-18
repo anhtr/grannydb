@@ -53,9 +53,13 @@ Whatever the write path is, it must not let a stale copy clobber someone else's 
   phone / laptop browser
   ┌───────────────────────────────────────────┐
   │  React app (static, on GitHub Pages)      │
+  │    shell precached by a service worker    │
   │                                           │
   │  screens ── read model ──┬── base data ◄──┼── read: pinned to a commit sha
-  │                          └── change queue │           (api / bundle / raw)
+  │                          │                │             (api / bundle / raw)
+  │                          │                │       ...or, when that fails, the
+  │                          │                │       last good read, saved here
+  │                          └── change queue │
   │                                (IndexedDB)│
   │                               │           │
   └───────────────────────────────┼───────────┘
@@ -97,9 +101,16 @@ Three ideas carry the design, each with its own page:
 | Visibility | Public data, anonymous read-only | [0006](adr/0006-public-data-and-anonymous-reads.md) |
 | Stack | React + TS + Vite + Tailwind, hash routing | [0007](adr/0007-stack-and-hash-routing.md) |
 | Repo layout | One public repo; data location is config | [0008](adr/0008-single-repo-with-configurable-data-location.md) |
+| Offline reads | Last-known-good snapshot on the device | [0026](adr/0026-last-known-good-snapshot-for-offline-reads.md) |
+| Offline install | Hand-written service worker, shell only | [0027](adr/0027-hand-written-service-worker-and-install.md) |
 
 ## What v1 does not do
 
-Photos, the blanket layout designer, offline install (PWA), bulk edit, yarn usage estimation. The
-architecture has seams for all of them — the commit layer already takes binary blobs, the field
-registry already takes new types — but none are built. See the issue list in the repo.
+Photos, the blanket layout designer, bulk edit, yarn usage estimation. The architecture has seams
+for all of them — the commit layer already takes binary blobs, the field registry already takes new
+types — but none are built. See the issue list in the repo.
+
+Offline *was* on that list and is now built: the app installs to a home screen and opens with no
+network, showing the last data read on that device with the queue replayed on top. See
+[storage layer](03-storage-layer.md) for the read side and [operations](06-operations.md) for what
+that costs.

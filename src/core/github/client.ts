@@ -34,6 +34,33 @@ export class GitHubError extends Error {
   }
 }
 
+/**
+ * The connection failed, as opposed to GitHub answering with an error.
+ *
+ * `fetch` rejects with a bare `TypeError: Failed to fetch` when there is no network, which is both
+ * useless to show a user and indistinguishable from a bug. Naming the case is what lets the app say
+ * "you are offline" on the sync screen instead, and what keeps a genuine 404 from being read as a
+ * flat tyre.
+ */
+export class NetworkError extends Error {
+  constructor(readonly url: string, cause?: unknown) {
+    super('Could not reach GitHub. You appear to be offline.')
+    this.name = 'NetworkError'
+    this.cause = cause
+  }
+}
+
+/**
+ * An aborted request is deliberate, not a connectivity problem, and must survive unrelabelled —
+ * otherwise cancelling a load would report the device as offline.
+ */
+function asNetworkError(error: unknown, url: string): unknown {
+  if (error instanceof DOMException && error.name === 'AbortError') return error
+  if (error instanceof Error && error.name === 'AbortError') return error
+  if (error instanceof GitHubError || error instanceof NetworkError) return error
+  return new NetworkError(url, error)
+}
+
 export interface RequestOptions {
   token?: string | undefined
   method?: string
@@ -52,12 +79,17 @@ async function request(path: string, options: RequestOptions = {}): Promise<Resp
   if (options.token) headers.Authorization = `Bearer ${options.token}`
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
 
-  const response = await fetch(url, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    signal: options.signal,
-  })
+  let response: Response
+  try {
+    response = await fetch(url, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: options.signal,
+    })
+  } catch (error) {
+    throw asNetworkError(error, url)
+  }
 
   if (!response.ok) {
     let body: unknown
@@ -92,7 +124,12 @@ export async function apiText(path: string, options: RequestOptions = {}): Promi
 
 /** Plain fetch for same-origin or raw.githubusercontent URLs, with the same error shape. */
 export async function plainText(url: string, signal?: AbortSignal): Promise<string> {
-  const response = await fetch(url, { signal })
+  let response: Response
+  try {
+    response = await fetch(url, { signal })
+  } catch (error) {
+    throw asNetworkError(error, url)
+  }
   if (!response.ok) {
     throw new GitHubError(`${response.status} ${response.statusText}`, response.status, url)
   }

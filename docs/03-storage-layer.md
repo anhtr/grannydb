@@ -33,7 +33,20 @@ Only the ref lookup is uncached — one request to learn whether anything change
 if nothing did. This is the same idea as a content-addressed store: identity is derived from
 content, so equal keys mean equal bytes, so cache invalidation is not a problem you have.
 
-### Three read paths
+And it is useless with no signal, which is worth being precise about. The key contains a sha, and
+learning the sha *is* the one request that cannot be served from the cache. So there is a second
+cache, doing the opposite job:
+
+| Cache | Keyed by | Property | Answers |
+|---|---|---|---|
+| Blob cache ([`read.ts`](../src/core/github/read.ts)) | commit sha | immutable, never stale, needs the network first | "have I already fetched this exact file?" |
+| Snapshot cache ([`snapshotCache.ts`](../src/core/store/snapshotCache.ts)) | data location | possibly stale, always available | "what did this dataset last look like?" |
+
+The snapshot cache holds the whole `Snapshot` — schemas and all tables — written after every
+successful read and keyed by `{owner}/{repo}/{branch}/{dataDir}` so a scratch branch can never show
+you `main`'s rows. See [ADR 0026](adr/0026-last-known-good-snapshot-for-offline-reads.md).
+
+### Three read paths, and a fallback
 
 One interface, chosen at runtime in `readSnapshot` ([`read.ts`](../src/core/github/read.ts)):
 
@@ -42,6 +55,13 @@ One interface, chosen at runtime in `readSnapshot` ([`read.ts`](../src/core/gith
 | **API** | a token is saved | Pinned to a sha. The only path that works on a private repo. |
 | **Bundle** | no token | `data/bundle.json` on the same origin: one request, pre-parsed. |
 | **Raw** | no token, no bundle | `raw.githubusercontent.com`. Fallback, e.g. on a dev server. |
+| **Cache** | all three failed | The last snapshot saved on this device. Not a read path — the store reaches for it when reading throws, and marks the result `source: 'cache'` so the staleness is visible. |
+
+All three real paths need the network, so without the fallback a phone with no signal has nothing to
+render — not even the edits already queued on it, since every screen is built from
+`snapshot.schemas`. A stale base is safe to draw *because* it is only ever a base: screens show it
+with the queue replayed on top, and a sync re-reads the repo fresh before it commits, so nothing
+derived from a cached snapshot ever reaches GitHub.
 
 The bundle is a **materialised view**: the build pipeline flattens four schema files and three CSVs
 into one already-parsed JSON, so an anonymous cold visit is a single request with no CSV parsing.
@@ -115,6 +135,12 @@ cases, because they need different responses:
 | `isForbidden` | 403 | missing permission, or rate limited | show which; the client rewrites rate-limit messages with the reset time |
 | `isNotFound` | 404 | wrong repo name, or token cannot see it | check settings |
 | `isConflict` | 409/422 | branch moved | re-read and replay — **not** an error to show |
+
+`NetworkError` sits alongside it for the case that is not an answer at all. `fetch` rejects with a
+bare `TypeError: Failed to fetch` when the connection fails, which is indistinguishable from a bug
+and useless on screen; naming it is what lets the sync screen say "you appear to be offline" and
+what lets the loader know to reach for the saved snapshot. An `AbortError` is passed through
+untouched — a cancelled request is deliberate, not a flat tyre.
 
 Rate limits are a non-issue in practice: 5,000 requests/hour authenticated, and a full load is about
 eight, most of which get cached forever by sha.

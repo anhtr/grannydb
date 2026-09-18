@@ -4,6 +4,7 @@ import { commitUrl, DEFAULT_CONFIG, repoUrl } from '../../core/github'
 import type { ConnectionCheck, RepoConfig } from '../../core/github'
 import { useAppState, useTableSchema } from '../../app/hooks'
 import { Button, Card, inputClass } from '../../ui/components'
+import { relativeTime } from '../../ui/time'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -219,6 +220,9 @@ export function SettingsPage() {
       <Section title="Status">
         <dl className="divide-y divide-line text-sm">
           <Row label="Read from">{describeSource(state.snapshot?.source)}</Row>
+          <Row label="Data as of">
+            {state.snapshot ? relativeTime(state.snapshot.fetchedAt) : '—'}
+          </Row>
           <Row label="At commit">
             {state.snapshot?.commit ? (
               <a
@@ -264,9 +268,10 @@ export function SettingsPage() {
       <Section title="Local data">
         <div className="space-y-3 px-4 py-3">
           <p className="text-sm text-muted">
-            Clears the cached copy of the repo on this device. Unsynced edits are kept.
+            Forgets the copy of the repo saved for offline use on this device and reads it again.
+            Unsynced edits are kept.
           </p>
-          <Button onClick={() => void appStore.reload()}>Reload from GitHub</Button>
+          <Button onClick={() => void appStore.refreshFromGitHub()}>Reload from GitHub</Button>
         </div>
       </Section>
     </div>
@@ -290,6 +295,8 @@ function describeSource(source: string | undefined): string {
       return 'published snapshot (read-only)'
     case 'raw':
       return 'raw.githubusercontent (read-only)'
+    case 'cache':
+      return 'saved copy on this device (offline)'
     default:
       return '—'
   }

@@ -38,6 +38,8 @@ If you already know these ideas from data engineering, here is where each one sh
 | Optimistic concurrency control | Fast-forward-only ref update — [storage layer](03-storage-layer.md) |
 | Last-writer-wins register (CRDT) | Field-level merge in the queue — [sync engine](04-sync-engine.md) |
 | Content-addressed immutable cache | Blob cache keyed by commit sha — [storage layer](03-storage-layer.md) |
+| Last-known-good cache / graceful degradation | The saved snapshot an offline load falls back to — [storage layer](03-storage-layer.md) |
+| Precached app shell | The service worker, so the page opens with no network — [operations](06-operations.md) |
 | Data contract test | `scripts/build-data.ts` failing CI — [operations](06-operations.md) |
 | Schema-on-read vs schema-on-write | CSV plus a validating pipeline — [data model](02-data-model.md) |
 | Forward/backward schema compatibility | Unknown-column preservation — [data model](02-data-model.md) |

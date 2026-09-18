@@ -11,6 +11,14 @@ export {
   newChangeId,
   isQueueDurable,
 } from './queue'
+export {
+  snapshotKey,
+  toCached,
+  isStoredSnapshot,
+  saveSnapshot,
+  loadSnapshot,
+  clearSnapshot,
+} from './snapshotCache'
 export { applyChanges, unapplicableChanges } from './merge'
 export { commitMessage } from './message'
 export type { SyncResult, LastSync } from './sync'

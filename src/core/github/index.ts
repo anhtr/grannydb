@@ -8,7 +8,7 @@ export {
   commitUrl,
   fileUrl,
 } from './config'
-export { GitHubError, apiJson, apiText, plainText } from './client'
+export { GitHubError, NetworkError, apiJson, apiText, plainText } from './client'
 export type { Snapshot, SourceKind, DataBundle } from './read'
 export { readSnapshot, readFromApi, readFromBundle, readFromRaw } from './read'
 export type { FileChange, CommitResult } from './commit'

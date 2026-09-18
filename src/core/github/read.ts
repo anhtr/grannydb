@@ -6,7 +6,11 @@ import type { SchemaSet } from '../schema'
 import { apiJson, apiText, plainText } from './client'
 import type { RepoConfig } from './config'
 
-export type SourceKind = 'api' | 'bundle' | 'raw'
+/**
+ * Where a loaded dataset came from. `cache` is not a read path here — it is set by the store when a
+ * failed read falls back to the copy saved on the device; see `store/snapshotCache.ts`.
+ */
+export type SourceKind = 'api' | 'bundle' | 'raw' | 'cache'
 
 export interface Snapshot {
   /** Commit the data was read at. Null for the build-time bundle, which is pinned by deploy. */

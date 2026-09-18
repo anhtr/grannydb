@@ -9,11 +9,12 @@ src/
     schema/        types, loader, validation, search/filter/sort resolution, cross-table counts
     github/        config, HTTP client, snapshot reads, commits, auth
     prefs/         device-local app preferences (project start date, per-table list filters/sort)
-    store/         change queue, merge, sync, the app store
+    store/         change queue, merge, sync, the offline snapshot cache, the app store
   ui/              shared React: primitives, field renderers, generic list/detail/form
   features/        one folder per screen that is more than "a table"
-  app/             router, hooks, shell
-scripts/           the data pipeline (runs in Node)
+  app/             router, hooks, shell, service-worker registration
+  sw/              the service worker itself (plain JS, shipped unbundled)
+scripts/           the data pipeline and the icon generator (run in Node)
 ```
 
 **The rule that matters: `core/` imports no React.** Two reasons, both practical.
@@ -88,6 +89,8 @@ appStore.state = {
   changes      // the pending operation log
   data         // snapshot + changes, recomputed on either change  ← screens read this
   queueDurable // false once a queue write has failed; drives the storage warning
+  online       // navigator.onLine; drives the reconnect re-read, never a decision to skip a request
+  updateReady  // a newer build is installed and waiting behind the "Reload" bar
   token, config, prefs, phase, syncing, lastSync, error, syncError
 }
 ```
@@ -216,6 +219,8 @@ Coverage is deliberately concentrated where a bug loses data rather than annoys 
 | `schema.test.ts` | field validation, schema loading errors, whole-dataset integrity |
 | `sync.test.ts` | the full commit protocol against a fake GitHub, including conflict replay |
 | `router.test.ts` | route matching and specificity ordering |
+| `offline.test.ts` | the snapshot cache key and its shape guard, and the load falling back to the saved copy when every read path throws |
+| `sw/__tests__/sw.test.ts` | the service worker in a fake worker global: what it precaches, what it serves, and that a cross-origin request is never intercepted |
 | `app.render.test.tsx` | one end-to-end mount against a frozen fixture dataset (`src/core/__tests__/fixtures/data/`), not `data/*.csv` — real tracker data changes shape and content on its own schedule and has nothing to do with whether the app mounts |
 
 `sync.test.ts` is the important one. It stands up a fake GitHub that enforces fast-forward-only ref

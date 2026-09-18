@@ -13,11 +13,21 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.github.com https://raw.githubusercontent.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.github.com https://raw.githubusercontent.com; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     />
     <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
     <meta name="description" content="Granny square tracker backed by a GitHub repo." />
+    <!--
+      Relative hrefs, resolved against this document, so nothing hardcodes the `/grannydb/` base and
+      a BASE_PATH build still finds them. Manifest URLs resolve against the manifest itself for the
+      same reason.
+    -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="icon.svg" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="grannydb" />
     <title>grannydb</title>
   </head>
   <body>

@@ -25,6 +25,7 @@ import {
   upsertChange,
 } from './queue'
 import type { Change } from './queue'
+import { clearSnapshot, loadSnapshot, saveSnapshot } from './snapshotCache'
 import { loadLastSync, saveLastSync, syncChanges } from './sync'
 import type { LastSync, SyncResult } from './sync'
 
@@ -40,6 +41,14 @@ export interface AppState {
    */
   queueDurable: boolean
   error: string | null
+  /**
+   * What the browser thinks about connectivity. It reports whether there is a network interface,
+   * not whether GitHub is reachable — true on a captive portal, true on a plane's wifi with no
+   * uplink — so it drives hints and a reconnect re-read, never a decision about whether to try.
+   */
+  online: boolean
+  /** A newer build is installed and waiting; the app is running the previously cached one. */
+  updateReady: boolean
   syncing: boolean
   syncError: string | null
   lastSync: LastSync | null
@@ -55,6 +64,8 @@ const initialState: AppState = {
   changes: [],
   queueDurable: true,
   error: null,
+  online: true,
+  updateReady: false,
   syncing: false,
   syncError: null,
   lastSync: null,
@@ -109,18 +120,69 @@ class AppStore {
 
   async reload(): Promise<void> {
     const ticket = ++this.loadTicket
+    const config = this.state.config
     this.set({ phase: 'loading', error: null })
     try {
-      const snapshot = await readSnapshot(this.state.config, this.state.token)
+      const snapshot = await readSnapshot(config, this.state.token)
       if (ticket !== this.loadTicket) return
       this.set({ snapshot, phase: 'ready', error: null })
+      // Fire-and-forget: keeping the offline copy fresh must never be able to fail a load.
+      void saveSnapshot(config, snapshot)
     } catch (error) {
       if (ticket !== this.loadTicket) return
-      this.set({
-        phase: 'error',
-        error: error instanceof Error ? error.message : 'Could not load data.',
-      })
+      const message = error instanceof Error ? error.message : 'Could not load data.'
+
+      // Every read path needs the network, so with no signal there is nothing to render and the
+      // queued edits you made on the train become invisible. Falling back to the last dataset read
+      // on this device keeps every screen working, marked `cache` so the staleness is visible
+      // rather than implied. Replaying the queue on top is safe: a sync re-reads the repo fresh
+      // before it commits, so these bytes never reach GitHub.
+      const cached = await loadSnapshot(config)
+      if (ticket !== this.loadTicket) return
+      if (cached) {
+        this.set({ snapshot: cached, phase: 'ready', error: null })
+        return
+      }
+      this.set({ phase: 'error', error: message })
     }
+  }
+
+  /**
+   * Re-read when the device comes back, and only re-read.
+   *
+   * Syncing stays a button you press — a read happening behind your back is invisible and
+   * reversible, a commit to your repo is neither (see docs/04-sync-engine.md, "Why not auto-sync").
+   * Guarded to the cases that are actually waiting on the network, because `online` fires on any
+   * interface change and a needless reload throws away a perfectly good snapshot mid-scroll.
+   */
+  watchConnectivity(): () => void {
+    if (typeof window === 'undefined') return () => {}
+
+    const onOnline = (): void => {
+      this.set({ online: true })
+      if (this.state.snapshot?.source === 'cache' || this.state.phase === 'error') {
+        void this.reload()
+      }
+    }
+    const onOffline = (): void => this.set({ online: false })
+
+    this.set({ online: navigator.onLine })
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }
+
+  setUpdateReady(): void {
+    this.set({ updateReady: true })
+  }
+
+  /** Forget the offline copy and read again, for when you want to be sure of what you are seeing. */
+  async refreshFromGitHub(): Promise<void> {
+    await clearSnapshot(this.state.config)
+    await this.reload()
   }
 
   // Config and auth
