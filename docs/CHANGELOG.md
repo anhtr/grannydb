@@ -4,6 +4,19 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-09-29 — v0.1.21, "too low" flag on yarns
+
+**Data**
+- New `yarns.is_too_low` column (bool, `no` on every existing row): the stash is too low to count on
+  for another square. Adding it was a CSV column plus a schema entry — the edit form, list filter
+  and data-contract check all come from the schema, which is the point of keeping the schema as data.
+
+**App**
+- Yarns list: a too-low yarn shows `∅` on the end of the skein-count badge, right after the `◖`
+  partial-skein marker — the same one-badge stash shorthand, so it needs no extra row to skim. The
+  one line of render code is the only non-schema change. It deliberately leaves `isYarnActive`
+  alone: a low yarn is still on hand.
+
 ## 2026-09-17 — v0.1.20, Works with no internet
 
 **App**

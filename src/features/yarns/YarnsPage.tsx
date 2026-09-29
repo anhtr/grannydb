@@ -14,7 +14,9 @@ function YarnRow({ row, schema, usage }: { row: CsvRow; schema: TableSchema; usa
   const skeins = Math.max(0, Math.floor(Number(row.skeins) || 0))
   // A partial skein rides on the end of the skein count itself, rather than its own badge, per the
   // owner's stash-shorthand: "◖" reads as "and a bit more" without needing a second label to skim.
+  // "∅" (too low to count on) follows it in the same shorthand.
   const partial = parseBool(row.partial_skein ?? '')
+  const tooLow = parseBool(row.is_too_low ?? '')
   const main = usage?.main ?? 0
   const extra = usage?.extra ?? 0
 
@@ -35,6 +37,7 @@ function YarnRow({ row, schema, usage }: { row: CsvRow; schema: TableSchema; usa
             <Badge key="skeins" tone={skeins === 0 ? 'neutral' : 'accent'}>
               {skeins} skein{skeins === 1 ? '' : 's'}
               {partial ? ' ◖' : ''}
+              {tooLow ? ' ∅' : ''}
             </Badge>,
           ],
           [
