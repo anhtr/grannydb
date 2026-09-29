@@ -23,7 +23,7 @@
     { "key": "pattern", "label": "Pattern", "type": "enum", "options": ["solid", "print", "speckled"], "help": "How more than one colour is drawn. Leave blank for the default: \"solid\" for one colour, \"print\" (equal stripes) for several. \"Speckled\" fills with the first colour and scatters the rest as small flecks — put the base shade first." },
     { "key": "skeins", "label": "Skeins left", "type": "number", "list": true, "sortable": true, "filter": true, "filterMode": "min" },
     { "key": "partial_skein", "label": "Partial skein", "type": "bool", "default": "no", "list": true, "filter": true, "help": "At least one skein has been started." },
-    { "key": "is_too_low", "label": "Too low", "type": "bool", "default": "no", "list": true, "filter": true, "help": "Too little left to count on for another square. Shown as ∅ next to the skein count." },
+    { "key": "is_too_low", "label": "Too low", "type": "bool", "default": "no", "list": true, "filter": true, "help": "Too little left to count on as main for another pair of squares. Shown as ∅ next to the skein count." },
     { "key": "notes", "label": "Notes", "type": "textarea" }
   ]
 }

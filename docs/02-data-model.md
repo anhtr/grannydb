@@ -96,7 +96,7 @@ deleted rather than tracked as a state.
 | `pattern` | enum | `solid` / `print` / `speckled`, optional. How `hex`'s colours are drawn — blank means "solid" for one colour or "print" (stripes) for more than one. See [ADR 0024](adr/0024-speckled-yarn-pattern.md) |
 | `skeins` | number | |
 | `partial_skein` | bool | At least one skein on hand has been started |
-| `is_too_low` | bool | Too little left to count on for another square. Shown as `∅` after the skein count (and after `◖`) on the Yarns list. Does not affect whether a yarn is "active" — a low yarn is still in stash |
+| `is_too_low` | bool | Too little left to count on as main for another pair of squares. Shown as `∅` after the skein count (and after `◖`) on the Yarns list. Does not affect whether a yarn is "active" — a low yarn is still in stash |
 | `notes` | textarea | |
 
 `display_name` is `titleField`; `name` is not. When `display_name` is blank — the common case right

@@ -7,8 +7,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 ## 2026-09-29 — v0.1.21, "too low" flag on yarns
 
 **Data**
-- New `yarns.is_too_low` column (bool, `no` on every existing row): the stash is too low to count on
-  for another square. Adding it was a CSV column plus a schema entry — the edit form, list filter
+- New `yarns.is_too_low` column (bool, `no` on every existing row): too little is left to count on
+  as main for another pair of squares. Adding it was a CSV column plus a schema entry — the edit form, list filter
   and data-contract check all come from the schema, which is the point of keeping the schema as data.
 
 **App**
