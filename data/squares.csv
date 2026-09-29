@@ -157,3 +157,5 @@ S153,2026-09-26,done,D126,"Add border rounds (hdc, sc). Single color only. Adjus
 S154,2026-09-27,done,D127,Two colors only. Last round is sc. Adjust stitch count.,Y112,Y94,,,
 S155,2026-09-27,done,D128,Turn last two rounds into sc with no popcorn. Adjust stitch count.,Y129,Y60,,,
 S156,2026-09-27,done,D129,Dc border,Y74,Y110,,,
+S157,2026-09-28,done,D130,"Add extra rounds of border rounds (bpdc, dc, sc)",Y60,Y94;Y86;Y133,,,
+S158,2026-09-28,done,D131,Single color only. Adjust stitch count.,Y60,,,,
