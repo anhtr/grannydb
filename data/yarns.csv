@@ -106,19 +106,19 @@ Y104,P04 (Peonie),Peonie,Hobbii Friends Cotton 8/4 Print,04,,,0,no,no,
 Y105,P05 (Wildberry Smoothie),Wildberry Smoothie,Hobbii Friends Cotton 8/4 Print,05,,,0,no,no,
 Y106,P06 (Raspberry Sorbet),Raspberry Sorbet,Hobbii Friends Cotton 8/4 Print,06,,,0,no,no,
 Y107,P07 (Lavender Potpourri),Lavender Potpourri,Hobbii Friends Cotton 8/4 Print,07,,,0,no,no,
-Y108,P08 (Sky Notions),Sky Notions,Hobbii Friends Cotton 8/4 Print,08,#7e8fb4;#4b69a5;#171d2f,print,2,yes,no,
-Y109,P09 (Tropical Ocean),Tropical Ocean,Hobbii Friends Cotton 8/4 Print,09,#469ba6;#489dcb;#2352a5,print,2,yes,no,
-Y110,P10 (Fresh Mint),Fresh Mint,Hobbii Friends Cotton 8/4 Print,10,#e3e5ef;#b0debf;#65a389,print,01,yes,no,
-Y111,P11 (Mangrove Forest),Mangrove Forest,Hobbii Friends Cotton 8/4 Print,11,#65a389;#347574;#2c6464,print,2,yes,no,
-Y112,P12 (Jungle Green),Jungle Green,Hobbii Friends Cotton 8/4 Print,12,#5d9634;#2e6837;#223c2c,print,1,yes,no,
-Y113,P13 (Spring Greenery),Spring Greenery,Hobbii Friends Cotton 8/4 Print,13,#c8b7a2;#c9ca56;#5d9634;#2f6a4a,print,1,yes,no,
+Y108,P08 (Sky Notions),Sky Notions,Hobbii Friends Cotton 8/4 Print,08,#7e8fb4;#4b69a5;#171d2f,print,2,yes,no,"Friends Cotton 8/4: Cornflower (83), French Blue (84), Midnight Blue (87)"
+Y109,P09 (Tropical Ocean),Tropical Ocean,Hobbii Friends Cotton 8/4 Print,09,#469ba6;#489dcb;#2352a5,print,2,yes,no,"Friends Cotton 8/4: Capri Blue (90), Aqua (91), Lapis Blue (93)"
+Y110,P10 (Fresh Mint),Fresh Mint,Hobbii Friends Cotton 8/4 Print,10,#e3e5ef;#b0debf;#65a389,print,01,yes,no,"Friends Cotton 8/4: White (01), Pastel Green (100), Turquoise (94)"
+Y111,P11 (Mangrove Forest),Mangrove Forest,Hobbii Friends Cotton 8/4 Print,11,#65a389;#347574;#2c6464,print,2,yes,no,"Friends Cotton 8/4: Turquoise (94), Dark Turquoise (95), Teal (96)"
+Y112,P12 (Jungle Green),Jungle Green,Hobbii Friends Cotton 8/4 Print,12,#5d9634;#2e6837;#223c2c,print,1,yes,no,"Friends Cotton 8/4: Shamrock (104), Emerald (105), Bottle Green (112)"
+Y113,P13 (Spring Greenery),Spring Greenery,Hobbii Friends Cotton 8/4 Print,13,#c8b7a2;#c9ca56;#5d9634;#2f6a4a,print,1,yes,no,"Friends Cotton 8/4: Beige (05), Pistachio (108), Shamrock (104), Malachite (106)"
 Y114,P14 (Terracotta),Terracotta,Hobbii Friends Cotton 8/4 Print,14,,,0,no,no,
 Y115,P15 (Latte Macchiato),Latte Macchiato,Hobbii Friends Cotton 8/4 Print,15,,,0,no,no,
 Y116,P16 (Shades of Gray),Shades of Gray,Hobbii Friends Cotton 8/4 Print,16,,,0,no,no,
 Y117,P17 (Bonfire),Bonfire,Hobbii Friends Cotton 8/4 Print,17,,,0,no,no,
 Y118,P18 (Spring Flowers),Spring Flowers,Hobbii Friends Cotton 8/4 Print,18,,,0,no,no,
 Y119,P19 (Peach'n Plum),Peach'n Plum,Hobbii Friends Cotton 8/4 Print,19,,,0,no,no,
-Y120,P21 (Northern Lights),Northern Lights,Hobbii Friends Cotton 8/4 Print,21,#0f1d68;#4b69a5;#469ba6;#c9ca56,print,2,yes,no,
+Y120,P21 (Northern Lights),Northern Lights,Hobbii Friends Cotton 8/4 Print,21,#0f1d68;#4b69a5;#469ba6;#c9ca56,print,2,yes,no,"Friends Cotton 8/4: Sapphire (85), French Blue (84), Capri Blue (90), Pistachio (108)"
 Y121,P22 (Winter Sunset),Winter Sunset,Hobbii Friends Cotton 8/4 Print,22,,,0,no,no,
 Y122,P23 (Burning Embers),Burning Embers,Hobbii Friends Cotton 8/4 Print,23,,,0,no,no,
 Y123,P24 (Pastel Rainbow),Pastel Rainbow,Hobbii Friends Cotton 8/4 Print,24,,,0,no,no,
@@ -126,8 +126,8 @@ Y124,P25 (Bold Rainbow),Bold Rainbow,Hobbii Friends Cotton 8/4 Print,25,,,0,no,n
 Y125,P32 (Lemon Sorbet),Lemon Sorbet,Hobbii Friends Cotton 8/4 Print,32,,,0,no,no,
 Y126,P33 (Young Love),Young Love,Hobbii Friends Cotton 8/4 Print,33,,,0,no,no,
 Y127,P34 (Violets),Violets,Hobbii Friends Cotton 8/4 Print,34,,,0,no,no,
-Y128,P35 (Teal),Teal,Hobbii Friends Cotton 8/4 Print,35,#6a9797;#263a44;#b0debf,print,1,yes,no,
-Y129,P36 (Rain Clouds),Rain Clouds,Hobbii Friends Cotton 8/4 Print,36,#3d4851;#202c4e;#171d2f;#646464,print,1,yes,no,
+Y128,P35 (Teal),Teal,Hobbii Friends Cotton 8/4 Print,35,#6a9797;#263a44;#b0debf,print,1,yes,no,"Friends Cotton 8/4: Turkish Blue (88), Deep Ocean (89), Pastel Green (100)"
+Y129,P36 (Rain Clouds),Rain Clouds,Hobbii Friends Cotton 8/4 Print,36,#3d4851;#202c4e;#171d2f;#646464,print,1,yes,no,"Friends Cotton 8/4: Denim (80), Navy (86), Midnight Blue (87), Anthracite (122)"
 Y130,P37 (Camouflage),Camouflage,Hobbii Friends Cotton 8/4 Print,37,,,0,no,no,
 Y131,,Waterfall,Hobbii Friends Cotton 8/4,129,#cbdae1,solid,2,yes,no,
 Y132,GS016 (Light Grey Silver),Light Grey Silver,Rainbow 8/4 Glitter Silver,016,#c6c5c3,solid,2,no,no,
