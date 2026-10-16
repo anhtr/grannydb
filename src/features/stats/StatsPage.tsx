@@ -474,9 +474,9 @@ interface Gap {
 }
 
 /**
- * Squares sharing one design and one colour combination — see `identicalSquares`. Unlike the gap
- * cards it is always shown, because an empty result is itself the answer being looked for: "no
- * duplicates" is worth seeing said, not inferred from a card's absence.
+ * Squares sharing one design and one colour combination — see `identicalSquares`. Like the gap
+ * cards, only rendered by the caller when there is at least one group, so a page with no duplicates
+ * stays quiet.
  */
 function IdenticalSquaresCard({ groups }: { groups: IdenticalSquares[] }) {
   const yarns = useLookup('yarns')
@@ -491,48 +491,44 @@ function IdenticalSquaresCard({ groups }: { groups: IdenticalSquares[] }) {
         Same design, main colour and extra colours, in any status. Squares missing a design or main colour are not
         compared.
       </p>
-      {groups.length === 0 ? (
-        <p className="mt-2 text-sm text-muted">None — every square is unique.</p>
-      ) : (
-        <ul className="mt-2 space-y-3">
-          {groups.map((group) => {
-            const main = yarns.get(group.main)
-            return (
-              <li key={group.squares.map((r) => r.id).join('|')} className="flex items-start gap-3">
-                <ColourGlyph
-                  mainHex={main?.hex}
-                  mainPattern={main?.pattern}
-                  extraHexes={group.extras.map((id) => yarns.get(id)?.hex)}
-                  extraPatterns={group.extras.map((id) => yarns.get(id)?.pattern)}
-                  size={28}
-                  className="shrink-0"
-                />
-                <div className="min-w-0 flex-1 text-sm">
-                  <p className="font-medium">{designs.get(group.designId)?.name ?? group.designId}</p>
-                  <p className="text-xs text-muted">
-                    {name(group.main)} main
-                    {group.extras.length > 0 ? `, with ${group.extras.map(name).join(' + ')}` : ''}
-                  </p>
-                  <ul className="mt-1 space-y-0.5">
-                    {group.squares.map((row) => (
-                      <li key={row.id}>
-                        <Link
-                          to={`/squares/${row.id}`}
-                          className="flex items-center gap-2 rounded-lg px-1 py-0.5 text-accent hover:underline"
-                        >
-                          <span className="font-mono">{row.id}</span>
-                          {row.status ? <Badge tone={statusTone(row.status)}>{row.status}</Badge> : null}
-                          {row.date ? <span className="ml-auto text-xs text-muted">{row.date}</span> : null}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      <ul className="mt-2 space-y-3">
+        {groups.map((group) => {
+          const main = yarns.get(group.main)
+          return (
+            <li key={group.squares.map((r) => r.id).join('|')} className="flex items-start gap-3">
+              <ColourGlyph
+                mainHex={main?.hex}
+                mainPattern={main?.pattern}
+                extraHexes={group.extras.map((id) => yarns.get(id)?.hex)}
+                extraPatterns={group.extras.map((id) => yarns.get(id)?.pattern)}
+                size={28}
+                className="shrink-0"
+              />
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="font-medium">{designs.get(group.designId)?.name ?? group.designId}</p>
+                <p className="text-xs text-muted">
+                  {name(group.main)} main
+                  {group.extras.length > 0 ? `, with ${group.extras.map(name).join(' + ')}` : ''}
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {group.squares.map((row) => (
+                    <li key={row.id}>
+                      <Link
+                        to={`/squares/${row.id}`}
+                        className="flex items-center gap-2 rounded-lg px-1 py-0.5 text-accent hover:underline"
+                      >
+                        <span className="font-mono">{row.id}</span>
+                        {row.status ? <Badge tone={statusTone(row.status)}>{row.status}</Badge> : null}
+                        {row.date ? <span className="ml-auto text-xs text-muted">{row.date}</span> : null}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
     </Card>
   )
 }
@@ -793,7 +789,7 @@ export function StatsPage() {
       {stats.missingMainYarn.length > 0 ? <GapsCard title="Missing main colour" items={stats.missingMainYarn} /> : null}
       {stats.missingDesign.length > 0 ? <GapsCard title="Missing design" items={stats.missingDesign} /> : null}
 
-      <IdenticalSquaresCard groups={stats.identical} />
+      {stats.identical.length > 0 ? <IdenticalSquaresCard groups={stats.identical} /> : null}
 
       <CollapsibleTallyCard
         title="Finished, by main colour"

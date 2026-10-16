@@ -4,6 +4,12 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-16 — v0.1.25, "Identical squares" only when there are some
+
+**App**
+- The Progress screen's Identical squares card now appears only when duplicates exist, like the
+  "Missing …" cards, instead of always showing with a "None" line.
+
 ## 2026-10-16 — v0.1.24, "Identical squares" on Progress
 
 **App**
