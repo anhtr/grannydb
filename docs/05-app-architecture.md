@@ -174,6 +174,10 @@ Three components in `ui/` serve every table:
   main colour or design) backs the Progress screen's matching cards — the Squares list itself carries
   no summary header, on the reasoning that anyone wanting those numbers already has a dedicated screen
   for them.
+  `identicalSquares` backs the Progress screen's "Identical squares" card: squares of any status that
+  share a design, main colour and set of extras, using the same notion of "same combination" as the
+  yarn and design detail views. Unlike the gap cards it renders even when empty, since "no duplicates"
+  is the answer it is there to give.
   List rows generally float their badges to one side (`BadgeStack` in `ui/components.tsx`) so a long
   title or subtitle wraps under them instead of being truncated to make room.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional

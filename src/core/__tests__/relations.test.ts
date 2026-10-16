@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { designCombinations, designSquareCounts, isYarnActive, yarnCombinations, yarnUsageCounts } from '../schema/relations'
+import { designCombinations, designSquareCounts, identicalSquares, isYarnActive, yarnCombinations, yarnUsageCounts } from '../schema/relations'
 import type { CsvTable } from '../csv'
 
 const squares: CsvTable = {
@@ -129,5 +129,34 @@ describe('designCombinations', () => {
 
   it('returns nothing for a design no square cites', () => {
     expect(designCombinations(table, 'D9')).toEqual([])
+  })
+})
+
+describe('identicalSquares', () => {
+  const table: CsvTable = {
+    columns: ['id', 'status', 'design_id', 'main_yarn', 'extra_yarns'],
+    rows: [
+      { id: 'S001', status: 'blocked', design_id: 'D1', main_yarn: 'Y1', extra_yarns: 'Y2;Y3' },
+      { id: 'S002', status: 'planned', design_id: 'D1', main_yarn: 'Y1', extra_yarns: 'Y3;Y2' },
+      { id: 'S003', status: 'done', design_id: 'D1', main_yarn: 'Y2', extra_yarns: 'Y1;Y3' },
+      { id: 'S004', status: 'done', design_id: 'D2', main_yarn: 'Y1', extra_yarns: 'Y2;Y3' },
+      { id: 'S005', status: 'in progress', design_id: '', main_yarn: 'Y1', extra_yarns: '' },
+      { id: 'S006', status: 'done', design_id: '', main_yarn: 'Y1', extra_yarns: '' },
+    ],
+  }
+
+  it('groups squares with the same design, main and set of extras, across every status', () => {
+    const groups = identicalSquares(table)
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({ designId: 'D1', main: 'Y1', extras: ['Y2', 'Y3'] })
+    expect(groups[0].squares.map((r) => r.id)).toEqual(['S001', 'S002'])
+  })
+
+  it('leaves out squares with no design or no main colour', () => {
+    expect(identicalSquares(table).flatMap((g) => g.squares.map((r) => r.id))).not.toContain('S005')
+  })
+
+  it('returns nothing when every square is unique', () => {
+    expect(identicalSquares({ ...table, rows: table.rows.slice(2, 4) })).toEqual([])
   })
 })

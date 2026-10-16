@@ -126,6 +126,42 @@ export function designCombinations(squares: CsvTable, designId: string): ColourC
   return groups.ordered()
 }
 
+/** Two or more squares sharing one design and one colour combination. */
+export interface IdenticalSquares {
+  designId: string
+  main: string
+  /** Deduplicated and sorted, as in `ColourCombination`. */
+  extras: string[]
+  /** Every status, in file order. */
+  squares: CsvRow[]
+}
+
+/**
+ * Squares that would come out looking the same: same design, same main colour, same *set* of extras
+ * — the same notion of "same combination" as `designCombinations`. There should be none; this exists
+ * so a duplicate can be caught, including one still `planned` or `in progress` that repeats a square
+ * already made. Every status counts for exactly that reason. A square with no design or no main
+ * colour is left out: it is incomplete rather than a duplicate, and the "missing" gaps already list it.
+ * Construction is deliberately not part of the key — it follows the design unless overridden, and an
+ * override alone is not enough to make two squares look different at a glance.
+ */
+export function identicalSquares(squares: CsvTable): IdenticalSquares[] {
+  const groups = new Map<string, IdenticalSquares>()
+  for (const row of squares.rows) {
+    const designId = row.design_id ?? ''
+    const main = row.main_yarn ?? ''
+    if (!designId || !main) continue
+    const extras = extrasOf(row).sort()
+    const key = `${designId}|${main}|${extras.join(';')}`
+    const entry = groups.get(key) ?? { designId, main, extras, squares: [] }
+    entry.squares.push(row)
+    groups.set(key, entry)
+  }
+  return [...groups.values()]
+    .filter((g) => g.squares.length > 1)
+    .sort((a, b) => b.squares.length - a.squares.length || a.designId.localeCompare(b.designId))
+}
+
 /** How many squares cite each design. */
 export function designSquareCounts(squares: CsvTable): Map<string, number> {
   const counts = new Map<string, number>()

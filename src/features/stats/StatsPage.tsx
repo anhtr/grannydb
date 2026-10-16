@@ -2,12 +2,12 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import type { CsvRow } from '../../core/csv'
 import { effectiveGoal } from '../../core/prefs'
-import { fieldByKey, splitList, squareConstructionInsights, titleFor } from '../../core/schema'
-import type { TableSchema } from '../../core/schema'
+import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, titleFor } from '../../core/schema'
+import type { IdenticalSquares, TableSchema } from '../../core/schema'
 import { useAppState, useLookup, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
-import { Card, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
+import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
 import type { DonutSlice } from '../../ui/components'
-import { statusMark } from '../../ui/status'
+import { statusMark, statusTone } from '../../ui/status'
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
 /** The trailing window "Pace" normally averages over. */
@@ -474,6 +474,70 @@ interface Gap {
 }
 
 /**
+ * Squares sharing one design and one colour combination — see `identicalSquares`. Unlike the gap
+ * cards it is always shown, because an empty result is itself the answer being looked for: "no
+ * duplicates" is worth seeing said, not inferred from a card's absence.
+ */
+function IdenticalSquaresCard({ groups }: { groups: IdenticalSquares[] }) {
+  const yarns = useLookup('yarns')
+  const yarnSchema = useTableSchema('yarns')
+  const designs = useLookup('designs')
+  const name = (id: string) => yarnLabel(yarnSchema, yarns.get(id), id)
+
+  return (
+    <Card className="p-3">
+      <h2 className="font-medium">Identical squares</h2>
+      <p className="mt-0.5 text-xs text-muted">
+        Same design, main colour and extra colours, in any status. Squares missing a design or main colour are not
+        compared.
+      </p>
+      {groups.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">None — every square is unique.</p>
+      ) : (
+        <ul className="mt-2 space-y-3">
+          {groups.map((group) => {
+            const main = yarns.get(group.main)
+            return (
+              <li key={group.squares.map((r) => r.id).join('|')} className="flex items-start gap-3">
+                <ColourGlyph
+                  mainHex={main?.hex}
+                  mainPattern={main?.pattern}
+                  extraHexes={group.extras.map((id) => yarns.get(id)?.hex)}
+                  extraPatterns={group.extras.map((id) => yarns.get(id)?.pattern)}
+                  size={28}
+                  className="shrink-0"
+                />
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-medium">{designs.get(group.designId)?.name ?? group.designId}</p>
+                  <p className="text-xs text-muted">
+                    {name(group.main)} main
+                    {group.extras.length > 0 ? `, with ${group.extras.map(name).join(' + ')}` : ''}
+                  </p>
+                  <ul className="mt-1 space-y-0.5">
+                    {group.squares.map((row) => (
+                      <li key={row.id}>
+                        <Link
+                          to={`/squares/${row.id}`}
+                          className="flex items-center gap-2 rounded-lg px-1 py-0.5 text-accent hover:underline"
+                        >
+                          <span className="font-mono">{row.id}</span>
+                          {row.status ? <Badge tone={statusTone(row.status)}>{row.status}</Badge> : null}
+                          {row.date ? <span className="ml-auto text-xs text-muted">{row.date}</span> : null}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+/**
  * A square missing its main colour or design silently drops out of every colour/construction tally
  * above (they all key off `main_yarn`/`design_id`) rather than showing up as an obvious zero, which
  * is exactly what made the colour-imbalance card go quiet instead of flagging a real gap. This card
@@ -656,6 +720,7 @@ export function StatsPage() {
       colourImbalances,
       missingMainYarn: insights.missingMainYarn.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
       missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
+      identical: identicalSquares(squares),
     }
   }, [squares, schema, prefs, resolve, yarns, yarnSchema, designs, sources])
 
@@ -727,6 +792,8 @@ export function StatsPage() {
 
       {stats.missingMainYarn.length > 0 ? <GapsCard title="Missing main colour" items={stats.missingMainYarn} /> : null}
       {stats.missingDesign.length > 0 ? <GapsCard title="Missing design" items={stats.missingDesign} /> : null}
+
+      <IdenticalSquaresCard groups={stats.identical} />
 
       <CollapsibleTallyCard
         title="Finished, by main colour"

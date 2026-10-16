@@ -4,6 +4,16 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-16 — v0.1.24, "Identical squares" on Progress
+
+**App**
+- New **Identical squares** card on the Progress screen: groups of squares with the same design,
+  main colour and set of extra colours. Every status is compared, so a `planned` or `in progress`
+  square that repeats one already made shows up before it is crocheted. Squares missing a design or
+  main colour are skipped — they are incomplete, and the "Missing …" cards already list them.
+  Construction is not part of the comparison. Always shown, saying "None" when there are no
+  duplicates. Derived at read time by `identicalSquares` in `core/schema/relations.ts`.
+
 ## 2026-10-16 — v0.1.23, squares and colours on each design
 
 **App**
