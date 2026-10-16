@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { designSquareCounts, isYarnActive, yarnUsageCounts } from '../schema/relations'
+import { designSquareCounts, isYarnActive, yarnCombinations, yarnUsageCounts } from '../schema/relations'
 import type { CsvTable } from '../csv'
 
 const squares: CsvTable = {
@@ -64,5 +64,45 @@ describe('designSquareCounts', () => {
 
   it('does not count squares with no design', () => {
     expect(designSquareCounts(squares).has('')).toBe(false)
+  })
+})
+
+describe('yarnCombinations', () => {
+  const mixed: CsvTable = {
+    columns: ['id', 'main_yarn', 'extra_yarns'],
+    rows: [
+      { id: 'S001', main_yarn: 'Y1', extra_yarns: 'Y2;Y3' },
+      { id: 'S002', main_yarn: 'Y1', extra_yarns: 'Y3;Y2' },
+      { id: 'S003', main_yarn: 'Y1', extra_yarns: '' },
+      { id: 'S004', main_yarn: 'Y4', extra_yarns: 'Y1' },
+      { id: 'S005', main_yarn: 'Y4', extra_yarns: 'Y3;Y1' },
+      { id: 'S006', main_yarn: 'Y2', extra_yarns: 'Y5' },
+    ],
+  }
+
+  it('groups squares where the yarn is main by their extras, regardless of extra order', () => {
+    expect(yarnCombinations(mixed, 'Y1').asMain).toEqual([
+      { main: 'Y1', extras: ['Y2', 'Y3'], squareIds: ['S001', 'S002'] },
+      { main: 'Y1', extras: [], squareIds: ['S003'] },
+    ])
+  })
+
+  it('groups squares where the yarn is extra by main and the other extras, leaving the yarn out', () => {
+    expect(yarnCombinations(mixed, 'Y1').asExtra).toEqual([
+      { main: 'Y4', extras: [], squareIds: ['S004'] },
+      { main: 'Y4', extras: ['Y3'], squareIds: ['S005'] },
+    ])
+  })
+
+  it('counts a yarn listed as both main and extra on one square under main only', () => {
+    const table: CsvTable = { columns: ['id', 'main_yarn', 'extra_yarns'], rows: [{ id: 'S1', main_yarn: 'Y1', extra_yarns: 'Y1;Y2' }] }
+    expect(yarnCombinations(table, 'Y1')).toEqual({
+      asMain: [{ main: 'Y1', extras: ['Y2'], squareIds: ['S1'] }],
+      asExtra: [],
+    })
+  })
+
+  it('returns nothing for a yarn no square uses', () => {
+    expect(yarnCombinations(mixed, 'Y9')).toEqual({ asMain: [], asExtra: [] })
   })
 })

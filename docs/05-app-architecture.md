@@ -68,6 +68,15 @@ does, for the skeins-left/partial-skein badges and the active/usage information 
 does, for its squares-used count — none of which a generic row has a field type to show, because none
 of them are schema fields (see [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md)).
 
+The detail view has a smaller counterpart, `TABLE_DETAIL_EXTRAS`, which *adds* read-only sections
+under the generic `RecordDetail` rather than replacing it — so the fields, edit and delete stay
+schema-driven. `App.tsx` passes the section in through `RecordDetail`'s `extra` prop instead of
+`RecordDetail` looking it up, which keeps `ui/` from importing `features/`. `yarns` uses it for
+[`YarnCombinations`](../src/features/yarns/YarnCombinations.tsx): the colour sets a yarn has been
+worked in, split by whether it was the main colour or an extra, computed by `yarnCombinations` in
+[`core/schema/relations.ts`](../src/core/schema/relations.ts) — the same read-time aggregation as the
+usage counts, so it is a view over `squares`, not data anyone has to keep up to date.
+
 `App.tsx` mounts the generic `<RecordList>` with `key={table}`, so switching tables (Designs → Yarns
 in the bottom nav) always gets a fresh component instance instead of one React reuses in place —
 otherwise the previous table's search text and in-memory filter state would leak into the next
@@ -163,8 +172,9 @@ Three components in `ui/` serve every table:
   for them.
   List rows generally float their badges to one side (`BadgeStack` in `ui/components.tsx`) so a long
   title or subtitle wraps under them instead of being truncated to make room.
-- **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, edit and delete,
-  a link to the underlying CSV on github.com.
+- **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional
+  `extra` slot for computed sections (see `TABLE_DETAIL_EXTRAS` above), edit and delete, a link to
+  the underlying CSV on github.com.
 - **[`RecordForm`](../src/ui/RecordForm.tsx)** — every field via its `Input`, validation on save
   including referential integrity, sticky save bar.
 

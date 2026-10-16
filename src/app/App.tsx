@@ -6,6 +6,7 @@ import { RecordList } from '../ui/RecordList'
 import { ErrorNote, Link, PageHeader, Spinner } from '../ui/components'
 import { SquaresPage } from '../features/squares/SquaresPage'
 import { YarnsPage } from '../features/yarns/YarnsPage'
+import { YarnCombinations } from '../features/yarns/YarnCombinations'
 import { DesignsPage } from '../features/designs/DesignsPage'
 import { StatsPage } from '../features/stats/StatsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
@@ -32,6 +33,15 @@ const TABLE_LIST_OVERRIDES: Record<string, () => React.ReactNode> = {
   squares: () => <SquaresPage />,
   yarns: () => <YarnsPage />,
   designs: () => <DesignsPage />,
+}
+
+/**
+ * Read-only sections added under a table's generic detail view, the detail-page counterpart of
+ * `TABLE_LIST_OVERRIDES` — except it adds to the generic view instead of replacing it, so the
+ * fields, edit and delete stay schema-driven.
+ */
+const TABLE_DETAIL_EXTRAS: Record<string, (id: string) => React.ReactNode> = {
+  yarns: (id) => <YarnCombinations yarnId={id} />,
 }
 
 export function App() {
@@ -135,7 +145,11 @@ function Screen({ path }: { path: string }) {
           subtitle={schema.labelSingular}
           action={<SyncButton />}
         />
-        <RecordDetail table={detailMatch.table} id={detailMatch.id} />
+        <RecordDetail
+          table={detailMatch.table}
+          id={detailMatch.id}
+          extra={TABLE_DETAIL_EXTRAS[detailMatch.table]?.(detailMatch.id)}
+        />
       </main>
     )
   }

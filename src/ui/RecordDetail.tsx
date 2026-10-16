@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { appStore } from '../core/store'
 import { fileUrl } from '../core/github'
 import { effectiveValue, fieldByKey } from '../core/schema'
@@ -7,7 +8,12 @@ import { useNavigate } from '../app/router'
 import { Button, Card, ErrorNote, Link, Spinner } from './components'
 import { rendererFor } from './fields'
 
-export function RecordDetail({ table, id }: { table: string; id: string }) {
+/**
+ * `extra` is a slot for read-only sections a table wants under its fields — computed views such as a
+ * yarn's colour combinations, which are not schema fields and so have no `Display` to render them.
+ * It is passed in by the caller rather than looked up here, so `ui/` never imports from `features/`.
+ */
+export function RecordDetail({ table, id, extra }: { table: string; id: string; extra?: ReactNode }) {
   const state = useAppState()
   const schema = useTableSchema(table)
   const row = useRow(table, id)
@@ -57,6 +63,8 @@ export function RecordDetail({ table, id }: { table: string; id: string }) {
           )
         })}
       </Card>
+
+      {extra}
 
       {canEdit ? (
         <div className="flex gap-3 px-4">

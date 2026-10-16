@@ -4,6 +4,19 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-16 — v0.1.22, colour combinations on each yarn
+
+**App**
+- A yarn's detail view now lists the colour combinations it has gone into, in two cards: **Used as
+  main** (grouped by which extras went with it, or "on its own") and **Used as extra** (grouped by
+  the main colour and any other extras). Each row draws the square's colour glyph, counts the
+  squares and links to each one. No new columns: `yarnCombinations` in `core/schema/relations.ts`
+  derives it from `squares.main_yarn`/`extra_yarns` at read time, the same rule as the usage counts
+  ([ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md)). Extras are compared as a
+  set, so `Y2;Y3` and `Y3;Y2` are one combination.
+- New `TABLE_DETAIL_EXTRAS` in `App.tsx` and an `extra` slot on `RecordDetail`: the detail-view
+  counterpart of `TABLE_LIST_OVERRIDES`, but additive — the schema-driven fields stay as they are.
+
 ## 2026-09-29 — v0.1.21, "too low" flag on yarns
 
 **Data**

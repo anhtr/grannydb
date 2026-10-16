@@ -48,6 +48,57 @@ export function isYarnActive(yarnRow: CsvRow, usage: YarnUsage | undefined): boo
   return Boolean(usage && usage.main + usage.extra > 0)
 }
 
+/** One set of colours that has been worked together, and the squares that use it. */
+export interface YarnCombination {
+  /** The square's main colour. Blank when the square has none on file. */
+  main: string
+  /** The square's other extra colours — never the yarn being asked about — deduplicated and sorted, so order in the cell does not split a combination in two. */
+  extras: string[]
+  squareIds: string[]
+}
+
+export interface YarnCombinations {
+  /** Squares with this yarn as main colour, grouped by which extras went with it. */
+  asMain: YarnCombination[]
+  /** Squares with this yarn among the extras, grouped by main colour and the remaining extras. */
+  asExtra: YarnCombination[]
+}
+
+/**
+ * Which colour combinations a yarn has been used in, split by the role it played. Read time, not
+ * materialised, for the same reason as `yarnUsageCounts` — a combination is nothing but the yarn
+ * columns of the squares that already exist. Extras are treated as a set (`Y2;Y3` and `Y3;Y2` are
+ * one combination) since the cell's order is just the order someone typed them in; main stays
+ * distinct because main-versus-extra is the very split being shown. Most-used first.
+ */
+export function yarnCombinations(squares: CsvTable, yarnId: string): YarnCombinations {
+  const asMain = new Map<string, YarnCombination>()
+  const asExtra = new Map<string, YarnCombination>()
+  const add = (groups: Map<string, YarnCombination>, main: string, extras: string[], squareId: string) => {
+    const key = `${main}|${extras.join(';')}`
+    const entry = groups.get(key) ?? { main, extras, squareIds: [] }
+    entry.squareIds.push(squareId)
+    groups.set(key, entry)
+  }
+  for (const row of squares.rows) {
+    const main = row.main_yarn ?? ''
+    const extras = [...new Set(splitList(row.extra_yarns ?? ''))]
+    const others = extras.filter((id) => id !== yarnId).sort()
+    if (main === yarnId) add(asMain, main, others, row.id ?? '')
+    // A yarn listed as both main and extra on one square is counted under main only; the extra cell
+    // is then a typo, not a second role.
+    else if (extras.includes(yarnId)) add(asExtra, main, others, row.id ?? '')
+  }
+  const ordered = (groups: Map<string, YarnCombination>) =>
+    [...groups.values()].sort(
+      (a, b) =>
+        b.squareIds.length - a.squareIds.length ||
+        a.main.localeCompare(b.main) ||
+        a.extras.join(';').localeCompare(b.extras.join(';')),
+    )
+  return { asMain: ordered(asMain), asExtra: ordered(asExtra) }
+}
+
 /** How many squares cite each design. */
 export function designSquareCounts(squares: CsvTable): Map<string, number> {
   const counts = new Map<string, number>()
