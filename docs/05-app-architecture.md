@@ -75,7 +75,11 @@ schema-driven. `App.tsx` passes the section in through `RecordDetail`'s `extra` 
 [`YarnCombinations`](../src/features/yarns/YarnCombinations.tsx): the colour sets a yarn has been
 worked in, split by whether it was the main colour or an extra, computed by `yarnCombinations` in
 [`core/schema/relations.ts`](../src/core/schema/relations.ts) — the same read-time aggregation as the
-usage counts, so it is a view over `squares`, not data anyone has to keep up to date.
+usage counts, so it is a view over `squares`, not data anyone has to keep up to date. `designs`
+uses it for [`DesignCombinations`](../src/features/designs/DesignCombinations.tsx): every square made
+from the design, grouped by colour combination (`designCombinations`). Both render through one
+[`ColourCombinationCard`](../src/ui/ColourCombinationCard.tsx) and group through one helper, so "what
+counts as the same combination" (same main, same *set* of extras) is decided in a single place.
 
 `App.tsx` mounts the generic `<RecordList>` with `key={table}`, so switching tables (Designs → Yarns
 in the bottom nav) always gets a fresh component instance instead of one React reuses in place —

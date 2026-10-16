@@ -49,54 +49,81 @@ export function isYarnActive(yarnRow: CsvRow, usage: YarnUsage | undefined): boo
 }
 
 /** One set of colours that has been worked together, and the squares that use it. */
-export interface YarnCombination {
+export interface ColourCombination {
   /** The square's main colour. Blank when the square has none on file. */
   main: string
-  /** The square's other extra colours — never the yarn being asked about — deduplicated and sorted, so order in the cell does not split a combination in two. */
+  /** The square's extra colours — leaving out the yarn being asked about, if any — deduplicated and sorted, so order in the cell does not split a combination in two. */
   extras: string[]
   squareIds: string[]
 }
 
 export interface YarnCombinations {
   /** Squares with this yarn as main colour, grouped by which extras went with it. */
-  asMain: YarnCombination[]
+  asMain: ColourCombination[]
   /** Squares with this yarn among the extras, grouped by main colour and the remaining extras. */
-  asExtra: YarnCombination[]
+  asExtra: ColourCombination[]
 }
 
 /**
- * Which colour combinations a yarn has been used in, split by the role it played. Read time, not
- * materialised, for the same reason as `yarnUsageCounts` — a combination is nothing but the yarn
- * columns of the squares that already exist. Extras are treated as a set (`Y2;Y3` and `Y3;Y2` are
- * one combination) since the cell's order is just the order someone typed them in; main stays
- * distinct because main-versus-extra is the very split being shown. Most-used first.
+ * Groups squares by colour combination, most-used first. Extras are treated as a set (`Y2;Y3` and
+ * `Y3;Y2` are one combination) since the cell's order is just the order someone typed them in; main
+ * stays distinct, because which colour leads is what makes two squares look different.
  */
-export function yarnCombinations(squares: CsvTable, yarnId: string): YarnCombinations {
-  const asMain = new Map<string, YarnCombination>()
-  const asExtra = new Map<string, YarnCombination>()
-  const add = (groups: Map<string, YarnCombination>, main: string, extras: string[], squareId: string) => {
-    const key = `${main}|${extras.join(';')}`
-    const entry = groups.get(key) ?? { main, extras, squareIds: [] }
+class CombinationGroups {
+  private groups = new Map<string, ColourCombination>()
+
+  add(main: string, extras: string[], squareId: string) {
+    const sorted = [...extras].sort()
+    const key = `${main}|${sorted.join(';')}`
+    const entry = this.groups.get(key) ?? { main, extras: sorted, squareIds: [] }
     entry.squareIds.push(squareId)
-    groups.set(key, entry)
+    this.groups.set(key, entry)
   }
-  for (const row of squares.rows) {
-    const main = row.main_yarn ?? ''
-    const extras = [...new Set(splitList(row.extra_yarns ?? ''))]
-    const others = extras.filter((id) => id !== yarnId).sort()
-    if (main === yarnId) add(asMain, main, others, row.id ?? '')
-    // A yarn listed as both main and extra on one square is counted under main only; the extra cell
-    // is then a typo, not a second role.
-    else if (extras.includes(yarnId)) add(asExtra, main, others, row.id ?? '')
-  }
-  const ordered = (groups: Map<string, YarnCombination>) =>
-    [...groups.values()].sort(
+
+  ordered(): ColourCombination[] {
+    return [...this.groups.values()].sort(
       (a, b) =>
         b.squareIds.length - a.squareIds.length ||
         a.main.localeCompare(b.main) ||
         a.extras.join(';').localeCompare(b.extras.join(';')),
     )
-  return { asMain: ordered(asMain), asExtra: ordered(asExtra) }
+  }
+}
+
+const extrasOf = (row: CsvRow): string[] => [...new Set(splitList(row.extra_yarns ?? ''))]
+
+/**
+ * Which colour combinations a yarn has been used in, split by the role it played. Read time, not
+ * materialised, for the same reason as `yarnUsageCounts` — a combination is nothing but the yarn
+ * columns of the squares that already exist.
+ */
+export function yarnCombinations(squares: CsvTable, yarnId: string): YarnCombinations {
+  const asMain = new CombinationGroups()
+  const asExtra = new CombinationGroups()
+  for (const row of squares.rows) {
+    const main = row.main_yarn ?? ''
+    const extras = extrasOf(row)
+    const others = extras.filter((id) => id !== yarnId)
+    if (main === yarnId) asMain.add(main, others, row.id ?? '')
+    // A yarn listed as both main and extra on one square is counted under main only; the extra cell
+    // is then a typo, not a second role.
+    else if (extras.includes(yarnId)) asExtra.add(main, others, row.id ?? '')
+  }
+  return { asMain: asMain.ordered(), asExtra: asExtra.ordered() }
+}
+
+/**
+ * The squares made from one design, grouped by colour combination — same read-time rule and same
+ * grouping as `yarnCombinations`. A square with no colours on file still appears, as a combination
+ * with a blank main and no extras, so every square citing the design is accounted for.
+ */
+export function designCombinations(squares: CsvTable, designId: string): ColourCombination[] {
+  const groups = new CombinationGroups()
+  for (const row of squares.rows) {
+    if (row.design_id !== designId) continue
+    groups.add(row.main_yarn ?? '', extrasOf(row), row.id ?? '')
+  }
+  return groups.ordered()
 }
 
 /** How many squares cite each design. */

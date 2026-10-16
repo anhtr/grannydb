@@ -7,6 +7,7 @@ import { ErrorNote, Link, PageHeader, Spinner } from '../ui/components'
 import { SquaresPage } from '../features/squares/SquaresPage'
 import { YarnsPage } from '../features/yarns/YarnsPage'
 import { YarnCombinations } from '../features/yarns/YarnCombinations'
+import { DesignCombinations } from '../features/designs/DesignCombinations'
 import { DesignsPage } from '../features/designs/DesignsPage'
 import { StatsPage } from '../features/stats/StatsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
@@ -42,6 +43,7 @@ const TABLE_LIST_OVERRIDES: Record<string, () => React.ReactNode> = {
  */
 const TABLE_DETAIL_EXTRAS: Record<string, (id: string) => React.ReactNode> = {
   yarns: (id) => <YarnCombinations yarnId={id} />,
+  designs: (id) => <DesignCombinations designId={id} />,
 }
 
 export function App() {

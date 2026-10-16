@@ -4,6 +4,17 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-16 — v0.1.23, squares and colours on each design
+
+**App**
+- A design's detail view now lists every square made from it, grouped by colour combination (main
+  colour, then any extras), with the colour glyph, a square count and a link to each square. A
+  square with no colours on file is still listed, so the total always matches the design's square
+  count. Derived at read time by `designCombinations` in `core/schema/relations.ts` — no new data.
+- The grouping and the card are now shared with the yarn view's combinations
+  (`ColourCombinationCard` in `ui/`), and `YarnCombination` is renamed `ColourCombination` now that
+  it is not yarn-specific.
+
 ## 2026-10-16 — v0.1.22, colour combinations on each yarn
 
 **App**

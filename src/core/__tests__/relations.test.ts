@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { designSquareCounts, isYarnActive, yarnCombinations, yarnUsageCounts } from '../schema/relations'
+import { designCombinations, designSquareCounts, isYarnActive, yarnCombinations, yarnUsageCounts } from '../schema/relations'
 import type { CsvTable } from '../csv'
 
 const squares: CsvTable = {
@@ -104,5 +104,30 @@ describe('yarnCombinations', () => {
 
   it('returns nothing for a yarn no square uses', () => {
     expect(yarnCombinations(mixed, 'Y9')).toEqual({ asMain: [], asExtra: [] })
+  })
+})
+
+describe('designCombinations', () => {
+  const table: CsvTable = {
+    columns: ['id', 'design_id', 'main_yarn', 'extra_yarns'],
+    rows: [
+      { id: 'S001', design_id: 'D1', main_yarn: 'Y1', extra_yarns: 'Y3;Y2' },
+      { id: 'S002', design_id: 'D1', main_yarn: 'Y2', extra_yarns: '' },
+      { id: 'S003', design_id: 'D1', main_yarn: 'Y1', extra_yarns: 'Y2;Y3;Y2' },
+      { id: 'S004', design_id: 'D1', main_yarn: '', extra_yarns: '' },
+      { id: 'S005', design_id: 'D2', main_yarn: 'Y1', extra_yarns: 'Y2;Y3' },
+    ],
+  }
+
+  it("groups only this design's squares by main and the set of extras, most-used first", () => {
+    expect(designCombinations(table, 'D1')).toEqual([
+      { main: 'Y1', extras: ['Y2', 'Y3'], squareIds: ['S001', 'S003'] },
+      { main: '', extras: [], squareIds: ['S004'] },
+      { main: 'Y2', extras: [], squareIds: ['S002'] },
+    ])
+  })
+
+  it('returns nothing for a design no square cites', () => {
+    expect(designCombinations(table, 'D9')).toEqual([])
   })
 })

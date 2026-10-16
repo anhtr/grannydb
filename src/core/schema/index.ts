@@ -21,5 +21,5 @@ export {
   derivedFilterValue,
   effectiveValue,
 } from './search'
-export type { YarnUsage, YarnCombination, YarnCombinations, ConstructionCount, ColourConstructionImbalance, SquareConstructionInsights } from './relations'
-export { yarnUsageCounts, yarnCombinations, isYarnActive, designSquareCounts, squareConstructionInsights } from './relations'
+export type { YarnUsage, ColourCombination, YarnCombinations, ConstructionCount, ColourConstructionImbalance, SquareConstructionInsights } from './relations'
+export { yarnUsageCounts, yarnCombinations, designCombinations, isYarnActive, designSquareCounts, squareConstructionInsights } from './relations'
