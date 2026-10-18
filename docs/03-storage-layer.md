@@ -63,10 +63,16 @@ render — not even the edits already queued on it, since every screen is built 
 with the queue replayed on top, and a sync re-reads the repo fresh before it commits, so nothing
 derived from a cached snapshot ever reaches GitHub.
 
-The bundle is a **materialised view**: the build pipeline flattens four schema files and three CSVs
-into one already-parsed JSON, so an anonymous cold visit is a single request with no CSV parsing.
-Like any materialised view it is derived, rebuilt by the pipeline, and never authoritative — the
-CSVs are.
+The bundle is a **materialised view**: the build pipeline flattens the schema files, the CSVs and
+`project.json` into one already-parsed JSON, so an anonymous cold visit is a single request with no
+CSV parsing. Like any materialised view it is derived, rebuilt by the pipeline, and never
+authoritative — the files in `data/` are.
+
+`project.json` is read by every path alongside the CSVs, at the same pinned sha, but unlike them it
+is **optional**: a 404 reads as an empty project (no start date, no target), so a branch or data
+repo from before the file existed still loads, and the first edit from Settings creates it. Only a
+404 is forgiven — a network error or malformed JSON still fails the read, because silently reading
+"no target" would look like data loss.
 
 Signed-in users deliberately do *not* read the bundle. It is only as fresh as the last deploy
 (~1 minute behind), and you should never wait on a CI run to see an edit you just made.

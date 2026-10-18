@@ -20,6 +20,9 @@ import { parseCsv } from '../src/core/csv/parse'
 import type { CsvTable } from '../src/core/csv/types'
 import { buildSchemaSet } from '../src/core/schema/load'
 import { validateDataset } from '../src/core/schema/validate'
+import { parseProject, projectPath, validateProject } from '../src/core/project'
+import type { ProjectDoc } from '../src/core/project'
+import { existsSync } from 'node:fs'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DATA_DIR = 'data'
@@ -30,6 +33,7 @@ export interface DataBundle {
   manifest: unknown
   schemas: Record<string, unknown>
   tables: Record<string, CsvTable>
+  project: ProjectDoc
 }
 
 function readRepoFile(path: string): string {
@@ -54,7 +58,10 @@ export function buildBundle(dataDir: string = DATA_DIR): { bundle: DataBundle; i
     tables[name] = parseCsv(readRepoFile(schema.file))
   }
 
-  const issues = validateDataset(schemaSet, tables)
+  // Optional, as in the app's read path: no file reads as an empty project.
+  const project = existsSync(join(repoRoot, projectPath(dataDir))) ? parseProject(readRepoFile(projectPath(dataDir))) : {}
+
+  const issues = [...validateDataset(schemaSet, tables), ...validateProject(project)]
   for (const issue of issues) {
     const where = issue.field ? `${issue.table}.${issue.field}` : issue.table
     console.error(`  ${where} [${issue.rowId}]: ${issue.message}`)
@@ -67,6 +74,7 @@ export function buildBundle(dataDir: string = DATA_DIR): { bundle: DataBundle; i
     manifest,
     schemas,
     tables,
+    project,
   }
 
   return { bundle, issueCount: issues.length }

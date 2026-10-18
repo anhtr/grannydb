@@ -1,10 +1,9 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import type { CsvRow } from '../../core/csv'
-import { effectiveGoal } from '../../core/prefs'
 import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, titleFor } from '../../core/schema'
 import type { IdenticalSquares, TableSchema } from '../../core/schema'
-import { useAppState, useLookup, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
+import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
 import type { DonutSlice } from '../../ui/components'
 import { statusMark, statusTone } from '../../ui/status'
@@ -585,7 +584,7 @@ export function StatsPage() {
   const yarnSchema = useTableSchema('yarns')
   const designs = useLookup('designs')
   const sources = useLookup('sources')
-  const prefs = useAppState().prefs
+  const project = useProject()
   const resolve = useResolveRef()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(INITIAL_COLLAPSED)
   const toggle = (key: string) => setCollapsed((c) => ({ ...c, [key]: !c[key] }))
@@ -662,7 +661,7 @@ export function StatsPage() {
     // weeks, but shrinks to however long the project has actually been running when that is less —
     // otherwise a project in its second week would have its pace divided by 4 anyway and read as a
     // quarter of the real rate.
-    const startMs = prefs.projectStartDate ? Date.parse(prefs.projectStartDate) : NaN
+    const startMs = project.startDate ? Date.parse(project.startDate) : NaN
     const elapsedWeeks = Number.isFinite(startMs) ? (Date.now() - startMs) / MS_PER_WEEK : Infinity
     const paceWindowWeeks = Math.min(PACE_WINDOW_WEEKS, Math.max(elapsedWeeks, 1 / 7))
     const cutoff = Date.now() - paceWindowWeeks * MS_PER_WEEK
@@ -718,11 +717,11 @@ export function StatsPage() {
       missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
       identical: identicalSquares(squares),
     }
-  }, [squares, schema, prefs, resolve, yarns, yarnSchema, designs, sources])
+  }, [squares, schema, project, resolve, yarns, yarnSchema, designs, sources])
 
   if (!stats || !schema) return <Spinner />
 
-  const goal = effectiveGoal(schema, prefs)
+  const goal = project.targetSquares
   const remaining = Math.max(0, goal - stats.done)
   const weeksLeft = stats.perWeek > 0 ? Math.ceil(remaining / stats.perWeek) : null
   const completionDate = weeksLeft !== null ? new Date(Date.now() + weeksLeft * MS_PER_WEEK) : null

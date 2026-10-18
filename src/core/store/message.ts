@@ -1,4 +1,6 @@
 import type { SchemaSet } from '../schema'
+import type { ProjectValue } from '../project'
+import { isRowChange } from './queue'
 import type { Change } from './queue'
 
 function plural(count: number, singular: string): string {
@@ -10,8 +12,9 @@ function fieldLabel(schemas: SchemaSet, table: string, key: string): string {
 }
 
 /** How a stored value reads in the body — blank is a real value here (clearing a field), not nothing. */
-function formatValue(value: string): string {
-  return value === '' ? '(blank)' : value
+function formatValue(value: ProjectValue): string {
+  if (value === null) return '(removed)'
+  return value === '' ? '(blank)' : String(value)
 }
 
 /**
@@ -23,6 +26,10 @@ function formatValue(value: string): string {
  * already the thing the row is addressed by in the line itself.
  */
 function describeChange(change: Change, schemas: SchemaSet): string {
+  if (change.op === 'set') {
+    const fields = Object.entries(change.values).map(([key, value]) => `${key}: ${formatValue(value)}`)
+    return `- set ${change.doc}.json — ${fields.join(', ')}`
+  }
   if (change.op === 'delete') return `- delete ${change.table}/${change.rowId}`
 
   const schema = schemas.tables[change.table]
@@ -45,15 +52,18 @@ function describeChange(change: Change, schemas: SchemaSet): string {
 export function commitMessage(changes: readonly Change[], schemas: SchemaSet): string {
   const parts: string[] = []
 
-  for (const table of [...new Set(changes.map((c) => c.table))]) {
+  const rowChanges = changes.filter(isRowChange)
+  for (const table of [...new Set(rowChanges.map((c) => c.table))]) {
     const schema = schemas.tables[table]
     const noun = (schema?.labelSingular ?? table).toLowerCase()
-    const forTable = changes.filter((c) => c.table === table)
+    const forTable = rowChanges.filter((c) => c.table === table)
     const deletes = forTable.filter((c) => c.op === 'delete').length
     const upserts = forTable.length - deletes
     if (upserts > 0) parts.push(`update ${plural(upserts, noun)}`)
     if (deletes > 0) parts.push(`remove ${plural(deletes, noun)}`)
   }
+
+  if (changes.some((c) => c.op === 'set')) parts.push('update project settings')
 
   const summary = parts.length > 0 ? parts.join(', ') : 'sync data'
   const subject = summary.charAt(0).toUpperCase() + summary.slice(1)

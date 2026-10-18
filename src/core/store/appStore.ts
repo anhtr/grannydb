@@ -14,13 +14,15 @@ import {
 import type { ConnectionCheck, RepoConfig, Snapshot } from '../github'
 import { DEFAULT_PREFS, loadPrefs, savePrefs } from '../prefs'
 import type { Prefs } from '../prefs'
-import { applyChanges } from './merge'
+import type { ProjectDoc, ProjectValue } from '../project'
+import { applyChanges, applyProjectChanges } from './merge'
 import {
   appendChange,
   clearQueue,
   deleteChange,
   isQueueDurable,
   loadQueue,
+  projectChange,
   saveQueue,
   upsertChange,
 } from './queue'
@@ -34,6 +36,8 @@ export interface AppState {
   snapshot: Snapshot | null
   /** Base data with the queue replayed on top. What every screen renders. */
   data: Record<string, CsvTable>
+  /** `project.json` with the queue replayed on top — the project-level counterpart of `data`. */
+  project: ProjectDoc
   changes: Change[]
   /**
    * False once a queue write has failed, i.e. unsynced edits are memory-only for this session.
@@ -61,6 +65,7 @@ const initialState: AppState = {
   phase: 'loading',
   snapshot: null,
   data: {},
+  project: {},
   changes: [],
   queueDurable: true,
   error: null,
@@ -102,6 +107,7 @@ class AppStore {
     // Keep the read model in step with its two inputs.
     if ((patch.snapshot !== undefined || patch.changes !== undefined) && next.snapshot) {
       next.data = applyChanges(next.snapshot.tables, next.snapshot.schemas, next.changes)
+      next.project = applyProjectChanges(next.snapshot.project, next.changes)
     }
     this.state = next
     for (const listener of this.listeners) listener()
@@ -267,6 +273,20 @@ class AppStore {
 
     diff[schema.idField] = id
     await this.enqueue(upsertChange(table, id, diff))
+  }
+
+  /**
+   * Queue an edit to `project.json`, recording only keys whose value actually changed — the same
+   * diff-before-enqueue as `save`, so it merges with an edit to another key made elsewhere.
+   */
+  async saveProject(values: Record<string, ProjectValue>): Promise<void> {
+    const diff: Record<string, ProjectValue> = {}
+    for (const [key, value] of Object.entries(values)) {
+      const current = this.state.project[key]
+      if (value === null ? current !== undefined : current !== value) diff[key] = value
+    }
+    if (Object.keys(diff).length === 0) return
+    await this.enqueue(projectChange(diff))
   }
 
   async remove(table: string, id: string): Promise<void> {

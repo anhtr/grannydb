@@ -4,6 +4,35 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-17 — v0.1.26, project start date and target are data
+
+**Data**
+- New `data/project.json`: `{"start_date": "2026-07-03", "target_squares": 400}`. The project's
+  start date and target square count move out of each browser's `localStorage` and into the repo,
+  so every device agrees on them. `"goal": 400` is removed from `data/schema/squares.json` (and
+  `goal` from `TableSchema`) — one source of truth for the target.
+- `validate-data` checks the file: `start_date` must be `YYYY-MM-DD`, `target_squares` a whole
+  number. The file is optional; a missing one reads as no start date and no target.
+
+**Sync**
+- The queue gains a second operation shape, `DocChange` (`op: 'set'`, `doc: 'project'`), carrying
+  only the keys that changed — field-level, like row edits, so a start-date edit on one device and
+  a target edit on another both survive. Successive project edits collapse into one. `Change` is now
+  `RowChange | DocChange`; queues already in IndexedDB are row operations and read unchanged.
+- `syncChanges` replays project edits onto the freshly read `project.json` in the same retry loop
+  and commits it in the same single commit when it changed, creating it if the branch has none.
+  Commit subject: "Update project settings".
+
+**App**
+- Settings → Project still shows and edits both values, but Save now queues a change (shown on the
+  Pending changes screen) instead of writing to the device. Read-only without a token.
+- Progress reads both from `state.project`, the queue-replayed read model, so a saved but unsynced
+  target is already the one drawn.
+- `Prefs` drops `projectStartDate` and `squaresGoal`; values previously set on a device are not
+  migrated and fall away on the next save. See
+  [ADR 0028](adr/0028-project-settings-as-a-synced-json-document.md), superseding
+  [ADR 0017](adr/0017-device-local-goal-override.md).
+
 ## 2026-10-16 — v0.1.25, "Identical squares" only when there are some
 
 **App**

@@ -103,6 +103,7 @@ Three ideas carry the design, each with its own page:
 | Repo layout | One public repo; data location is config | [0008](adr/0008-single-repo-with-configurable-data-location.md) |
 | Offline reads | Last-known-good snapshot on the device | [0026](adr/0026-last-known-good-snapshot-for-offline-reads.md) |
 | Offline install | Hand-written service worker, shell only | [0027](adr/0027-hand-written-service-worker-and-install.md) |
+| Project start date & target | Synced data in `project.json`, edited via the queue | [0028](adr/0028-project-settings-as-a-synced-json-document.md) |
 
 ## What v1 does not do
 

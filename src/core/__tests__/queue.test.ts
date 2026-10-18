@@ -3,8 +3,8 @@ import { parseCsv, serializeCsv } from '../csv'
 import { buildSchemaSet } from '../schema/load'
 import type { SchemaSet } from '../schema'
 import { applyChanges } from '../store/merge'
-import { appendChange, pendingRowIds } from '../store/queue'
-import type { Change } from '../store/queue'
+import { appendChange, pendingRowIds, projectChange } from '../store/queue'
+import type { Change, RowChange } from '../store/queue'
 import { commitMessage } from '../store/message'
 
 const manifest = { version: 1, tables: ['squares', 'yarns'] }
@@ -44,7 +44,7 @@ const rawSchemas = {
 
 const schemas: SchemaSet = buildSchemaSet(manifest, rawSchemas)
 
-function change(partial: Partial<Change> & Pick<Change, 'table' | 'rowId' | 'op'>): Change {
+function change(partial: Partial<RowChange> & Pick<RowChange, 'table' | 'rowId' | 'op'>): RowChange {
   return { id: `c${Math.random()}`, ts: Date.now(), values: {}, ...partial }
 }
 
@@ -210,5 +210,22 @@ describe('commitMessage', () => {
     expect(message).toContain('- save squares/S001 — Main: Y02, Notes: (blank)')
     // The id is already in the "table/rowId" address; repeating it in the field list is noise.
     expect(message).not.toContain('ID:')
+  })
+})
+
+describe('appendChange for project.json', () => {
+  it('collapses successive project edits into one, keeping every key', () => {
+    let queue: Change[] = []
+    queue = appendChange(queue, { ...projectChange({ start_date: '2026-07-03' }), ts: 1 })
+    queue = appendChange(queue, change({ table: 'squares', rowId: 'S001', op: 'upsert', values: { notes: 'a' }, ts: 2 }))
+    queue = appendChange(queue, { ...projectChange({ target_squares: 400 }), ts: 3 })
+
+    expect(queue).toHaveLength(2)
+    expect(queue[0]).toMatchObject({ op: 'set', values: { start_date: '2026-07-03', target_squares: 400 }, ts: 3 })
+  })
+
+  it('never counts a project edit as a pending row', () => {
+    const queue = [projectChange({ target_squares: 400 })]
+    expect(pendingRowIds(queue, 'squares').size).toBe(0)
   })
 })

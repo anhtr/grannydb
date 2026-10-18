@@ -8,7 +8,8 @@ src/
     csv/           parse, serialize, row operations
     schema/        types, loader, validation, search/filter/sort resolution, cross-table counts
     github/        config, HTTP client, snapshot reads, commits, auth
-    prefs/         device-local app preferences (project start date, per-table list filters/sort)
+    project/       project.json: parse, validate, read start date and target, apply key edits
+    prefs/         device-local app preferences (per-table list filters/sort)
     store/         change queue, merge, sync, the offline snapshot cache, the app store
   ui/              shared React: primitives, field renderers, generic list/detail/form
   features/        one folder per screen that is more than "a table"
@@ -101,6 +102,7 @@ appStore.state = {
   snapshot     // base data + schemas, pinned to a commit sha
   changes      // the pending operation log
   data         // snapshot + changes, recomputed on either change  ← screens read this
+  project      // snapshot.project + pending `set` changes, the same way  ← Settings and Progress read this
   queueDurable // false once a queue write has failed; drives the storage warning
   online       // navigator.onLine; drives the reconnect re-read, never a decision to skip a request
   updateReady  // a newer build is installed and waiting behind the "Reload" bar
@@ -110,7 +112,7 @@ appStore.state = {
 
 `data` is recomputed inside `set()` whenever `snapshot` or `changes` changes, so it can never be
 stale relative to its inputs. Hooks in [`app/hooks.ts`](../src/app/hooks.ts) expose slices:
-`useTable`, `useRow`, `useLookup`, `usePendingCount`, `useCanEdit`.
+`useTable`, `useRow`, `useLookup`, `useProject`, `usePendingCount`, `useCanEdit`.
 
 `reload()` guards against out-of-order responses with a ticket counter — a slow load kicked off
 before a config change must not overwrite a fast one kicked off after it.

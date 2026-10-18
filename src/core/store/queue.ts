@@ -1,5 +1,6 @@
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval'
 import type { CsvRow } from '../csv'
+import type { ProjectValue } from '../project'
 
 /**
  * One pending edit.
@@ -8,16 +9,39 @@ import type { CsvRow } from '../csv'
  * from two devices safe: at sync time we fetch whatever the repo says now and replay these on top,
  * rather than overwriting the repo with a copy we read an hour ago.
  *
+ * Two shapes, told apart by `op`: a row edit to a CSV table, and a key edit to a JSON document
+ * (`project.json`). Both carry only what changed, for the same reason.
+ */
+export type Change = RowChange | DocChange
+
+/**
  * `values` holds only the fields that actually changed, so an edit to `notes` here cannot revert a
  * `position` set elsewhere in the meantime.
  */
-export interface Change {
+export interface RowChange {
   id: string
   ts: number
   table: string
   op: 'upsert' | 'delete'
   rowId: string
   values?: CsvRow
+}
+
+/**
+ * Sets keys on a JSON document. `values` holds only the keys that changed, so editing the start
+ * date on one device cannot revert a target changed on another — the same field-level rule as rows.
+ * There is no delete: a document is not a collection, and a `null` value removes one key.
+ */
+export interface DocChange {
+  id: string
+  ts: number
+  op: 'set'
+  doc: 'project'
+  values: Record<string, ProjectValue>
+}
+
+export function isRowChange(change: Change): change is RowChange {
+  return change.op !== 'set'
 }
 
 const QUEUE_KEY = 'grannydb.queue'
@@ -85,10 +109,22 @@ export async function clearQueue(): Promise<void> {
  */
 export function appendChange(changes: readonly Change[], change: Change): Change[] {
   const next = changes.slice()
-  const lastIndex = next.findLastIndex((c) => c.table === change.table && c.rowId === change.rowId)
+
+  if (change.op === 'set') {
+    const lastIndex = next.findLastIndex((c) => c.op === 'set' && c.doc === change.doc)
+    const last = next[lastIndex]
+    if (last && last.op === 'set') {
+      next[lastIndex] = { ...last, ts: change.ts, values: { ...last.values, ...change.values } }
+      return next
+    }
+    next.push(change)
+    return next
+  }
+
+  const lastIndex = next.findLastIndex((c) => isRowChange(c) && c.table === change.table && c.rowId === change.rowId)
 
   if (lastIndex !== -1) {
-    const last = next[lastIndex]
+    const last = next[lastIndex] as RowChange
     if (change.op === 'delete') {
       // A delete supersedes everything pending for that row.
       return [...next.slice(0, lastIndex), ...next.slice(lastIndex + 1), change]
@@ -107,21 +143,25 @@ export function appendChange(changes: readonly Change[], change: Change): Change
   return next
 }
 
-export function upsertChange(table: string, rowId: string, values: CsvRow): Change {
+export function upsertChange(table: string, rowId: string, values: CsvRow): RowChange {
   return { id: newChangeId(), ts: Date.now(), table, op: 'upsert', rowId, values }
 }
 
-export function deleteChange(table: string, rowId: string): Change {
+export function deleteChange(table: string, rowId: string): RowChange {
   return { id: newChangeId(), ts: Date.now(), table, op: 'delete', rowId }
+}
+
+export function projectChange(values: Record<string, ProjectValue>): DocChange {
+  return { id: newChangeId(), ts: Date.now(), op: 'set', doc: 'project', values }
 }
 
 /** Row ids with something pending, for the "unsynced" markers in list views. */
 export function pendingRowIds(changes: readonly Change[], table: string): Set<string> {
   const ids = new Set<string>()
-  for (const c of changes) if (c.table === table) ids.add(c.rowId)
+  for (const c of changes) if (isRowChange(c) && c.table === table) ids.add(c.rowId)
   return ids
 }
 
 export function tablesTouched(changes: readonly Change[]): string[] {
-  return [...new Set(changes.map((c) => c.table))]
+  return [...new Set(changes.filter(isRowChange).map((c) => c.table))]
 }

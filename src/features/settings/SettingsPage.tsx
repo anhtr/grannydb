@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { appStore } from '../../core/store'
 import { commitUrl, DEFAULT_CONFIG, repoUrl } from '../../core/github'
 import type { ConnectionCheck, RepoConfig } from '../../core/github'
-import { useAppState, useTableSchema } from '../../app/hooks'
-import { Button, Card, inputClass } from '../../ui/components'
+import { PROJECT_KEYS } from '../../core/project'
+import type { ProjectInfo } from '../../core/project'
+import { useAppState, useCanEdit, useProject } from '../../app/hooks'
+import { Button, Card, Link, inputClass } from '../../ui/components'
 import { relativeTime } from '../../ui/time'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -21,12 +23,14 @@ function Field({
   onChange,
   type = 'text',
   hint,
+  disabled = false,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   type?: string
   hint?: string
+  disabled?: boolean
 }) {
   return (
     <div className="px-4 py-3">
@@ -36,6 +40,7 @@ function Field({
         className={`${inputClass} mt-1.5`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
         autoCapitalize="off"
         autoCorrect="off"
         spellCheck={false}
@@ -45,29 +50,91 @@ function Field({
   )
 }
 
-function goalInputToPref(input: string): number | null {
+/** Blank, or a whole number of squares. Anything else is not saveable. */
+function parseTarget(input: string): number | null | undefined {
   const trimmed = input.trim()
   if (trimmed === '') return null
   const parsed = Number(trimmed)
-  return Number.isFinite(parsed) ? parsed : null
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined
+}
+
+/**
+ * Start date and target, edited in place but stored in `project.json`: Save queues a `set`
+ * operation like any record edit, so the change shows up everywhere straight away and reaches the
+ * repo — and every other device — on the next sync. Remounted (via `key`) whenever the stored values
+ * change, so the inputs pick up a fresh load or a synced edit instead of holding stale text.
+ */
+function ProjectSection({ project }: { project: ProjectInfo }) {
+  const canEdit = useCanEdit()
+  const [startDate, setStartDate] = useState(project.startDate)
+  const [targetInput, setTargetInput] = useState(project.targetSquares > 0 ? String(project.targetSquares) : '')
+  const target = parseTarget(targetInput)
+  const dirty = startDate !== project.startDate || (target ?? 0) !== project.targetSquares
+
+  return (
+    <Section title="Project">
+      <Field
+        label="Start date"
+        type="date"
+        value={startDate}
+        onChange={setStartDate}
+        disabled={!canEdit}
+        hint="When you started the blanket. Used to size the pace calculation on the Progress screen so it isn't diluted by weeks before you began."
+      />
+      <Field
+        label="Target squares"
+        type="number"
+        value={targetInput}
+        onChange={setTargetInput}
+        disabled={!canEdit}
+        hint={`How many squares finish the blanket, shown as "X / target" on Progress. Leave blank for no target.`}
+      />
+      <div className="space-y-2 px-4 py-3">
+        {canEdit ? (
+          <Button
+            variant="primary"
+            disabled={!dirty || target === undefined}
+            onClick={() =>
+              void appStore.saveProject({
+                [PROJECT_KEYS.startDate]: startDate === '' ? null : startDate,
+                [PROJECT_KEYS.targetSquares]: target ?? null,
+              })
+            }
+          >
+            Save
+          </Button>
+        ) : null}
+        <p className="text-xs text-muted">
+          {canEdit ? (
+            <>
+              Stored in <span className="font-mono">project.json</span> with the rest of the data, so every device
+              sees the same values. Saving queues a change —{' '}
+              <Link to="/sync" className="underline underline-offset-2">
+                sync
+              </Link>{' '}
+              to push it.
+            </>
+          ) : (
+            <>
+              Stored in <span className="font-mono">project.json</span> with the rest of the data. Add a GitHub token
+              above to edit.
+            </>
+          )}
+        </p>
+      </div>
+    </Section>
+  )
 }
 
 export function SettingsPage() {
   const state = useAppState()
-  const squaresSchema = useTableSchema('squares')
+  const project = useProject()
   const [token, setToken] = useState('')
   const [config, setConfig] = useState<RepoConfig>(state.config)
   const [check, setCheck] = useState<ConnectionCheck | null>(null)
   const [busy, setBusy] = useState(false)
-  const [startDate, setStartDate] = useState(state.prefs.projectStartDate)
-  const [goalInput, setGoalInput] = useState(
-    state.prefs.squaresGoal === null ? '' : String(state.prefs.squaresGoal),
-  )
 
   const configDirty = JSON.stringify(config) !== JSON.stringify(state.config)
-  const startDateDirty = startDate !== state.prefs.projectStartDate
-  const goalDirty = goalInputToPref(goalInput) !== state.prefs.squaresGoal
-  const projectDirty = startDateDirty || goalDirty
 
   const onSaveToken = async () => {
     if (token.trim() === '') return
@@ -145,48 +212,7 @@ export function SettingsPage() {
         ) : null}
       </Section>
 
-      <Section title="Project">
-        <Field
-          label="Start date"
-          type="date"
-          value={startDate}
-          onChange={setStartDate}
-          hint="When you started the blanket. Used to size the pace calculation on the Progress screen so it isn't diluted by weeks before you began."
-        />
-        <Field
-          label="Target squares"
-          type="number"
-          value={goalInput}
-          onChange={setGoalInput}
-          hint={`How many squares finish the blanket, shown as "X / target" on Progress and Stats. Leave blank to use the schema default (currently ${squaresSchema?.goal ?? '—'}).`}
-        />
-        <div className="flex flex-wrap gap-2 px-4 py-3">
-          <Button
-            variant="primary"
-            disabled={!projectDirty}
-            onClick={() =>
-              appStore.setPrefs({
-                ...state.prefs,
-                projectStartDate: startDate,
-                squaresGoal: goalInputToPref(goalInput),
-              })
-            }
-          >
-            Save
-          </Button>
-          {startDate !== '' || goalInput !== '' ? (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setStartDate('')
-                setGoalInput('')
-              }}
-            >
-              Clear both
-            </Button>
-          ) : null}
-        </div>
-      </Section>
+      <ProjectSection key={`${project.startDate}|${project.targetSquares}`} project={project} />
 
       <Section title="Data location">
         <Field label="Owner" value={config.owner} onChange={(v) => setConfig({ ...config, owner: v })} />

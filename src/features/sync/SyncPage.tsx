@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { appStore } from '../../core/store'
-import type { SyncResult } from '../../core/store'
+import type { Change, SyncResult } from '../../core/store'
 import { commitUrl } from '../../core/github'
 import { useAppState } from '../../app/hooks'
 import { Badge, Button, Card, EmptyState, ErrorNote, Link } from '../../ui/components'
 
-function describe(change: { op: string; table: string; rowId: string; values?: Record<string, string> }) {
+function describe(change: Change) {
+  if (change.op === 'set') return `${change.doc} · ${Object.keys(change.values).join(', ')}`
   if (change.op === 'delete') return `Delete ${change.rowId}`
   const fields = Object.keys(change.values ?? {}).filter((k) => k !== 'id')
   if (fields.length === 0) return `Save ${change.rowId}`
@@ -92,7 +93,7 @@ export function SyncPage() {
                     <span className="font-mono">{describe(change)}</span>
                   </p>
                   <p className="text-xs text-muted">
-                    {change.table} · {new Date(change.ts).toLocaleString()}
+                    {change.op === 'set' ? `${change.doc}.json` : change.table} · {new Date(change.ts).toLocaleString()}
                   </p>
                 </div>
                 {change.op === 'delete' ? <Badge tone="warn">delete</Badge> : null}

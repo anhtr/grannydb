@@ -3,7 +3,9 @@ import { parseCsv } from '../csv'
 import type { CsvTable } from '../csv'
 import { buildSchemaSet, manifestPath, schemaPath } from '../schema'
 import type { SchemaSet } from '../schema'
-import { apiJson, apiText, plainText } from './client'
+import { parseProject, projectPath } from '../project'
+import type { ProjectDoc } from '../project'
+import { apiJson, apiText, GitHubError, plainText } from './client'
 import type { RepoConfig } from './config'
 
 /**
@@ -17,6 +19,8 @@ export interface Snapshot {
   commit: string | null
   schemas: SchemaSet
   tables: Record<string, CsvTable>
+  /** `project.json`, or `{}` when the data directory has none. */
+  project: ProjectDoc
   source: SourceKind
   fetchedAt: number
 }
@@ -47,7 +51,22 @@ async function cacheSet(key: string, value: string): Promise<void> {
 }
 
 /**
- * Shared load sequence: manifest, then every table's schema, then every CSV.
+ * `project.json` is optional: a branch or data repo from before it existed still loads, reading as
+ * an empty project, and the first edit from Settings creates the file. Only a 404 is forgiven — a
+ * network failure or a malformed file still fails the load rather than silently reading as "no
+ * target".
+ */
+async function readProject(read: FileReader, dataDir: string): Promise<ProjectDoc> {
+  try {
+    return parseProject(await read(projectPath(dataDir)))
+  } catch (error) {
+    if (error instanceof GitHubError && error.isNotFound) return {}
+    throw error
+  }
+}
+
+/**
+ * Shared load sequence: manifest, then every table's schema, then every CSV and the project file.
  *
  * Schemas are fetched at runtime rather than bundled into the JS so that adding a field is a data
  * change, not a deploy.
@@ -55,6 +74,7 @@ async function cacheSet(key: string, value: string): Promise<void> {
 async function loadWith(read: FileReader, dataDir: string): Promise<{
   schemas: SchemaSet
   tables: Record<string, CsvTable>
+  project: ProjectDoc
 }> {
   const manifest = JSON.parse(await read(manifestPath(dataDir))) as { tables?: string[] }
   const names = manifest.tables ?? []
@@ -68,15 +88,16 @@ async function loadWith(read: FileReader, dataDir: string): Promise<{
   const schemas = buildSchemaSet(manifest, rawSchemas)
 
   const tables: Record<string, CsvTable> = {}
-  await Promise.all(
-    schemas.order.map(async (name) => {
+  const [project] = await Promise.all([
+    readProject(read, dataDir),
+    ...schemas.order.map(async (name) => {
       const schema = schemas.tables[name]
       if (!schema) return
       tables[name] = parseCsv(await read(schema.file))
     }),
-  )
+  ])
 
-  return { schemas, tables }
+  return { schemas, tables, project }
 }
 
 /**
@@ -112,8 +133,8 @@ export async function readFromApi(
     return text
   }
 
-  const { schemas, tables } = await loadWith(read, config.dataDir)
-  return { commit, schemas, tables, source: 'api', fetchedAt: Date.now() }
+  const { schemas, tables, project } = await loadWith(read, config.dataDir)
+  return { commit, schemas, tables, project, source: 'api', fetchedAt: Date.now() }
 }
 
 export interface DataBundle {
@@ -122,6 +143,8 @@ export interface DataBundle {
   manifest: unknown
   schemas: Record<string, unknown>
   tables: Record<string, CsvTable>
+  /** Optional so a bundle from a build before `project.json` existed still reads. */
+  project?: ProjectDoc
 }
 
 /**
@@ -138,6 +161,7 @@ export async function readFromBundle(signal?: AbortSignal): Promise<Snapshot> {
     commit: bundle.commit,
     schemas,
     tables: bundle.tables,
+    project: bundle.project ?? {},
     source: 'bundle',
     fetchedAt: Date.now(),
   }
@@ -150,8 +174,8 @@ export async function readFromRaw(config: RepoConfig, signal?: AbortSignal): Pro
       `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${encodeURI(path)}`,
       signal,
     )
-  const { schemas, tables } = await loadWith(read, config.dataDir)
-  return { commit: null, schemas, tables, source: 'raw', fetchedAt: Date.now() }
+  const { schemas, tables, project } = await loadWith(read, config.dataDir)
+  return { commit: null, schemas, tables, project, source: 'raw', fetchedAt: Date.now() }
 }
 
 /**

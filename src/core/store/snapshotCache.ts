@@ -24,7 +24,8 @@ export function snapshotKey(config: RepoConfig): string {
 
 /** Mark a snapshot as having come from this cache, keeping the time it was originally fetched. */
 export function toCached(snapshot: Snapshot): Snapshot {
-  return { ...snapshot, source: 'cache' }
+  // A snapshot saved by a build from before `project.json` existed has no `project`; read it as empty.
+  return { ...snapshot, project: snapshot.project ?? {}, source: 'cache' }
 }
 
 /**

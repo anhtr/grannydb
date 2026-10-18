@@ -29,6 +29,26 @@ interface Change {
 }
 ```
 
+That is a row operation. The queue holds a second kind, for the one piece of data that is not a CSV
+row — [`project.json`](../data/project.json) (start date, target squares):
+
+```ts
+interface DocChange {
+  id: string
+  ts: number
+  op: 'set'
+  doc: 'project'
+  values: Record<string, string | number | null>   // ONLY the keys that changed; null removes one
+}
+
+type Change = RowChange | DocChange   // told apart by `op`
+```
+
+Same rule, same reasons: it records the keys you changed, not the document you were looking at, so a
+start-date edit on the phone and a target edit on the laptop both survive. `op` is the discriminator
+because queues already sitting in IndexedDB hold row operations with no other tag, and they must
+still read correctly. See [ADR 0028](adr/0028-project-settings-as-a-synced-json-document.md).
+
 This is a **write-ahead log**, and syncing is **log replay onto a new base**. If you have met event
 sourcing, this is that, at the smallest scale where it still earns its keep. See
 [ADR 0004](adr/0004-operation-log-not-file-snapshots.md).
@@ -73,7 +93,9 @@ base snapshot  +  pending queue replayed on top  =  what you see
 ```
 
 computed by `applyChanges` ([`merge.ts`](../src/core/store/merge.ts)) whenever either input
-changes.
+changes. `state.project` is the same thing for `project.json`, via `applyProjectChanges` — the
+Settings and Progress screens read the start date and target from it, so a saved but unsynced
+target is already the one the Progress bar is drawn to.
 
 This is **CQRS** in miniature: the write model is a log of operations, the read model is the
 materialised result, and they are different shapes. Concretely it means an unsynced edit is
@@ -148,6 +170,8 @@ editing a square five times before syncing leaves one operation rather than five
 - **delete then upsert** → kept as two operations. Delete-then-recreate is a real sequence and
   collapsing it would change the meaning.
 - **different rows, or same id in different tables** → never merged
+- **project `set` then project `set`** → merge `values` into the last pending one. There is no
+  delete to order against, so this is always safe.
 
 Pinned by tests in [`queue.test.ts`](../src/core/__tests__/queue.test.ts).
 

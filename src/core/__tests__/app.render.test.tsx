@@ -99,6 +99,8 @@ describe('App renders against the real data', () => {
 
     expect(text).toContain('Finished')
     expect(text).toContain('By colour')
+    // The target comes from the fixture's project.json, via the bundle.
+    expect(text).toMatch(/\d+ \/ 10/)
   })
 
   it('renders the yarns list from the generic components', async () => {

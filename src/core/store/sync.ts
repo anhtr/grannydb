@@ -4,7 +4,8 @@ import { schemaColumns, validateDataset } from '../schema'
 import type { Issue, SchemaSet } from '../schema'
 import { commitFiles, readFromApi, StaleHeadError } from '../github'
 import type { FileChange, RepoConfig, Snapshot } from '../github'
-import { applyChanges } from './merge'
+import { projectPath, serializeProject, validateProject } from '../project'
+import { applyChanges, applyProjectChanges } from './merge'
 import { commitMessage } from './message'
 import type { Change } from './queue'
 
@@ -107,7 +108,17 @@ export async function syncChanges(
       }
     }
 
-    const issues = validateDataset(snapshot.schemas, merged)
+    // The project document goes through the same replay-then-compare as the tables. A branch with
+    // no `project.json` reads as `{}`, which serialises differently from any edit, so the first
+    // edit creates the file.
+    const project = applyProjectChanges(snapshot.project, changes)
+    const projectBefore = serializeProject(snapshot.project)
+    const projectAfter = serializeProject(project)
+    if (projectAfter !== projectBefore) {
+      files.push({ path: projectPath(config.dataDir), content: projectAfter })
+    }
+
+    const issues = [...validateDataset(snapshot.schemas, merged), ...validateProject(project)]
 
     if (files.length === 0) {
       return {

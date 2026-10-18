@@ -122,8 +122,6 @@ export interface TableSchema {
    * `swatchField` wherever that field is drawn — see `colourStyle` in `ui/components.tsx`.
    */
   patternField?: string
-  /** Target count, if this table is something you are working toward. */
-  goal?: number
   /**
    * Keep this table out of the bottom nav. For a table that exists mainly as a lookup for other
    * tables' `ref` fields (few rows, rarely browsed on its own), a tab is pure clutter — it is still

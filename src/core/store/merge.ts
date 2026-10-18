@@ -1,6 +1,9 @@
 import { applyDelete, applyUpsert } from '../csv'
 import type { CsvTable } from '../csv'
 import type { SchemaSet } from '../schema'
+import { applyProjectValues } from '../project'
+import type { ProjectDoc } from '../project'
+import { isRowChange } from './queue'
 import type { Change } from './queue'
 
 /**
@@ -21,6 +24,7 @@ export function applyChanges(
   const ordered = changes.slice().sort((a, b) => a.ts - b.ts)
 
   for (const change of ordered) {
+    if (!isRowChange(change)) continue
     const schema = schemas.tables[change.table]
     const table = result[change.table]
     // A change for a table the schema no longer knows about is dropped rather than crashing the
@@ -36,11 +40,20 @@ export function applyChanges(
   return result
 }
 
+/** The project document with pending `set` operations replayed on top, in timestamp order. */
+export function applyProjectChanges(doc: ProjectDoc, changes: readonly Change[]): ProjectDoc {
+  let result = doc
+  for (const change of changes.slice().sort((a, b) => a.ts - b.ts)) {
+    if (change.op === 'set' && change.doc === 'project') result = applyProjectValues(result, change.values)
+  }
+  return result
+}
+
 /** Changes that could not be applied, e.g. because their table vanished from the schema. */
 export function unapplicableChanges(
   tables: Readonly<Record<string, CsvTable>>,
   schemas: SchemaSet,
   changes: readonly Change[],
 ): Change[] {
-  return changes.filter((c) => !schemas.tables[c.table] || !tables[c.table])
+  return changes.filter((c) => isRowChange(c) && (!schemas.tables[c.table] || !tables[c.table]))
 }

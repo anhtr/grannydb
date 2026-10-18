@@ -9,7 +9,6 @@
   "idPadding": 3,
   "titleField": "id",
   "subtitleField": "design_id",
-  "goal": 400,
   "defaultSort": { "key": "main_yarn", "thenBy": "construction_type" },
   "derivedFilters": [
     { "key": "source", "label": "Source", "via": "design_id", "throughField": "source" }

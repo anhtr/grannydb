@@ -1,4 +1,4 @@
-export type { Change } from './queue'
+export type { Change, RowChange, DocChange } from './queue'
 export {
   loadQueue,
   saveQueue,
@@ -6,6 +6,8 @@ export {
   appendChange,
   upsertChange,
   deleteChange,
+  projectChange,
+  isRowChange,
   pendingRowIds,
   tablesTouched,
   newChangeId,
@@ -19,7 +21,7 @@ export {
   loadSnapshot,
   clearSnapshot,
 } from './snapshotCache'
-export { applyChanges, unapplicableChanges } from './merge'
+export { applyChanges, applyProjectChanges, unapplicableChanges } from './merge'
 export { commitMessage } from './message'
 export type { SyncResult, LastSync } from './sync'
 export { syncChanges, loadLastSync, saveLastSync } from './sync'

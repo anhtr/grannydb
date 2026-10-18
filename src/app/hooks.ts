@@ -5,6 +5,8 @@ import type { CsvRow, CsvTable } from '../core/csv'
 import { findRow } from '../core/csv'
 import { idSet } from '../core/schema'
 import type { RefLookup, ResolveRef, SchemaSet, TableSchema } from '../core/schema'
+import { projectInfo } from '../core/project'
+import type { ProjectInfo } from '../core/project'
 
 export function useAppState(): AppState {
   return useSyncExternalStore(appStore.subscribe, appStore.getState, appStore.getState)
@@ -91,6 +93,12 @@ export function useRefIds(): Record<string, ReadonlySet<string>> {
     }
     return map
   }, [state.snapshot, state.data])
+}
+
+/** Start date and target from `project.json`, pending edits included. */
+export function useProject(): ProjectInfo {
+  const project = useAppState().project
+  return useMemo(() => projectInfo(project), [project])
 }
 
 export function usePendingCount(): number {

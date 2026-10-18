@@ -72,9 +72,8 @@ see [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
 | `notes` | textarea | |
 | `construction_type` | enum, inherited | `solid` / `holey`. Blank means "use the design's" — see [ADR 0016](adr/0016-field-level-inherited-values.md) |
 
-The goal itself — `squares.json`'s `"goal": 400` — is overridable per device from Settings → Project
-→ "Target squares," without touching the schema file. See
-[ADR 0017](adr/0017-device-local-goal-override.md).
+The target the Progress screen counts toward is not on this table — it lives in `project.json`
+(below).
 
 `blocked` is a `status` value, not a separate field: it is the stage *after* `done` (crocheted, then
 also blocked), so a blocked square is still counted as finished toward the goal. It used to be an
@@ -131,6 +130,31 @@ being retyped per design that cites it.
 | `type` | enum | `book` / `website` |
 | `url` | url | |
 | `note` | textarea | |
+
+
+### `project.json`
+
+Facts about the project as a whole rather than about any one row:
+
+```json
+{
+  "start_date": "2026-07-03",
+  "target_squares": 400
+}
+```
+
+| Key | Type | Notes |
+|---|---|---|
+| `start_date` | `YYYY-MM-DD` | Sizes the Progress screen's pace window so weeks before you began don't dilute it |
+| `target_squares` | whole number | The "X / 400" on Progress, and the length of the status bar |
+
+JSON rather than a one-row CSV because there is exactly one of it: a table with a header row, an id
+column and a single record would be a table in shape only. It is still data in every way that
+matters — read at the same pinned sha as the CSVs, edited through the change queue, validated by the
+build, and committed by sync — and, like the CSV writer, the app keeps keys it does not know, so one
+added by hand survives an edit from Settings. Both keys are optional; a missing one reads as unset.
+See [ADR 0028](adr/0028-project-settings-as-a-synced-json-document.md), which replaced the
+device-local values of [ADR 0017](adr/0017-device-local-goal-override.md).
 
 ## Three modelling decisions worth explaining
 

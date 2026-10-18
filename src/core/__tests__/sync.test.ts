@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { syncChanges } from '../store/sync'
-import type { Change } from '../store/queue'
+import { projectChange } from '../store/queue'
+import type { RowChange } from '../store/queue'
 import type { RepoConfig } from '../github'
 
 /**
@@ -154,7 +155,7 @@ class FakeGitHub {
 
 let gh: FakeGitHub
 
-function change(partial: Partial<Change> & Pick<Change, 'table' | 'rowId' | 'op'>): Change {
+function change(partial: Partial<RowChange> & Pick<RowChange, 'table' | 'rowId' | 'op'>): RowChange {
   return { id: `c-${Math.random()}`, ts: Date.now(), values: {}, ...partial }
 }
 
@@ -296,5 +297,43 @@ describe('syncChanges', () => {
 
     expect(result.status).toBe('committed')
     expect(result.issues.some((i) => i.message === 'row has no id')).toBe(true)
+  })
+})
+
+describe('syncChanges with project.json', () => {
+  it('creates project.json on the first edit when the branch has none', async () => {
+    const result = await syncChanges(config, 'tok', [projectChange({ start_date: '2026-07-03', target_squares: 400 })])
+
+    expect(result.status).toBe('committed')
+    expect(Object.keys(gh.commits[0].files)).toEqual(['data/project.json'])
+    expect(gh.files['data/project.json']).toBe('{\n  "start_date": "2026-07-03",\n  "target_squares": 400\n}\n')
+    expect(gh.commits[0].message).toContain('project')
+  })
+
+  it('keeps keys it did not touch, including ones the app has never heard of', async () => {
+    gh.files['data/project.json'] = JSON.stringify({ blanket_name: 'Garden', start_date: '2026-01-01', target_squares: 400 })
+
+    await syncChanges(config, 'tok', [projectChange({ target_squares: 420 })])
+
+    expect(JSON.parse(gh.files['data/project.json'])).toEqual({
+      blanket_name: 'Garden',
+      start_date: '2026-01-01',
+      target_squares: 420,
+    })
+  })
+
+  it('replays a key edit onto a project.json another device changed mid-sync', async () => {
+    gh.files['data/project.json'] = JSON.stringify({ start_date: '2026-01-01', target_squares: 400 })
+    gh.onBeforeRefUpdate = () => {
+      gh.files['data/project.json'] = JSON.stringify({ start_date: '2026-01-01', target_squares: 500 })
+      gh.head = 'commit-from-laptop'
+      gh.onBeforeRefUpdate = null
+    }
+
+    const result = await syncChanges(config, 'tok', [projectChange({ start_date: '2026-07-03' })])
+
+    expect(result.attempts).toBe(2)
+    // The laptop's target survives; only the key this device changed is rewritten.
+    expect(JSON.parse(gh.files['data/project.json'])).toEqual({ start_date: '2026-07-03', target_squares: 500 })
   })
 })

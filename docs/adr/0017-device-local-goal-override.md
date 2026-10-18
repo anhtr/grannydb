@@ -1,6 +1,6 @@
 # ADR 0017 — The squares goal is a device-local override, not a schema edit
 
-**Status:** accepted · 2026-08-19
+**Status:** superseded by [ADR 0028](0028-project-settings-as-a-synced-json-document.md) · 2026-08-19
 
 ## Context
 

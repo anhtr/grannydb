@@ -27,6 +27,7 @@ const snapshot: Snapshot = {
   commit: 'abc123',
   schemas: { version: 1, order: ['squares'], tables: {} },
   tables: { squares: { columns: ['id'], rows: [{ id: 'S001' }] } },
+  project: { target_squares: 10 },
   source: 'api',
   fetchedAt: 1_700_000_000_000,
 }
