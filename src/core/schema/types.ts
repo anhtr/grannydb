@@ -97,6 +97,19 @@ export interface DerivedFilterDef {
   throughField: string
 }
 
+/**
+ * A date per status — when the row *reached* each stage of its workflow, e.g. a square's done date and
+ * blocked date. `field` is the `enum` field holding the status; `dates` maps a status to the `date`
+ * field recording it. Workflow order is the status field's `options` order. `implies` names statuses
+ * a status can't be reached without, whose dates fill in alongside it when blank — a square can't be
+ * blocked without being done. See `core/schema/statusDates.ts` for the rules this turns on.
+ */
+export interface StatusDatesDef {
+  field: string
+  dates: Record<string, string>
+  implies?: Record<string, string[]>
+}
+
 export interface TableSchema {
   table: string
   /** Path of the CSV inside the data repo, e.g. `data/squares.csv`. */
@@ -145,6 +158,7 @@ export interface TableSchema {
    * gets. See `sortRows` in `ui/RecordList.tsx`.
    */
   defaultSort?: { key: string; direction?: 'asc' | 'desc'; thenBy?: string; thenDirection?: 'asc' | 'desc' }
+  statusDates?: StatusDatesDef
   fields: FieldDef[]
 }
 

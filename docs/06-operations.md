@@ -47,6 +47,8 @@ So enforcement lives at the pipeline boundary. `validateDataset` checks:
 - `required` fields are non-empty
 - `enum` values are in the schema's `options`
 - `date` values are real dates in `YYYY-MM-DD`
+- a table with `statusDates` has a date for each row's current status, none for later statuses, and
+  its dates in workflow order
 - `color` values are hex
 - `url` values parse
 - **`ref` and `reflist` values point at rows that exist** — referential integrity, which CSV has no

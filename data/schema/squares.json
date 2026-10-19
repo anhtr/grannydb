@@ -10,12 +10,16 @@
   "titleField": "id",
   "subtitleField": "design_id",
   "defaultSort": { "key": "main_yarn", "thenBy": "construction_type" },
+  "statusDates": {
+    "field": "status",
+    "dates": { "planned": "planned_date", "in progress": "started_date", "done": "done_date", "blocked": "blocked_date" },
+    "implies": { "blocked": ["done"] }
+  },
   "derivedFilters": [
     { "key": "source", "label": "Source", "via": "design_id", "throughField": "source" }
   ],
   "fields": [
     { "key": "id", "label": "ID", "type": "id", "list": true },
-    { "key": "date", "label": "Date", "type": "date", "list": true, "defaultToday": true, "sortable": true },
     {
       "key": "status",
       "label": "Status",
@@ -24,8 +28,12 @@
       "default": "done",
       "list": true,
       "filter": true,
-      "help": "Blocked comes after done: the square is crocheted and has also been blocked."
+      "help": "Blocked comes after done: the square is crocheted and has also been blocked. Changing the status fills in today as that status's date if it is blank."
     },
+    { "key": "planned_date", "label": "Planned", "type": "date", "sortable": true },
+    { "key": "started_date", "label": "Started", "type": "date", "sortable": true },
+    { "key": "done_date", "label": "Done", "type": "date", "list": true, "sortable": true, "help": "When it was crocheted. Pace and the Progress charts count from this date." },
+    { "key": "blocked_date", "label": "Blocked", "type": "date", "list": true, "sortable": true },
     { "key": "design_id", "label": "Design", "type": "ref", "refTable": "designs", "list": true, "filter": true, "sortable": true, "quickCreate": true, "searchFields": ["name", "source"], "detailFields": ["source", "construction_type"] },
     { "key": "construction_type", "label": "Construction", "type": "enum", "options": ["solid", "holey"], "list": true, "filter": true, "sortable": true, "inheritFrom": { "via": "design_id", "throughField": "construction_type" }, "help": "Leave blank to use the design's construction type. Filtering matches this value even when inherited from the design." },
     { "key": "customization", "label": "Customization", "type": "textarea", "help": "How you deviated from the pattern." },

@@ -1,4 +1,5 @@
-export type { DerivedFilterDef, FieldDef, FieldType, InheritFromDef, SchemaSet, TableSchema } from './types'
+export type { DerivedFilterDef, FieldDef, FieldType, InheritFromDef, SchemaSet, StatusDatesDef, TableSchema } from './types'
+export { changeStatus, fillStatusDates, statusDate, statusDateIssues } from './statusDates'
 export { fieldByKey, listFields, filterFields, sortableFields, schemaColumns, titleFor } from './types'
 export { buildSchemaSet, parseTableSchema, SchemaError, schemaPath, manifestPath } from './load'
 export type { Issue } from './validate'

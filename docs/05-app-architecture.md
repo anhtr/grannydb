@@ -199,6 +199,9 @@ Three components in `ui/` serve every table:
   each morning and recovers as the day's squares come in — wanted on a tile, where it reads as
   "where today leaves me", and not on a trend chart. The tile and the chart's last average point can
   therefore differ slightly.
+  Pace and the Over time card count a finished square by its `done_date` (falling back to
+  `blocked_date` if a hand edit left it blank); lists and the Progress cards that show a square's
+  date show the date of its *current* status (`statusDate`).
   "Today" everywhere — those calculations and the date a new square defaults to — comes from
   `today(timeZone)` with the project's `time_zone` (`useToday` in `app/hooks.ts`), falling back to
   the device's own zone when the project sets none
@@ -210,6 +213,8 @@ Three components in `ui/` serve every table:
   the underlying CSV on github.com.
 - **[`RecordForm`](../src/ui/RecordForm.tsx)** — every field via its `Input`, validation on save
   including referential integrity, sticky save bar.
+  On a table with `statusDates`, changing the status goes through `changeStatus` (date the new
+  status, clear later ones) and save also checks `statusDateIssues`; quick-create does the same.
 
 Search, filter options and sort all read a `ref`/`reflist` field by its *resolved* value — a design's
 name, not its `D03` id — via `searchText`/`refDisplayLabel` in

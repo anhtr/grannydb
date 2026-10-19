@@ -62,8 +62,11 @@ see [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
 | Column | Type | Notes |
 |---|---|---|
 | `id` | id | `S001`… Assigned, never reused |
-| `date` | date | When it was made |
 | `status` | enum | `planned` / `in progress` / `done` / `blocked` |
+| `planned_date` | date | When it reached `planned` |
+| `started_date` | date | When it reached `in progress` |
+| `done_date` | date | When it was crocheted. Pace and the Progress charts count from this |
+| `blocked_date` | date | When it was blocked |
 | `design_id` | ref → designs | |
 | `customization` | textarea | How you deviated from the pattern |
 | `main_yarn` | ref → yarns | |
@@ -81,6 +84,22 @@ independent boolean that could combine with any status; that let a square be `pl
 at once, which never meant anything. Folding it into `status` also removed `frogged` — a status for a
 square that was pulled back out, which turned out to never get used since a frogged square is simply
 deleted rather than tracked as a state.
+
+**A date per status.** Each status has its own date column, recording when the square *reached* that
+stage, so the time from crocheting to blocking can be measured — the reason for the split. The rules,
+declared in the schema's `statusDates` block and enforced by `validateDataset`:
+
+- the square's **current** status must have its date (so every square has at least one date);
+  earlier statuses' dates are optional — a square can go straight from nothing to done;
+- no status *after* the current one has a date;
+- the dates present run in workflow order, `planned ≤ started ≤ done ≤ blocked` (the same day is fine).
+
+The form keeps to them as you edit: picking a status fills that status's date with today if it is
+blank (blocked also fills a blank done date, since nothing is blocked without being done), and moving
+a status backwards clears the later dates. These replaced a single `date` column on 18 October 2026;
+the backfilled dates came from git history — see
+[ADR 0031](adr/0031-a-date-per-status-backfilled-from-git-history.md) for how, and what they can and
+can't be trusted for.
 
 ### `yarns.csv`
 
@@ -227,6 +246,19 @@ The schema files are fetched **at runtime**, alongside the CSVs, not compiled in
 > JSON, commit both. The form, the list, the filters and the validation all pick it up.
 
 See [ADR 0005](adr/0005-schema-as-data.md).
+
+A table can also declare rules that span fields. `statusDates` names an `enum` status field and maps
+some of its options to `date` fields; the loader rejects a mapping that names a status or a field that
+doesn't exist, and [`core/schema/statusDates.ts`](../src/core/schema/statusDates.ts) turns it into
+the validation and form behaviour described under `squares.csv` above:
+
+```json
+"statusDates": {
+  "field": "status",
+  "dates": { "planned": "planned_date", "in progress": "started_date", "done": "done_date", "blocked": "blocked_date" },
+  "implies": { "blocked": ["done"] }
+}
+```
 
 ### Field types
 

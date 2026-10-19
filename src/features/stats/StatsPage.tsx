@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CsvRow } from '../../core/csv'
 import { dayNumber, dayString, today } from '../../core/date'
-import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, titleFor } from '../../core/schema'
+import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, statusDate, titleFor } from '../../core/schema'
 import type { IdenticalSquares, TableSchema } from '../../core/schema'
 import { PACE_WINDOW_DAYS, paceOf, squaresOverTime } from '../../core/timeline'
 import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
@@ -459,7 +459,9 @@ function IdenticalSquaresCard({ groups }: { groups: IdenticalSquares[] }) {
   const yarns = useLookup('yarns')
   const yarnSchema = useTableSchema('yarns')
   const designs = useLookup('designs')
+  const squareSchema = useTableSchema('squares')
   const name = (id: string) => yarnLabel(yarnSchema, yarns.get(id), id)
+  const dateOf = (row: CsvRow) => (squareSchema ? statusDate(squareSchema, row) : '')
 
   return (
     <Card className="p-3">
@@ -496,7 +498,7 @@ function IdenticalSquaresCard({ groups }: { groups: IdenticalSquares[] }) {
                       >
                         <span className="font-mono">{row.id}</span>
                         {row.status ? <Badge tone={statusTone(row.status)}>{row.status}</Badge> : null}
-                        {row.date ? <span className="ml-auto text-xs text-muted">{row.date}</span> : null}
+                        {dateOf(row) ? <span className="ml-auto text-xs text-muted">{dateOf(row)}</span> : null}
                       </Link>
                     </li>
                   ))}
@@ -638,7 +640,10 @@ export function StatsPage() {
     // One day-by-day series backs both the Over time card and the Pace tile (`paceOf`), so they
     // count the same squares on the same days; they differ only in whether today is averaged in.
     const overTime = squaresOverTime(
-      finished.map((r) => r.date ?? ''),
+      // The done date — when it was crocheted, not when it was blocked. A blocked square should
+      // always have one; a hand edit that leaves it out falls back to the blocked date rather than
+      // silently dropping the square from every pace figure.
+      finished.map((r) => r.done_date || r.blocked_date || ''),
       today(project.timeZone),
       project.startDate,
     )
@@ -680,8 +685,8 @@ export function StatsPage() {
       bySource,
       byConstructionFinished: insights.byConstructionFinished,
       colourImbalances,
-      missingMainYarn: insights.missingMainYarn.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
-      missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
+      missingMainYarn: insights.missingMainYarn.map((r): Gap => ({ id: r.id ?? '', date: statusDate(schema, r) })),
+      missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: statusDate(schema, r) })),
       identical: identicalSquares(squares),
       overTime,
     }

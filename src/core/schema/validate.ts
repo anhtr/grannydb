@@ -1,4 +1,5 @@
 import type { CsvRow, CsvTable } from '../csv/types'
+import { statusDateIssues } from './statusDates'
 import type { FieldDef, SchemaSet, TableSchema } from './types'
 
 export interface Issue {
@@ -112,6 +113,7 @@ export function validateRow(
     )
     if (message) issues.push({ table: schema.table, rowId, field: field.key, message })
   }
+  for (const { field, message } of statusDateIssues(schema, row)) issues.push({ table: schema.table, rowId, field, message })
   return issues
 }
 

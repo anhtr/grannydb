@@ -12,6 +12,9 @@ import {
   splitList,
   titleFor,
   validateValue,
+  changeStatus,
+  fillStatusDates,
+  statusDateIssues,
 } from '../core/schema'
 import { appStore } from '../core/store'
 import { useLookup, useRefIds, useResolveRef, useTableSchema, useToday } from '../app/hooks'
@@ -122,12 +125,12 @@ function quickCreateFields(fields: FieldDef[], idField: string): FieldDef[] {
   return fields.filter((f) => f.key !== idField)
 }
 
-function initialQuickCreateDraft(fields: FieldDef[], todayDate: string): CsvRow {
+function initialQuickCreateDraft(schema: TableSchema, fields: FieldDef[], todayDate: string): CsvRow {
   const draft: CsvRow = {}
   for (const field of fields) {
     draft[field.key] = field.type === 'date' && field.defaultToday ? todayDate : (field.default ?? '')
   }
-  return draft
+  return fillStatusDates(schema, draft, todayDate)
 }
 
 /**
@@ -149,12 +152,17 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
   if (!schema) return null
   const fields = quickCreateFields(schema.fields, schema.idField)
 
+  // The same status-date behaviour as the full form (`RecordForm`), so a quick-created row obeys the
+  // rules it will be validated against.
   const setField = (key: string, value: string) => {
-    setDraft((prev) => ({ ...prev, [key]: value }))
+    const statusDates = schema.statusDates
+    const isStatus = statusDates !== undefined && key === statusDates.field
+    const touched = isStatus ? [key, ...Object.values(statusDates.dates)] : [key]
+    setDraft((prev) => (isStatus ? changeStatus(schema, prev, value, todayDate) : { ...prev, [key]: value }))
     setErrors((prev) => {
-      if (!prev[key]) return prev
+      if (!touched.some((k) => prev[k])) return prev
       const next = { ...prev }
-      delete next[key]
+      for (const k of touched) delete next[k]
       return next
     })
   }
@@ -166,6 +174,7 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
       const message = validateValue(field, draft[field.key] ?? '', field.refTable ? refIds[field.refTable] : undefined)
       if (message) found[field.key] = message
     }
+    for (const { field, message } of statusDateIssues(schema, draft)) found[field] ??= message
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -186,7 +195,7 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
         type="button"
         className="text-sm text-accent underline-offset-2 hover:underline"
         onClick={() => {
-          setDraft(initialQuickCreateDraft(fields, todayDate))
+          setDraft(initialQuickCreateDraft(schema, fields, todayDate))
           setErrors({})
           setOpen(true)
         }}

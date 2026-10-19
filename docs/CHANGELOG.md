@@ -4,6 +4,27 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-18 — v0.1.31, a date per status
+
+**Data**
+- `squares.csv`: the single `date` column is replaced by `planned_date`, `started_date`, `done_date`
+  and `blocked_date`, straight after `status`. Backfilled from git history by
+  `scripts/migrate-status-dates.ts` (kept as the record): every finished square's `done_date` is its
+  old `date`, so pace and charts are unchanged; 23 squares that were switched from done to blocked
+  get the day of that commit, in the project's time zone, as their blocked date; the 64 entered
+  already blocked get their old date for both. See
+  [ADR 0031](adr/0031-a-date-per-status-backfilled-from-git-history.md).
+- New schema block `statusDates` (squares only). `validate-data` now requires a date for each
+  square's current status, rejects a date for a status not yet reached, and requires dates in
+  workflow order.
+
+**App**
+- The square form shows the four dates after Status. Changing the status fills that status's date
+  with today if blank (blocked also fills a blank done date) and clears the dates of later statuses;
+  a new square starts with today as its done date. Save reports any broken rule on the field.
+- Squares list rows and the Progress screen's square lists show the date of the square's current
+  status. Pace and the Over time card use the done date.
+
 ## 2026-10-18 — v0.1.30, a project time zone
 
 **Data**

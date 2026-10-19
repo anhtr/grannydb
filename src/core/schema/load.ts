@@ -1,4 +1,4 @@
-import type { DerivedFilterDef, FieldDef, FieldType, InheritFromDef, SchemaSet, TableSchema } from './types'
+import type { DerivedFilterDef, FieldDef, FieldType, InheritFromDef, SchemaSet, StatusDatesDef, TableSchema } from './types'
 
 export class SchemaError extends Error {
   constructor(message: string) {
@@ -101,6 +101,42 @@ function parseDerivedFilter(raw: unknown, where: string): DerivedFilterDef {
   }
 }
 
+/** Every name in `statusDates` must be a real status and a real `date` field, or the rules it drives
+ * would silently check nothing. */
+function parseStatusDates(raw: unknown, fields: FieldDef[], where: string): StatusDatesDef {
+  if (typeof raw !== 'object' || raw === null) throw new SchemaError(`${where}: "statusDates" must be an object`)
+  const o = raw as Record<string, unknown>
+  const field = str(o, 'field', where)
+  const statusField = fields.find((f) => f.key === field)
+  if (statusField?.type !== 'enum') throw new SchemaError(`${where}: "field" "${field}" is not an enum field`)
+  const options = statusField.options ?? []
+  const isStatus = (status: string) => {
+    if (!options.includes(status)) throw new SchemaError(`${where}: "${status}" is not an option of "${field}"`)
+  }
+  if (typeof o.dates !== 'object' || o.dates === null) throw new SchemaError(`${where}: "dates" must be an object`)
+  const dates: Record<string, string> = {}
+  for (const [status, key] of Object.entries(o.dates as Record<string, unknown>)) {
+    isStatus(status)
+    if (typeof key !== 'string' || fields.find((f) => f.key === key)?.type !== 'date') {
+      throw new SchemaError(`${where}.dates: "${status}" must name a date field`)
+    }
+    dates[status] = key
+  }
+  let implies: Record<string, string[]> | undefined
+  if (o.implies !== undefined) {
+    if (typeof o.implies !== 'object' || o.implies === null) throw new SchemaError(`${where}: "implies" must be an object`)
+    implies = {}
+    for (const [status, list] of Object.entries(o.implies as Record<string, unknown>)) {
+      isStatus(status)
+      if (!Array.isArray(list) || !list.every((s) => typeof s === 'string' && dates[s] !== undefined)) {
+        throw new SchemaError(`${where}.implies: "${status}" must list statuses that have dates`)
+      }
+      implies[status] = list as string[]
+    }
+  }
+  return { field, dates, implies }
+}
+
 export function parseTableSchema(raw: unknown): TableSchema {
   if (typeof raw !== 'object' || raw === null) throw new SchemaError('schema must be an object')
   const o = raw as Record<string, unknown>
@@ -158,6 +194,7 @@ export function parseTableSchema(raw: unknown): TableSchema {
       ? o.derivedFilters.map((f) => parseDerivedFilter(f, `${where}.derivedFilters`))
       : undefined,
     defaultSort,
+    statusDates: o.statusDates !== undefined ? parseStatusDates(o.statusDates, fields, `${where}.statusDates`) : undefined,
     fields,
   }
 }

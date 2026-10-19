@@ -1,5 +1,5 @@
 import type { CsvRow } from '../../core/csv'
-import { effectiveValue, fieldByKey, splitList, titleFor } from '../../core/schema'
+import { effectiveValue, fieldByKey, splitList, statusDate, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
 import { useLookup, useResolveRef, useTableSchema } from '../../app/hooks'
 import { Badge, BadgeStack, ColourGlyph } from '../../ui/components'
@@ -53,7 +53,8 @@ function SquareRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
         </p>
         <p className="truncate text-sm text-muted">
           {design?.name ?? '(no design)'}
-          {row.date ? ` · ${row.date}` : ''}
+          {/* The date it reached its current status — so a blocked square shows when it was blocked. */}
+          {statusDate(schema, row) ? ` · ${statusDate(schema, row)}` : ''}
         </p>
       </div>
       <BadgeStack

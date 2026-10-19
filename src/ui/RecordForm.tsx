@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CsvRow } from '../core/csv'
-import { effectiveValue, fieldByKey, validateValue } from '../core/schema'
+import { changeStatus, effectiveValue, fieldByKey, fillStatusDates, statusDateIssues, validateValue } from '../core/schema'
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import { appStore } from '../core/store'
 import { useAppState, useRefIds, useResolveRef, useRow, useTableSchema, useToday } from '../app/hooks'
@@ -21,7 +21,8 @@ function initialValues(schema: TableSchema, row: CsvRow | null, newId: string, t
       values[field.key] = field.default ?? ''
     }
   }
-  return values
+  // A new row starts with its default status already dated today, like any `defaultToday` field.
+  return row ? values : fillStatusDates(schema, values, todayDate)
 }
 
 /**
@@ -87,11 +88,14 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
   const recordId = current[schema.idField] || newId
 
   const setField = (key: string, value: string) => {
-    setValues({ ...current, [key]: value })
+    // Changing the status also dates it (and clears any later status's date) — see `changeStatus`.
+    const statusDates = schema.statusDates
+    const touched = statusDates && key === statusDates.field ? [key, ...Object.values(statusDates.dates)] : [key]
+    setValues(statusDates && key === statusDates.field ? changeStatus(schema, current, value, todayDate) : { ...current, [key]: value })
     setErrors((prev) => {
-      if (!prev[key]) return prev
+      if (!touched.some((k) => prev[k])) return prev
       const next = { ...prev }
-      delete next[key]
+      for (const k of touched) delete next[k]
       return next
     })
   }
@@ -106,6 +110,7 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
       )
       if (message) found[field.key] = message
     }
+    for (const { field, message } of statusDateIssues(schema, current)) found[field] ??= message
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
