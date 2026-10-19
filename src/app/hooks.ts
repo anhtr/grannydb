@@ -3,6 +3,7 @@ import { appStore } from '../core/store'
 import type { AppState } from '../core/store'
 import type { CsvRow, CsvTable } from '../core/csv'
 import { findRow } from '../core/csv'
+import { today } from '../core/date'
 import { idSet } from '../core/schema'
 import type { RefLookup, ResolveRef, SchemaSet, TableSchema } from '../core/schema'
 import { projectInfo } from '../core/project'
@@ -99,6 +100,11 @@ export function useRefIds(): Record<string, ReadonlySet<string>> {
 export function useProject(): ProjectInfo {
   const project = useAppState().project
   return useMemo(() => projectInfo(project), [project])
+}
+
+/** Today as `YYYY-MM-DD` in the project's time zone (the device's, if the project sets none). */
+export function useToday(): string {
+  return today(useProject().timeZone)
 }
 
 export function usePendingCount(): number {

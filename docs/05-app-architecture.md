@@ -8,9 +8,10 @@ src/
     csv/           parse, serialize, row operations
     schema/        types, loader, validation, search/filter/sort resolution, cross-table counts
     github/        config, HTTP client, snapshot reads, commits, auth
-    project/       project.json: parse, validate, read start date and target, apply key edits
+    project/       project.json: parse, validate, read start date, target and time zone, apply key edits
     prefs/         device-local app preferences (per-table list filters/sort)
-    date.ts        calendar days as integers, and the one definition of a week (Monday first)
+    date.ts        today in the project's time zone, calendar days as integers, and the one
+                   definition of a week (Monday first)
     timeline.ts    finished squares bucketed by day, week and weekday, with moving averages
     store/         change queue, merge, sync, the offline snapshot cache, the app store
   ui/              shared React: primitives, field renderers, generic list/detail/form
@@ -198,6 +199,10 @@ Three components in `ui/` serve every table:
   each morning and recovers as the day's squares come in — wanted on a tile, where it reads as
   "where today leaves me", and not on a trend chart. The tile and the chart's last average point can
   therefore differ slightly.
+  "Today" everywhere — those calculations and the date a new square defaults to — comes from
+  `today(timeZone)` with the project's `time_zone` (`useToday` in `app/hooks.ts`), falling back to
+  the device's own zone when the project sets none
+  ([ADR 0030](adr/0030-project-time-zone-as-an-iana-name.md)).
   List rows generally float their badges to one side (`BadgeStack` in `ui/components.tsx`) so a long
   title or subtitle wraps under them instead of being truncated to make room.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional

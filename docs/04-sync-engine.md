@@ -30,7 +30,7 @@ interface Change {
 ```
 
 That is a row operation. The queue holds a second kind, for the one piece of data that is not a CSV
-row — [`project.json`](../data/project.json) (start date, target squares):
+row — [`project.json`](../data/project.json) (start date, target squares, time zone):
 
 ```ts
 interface DocChange {

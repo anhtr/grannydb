@@ -1,6 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { CsvRow } from '../core/csv'
-import { today } from '../core/date'
 import type { FieldDef, FieldType, TableSchema } from '../core/schema'
 import {
   fieldByKey,
@@ -15,7 +14,7 @@ import {
   validateValue,
 } from '../core/schema'
 import { appStore } from '../core/store'
-import { useLookup, useRefIds, useResolveRef, useTableSchema } from '../app/hooks'
+import { useLookup, useRefIds, useResolveRef, useTableSchema, useToday } from '../app/hooks'
 import { Button, FieldShell, inputClass, Link, Swatch } from './components'
 
 /**
@@ -123,10 +122,10 @@ function quickCreateFields(fields: FieldDef[], idField: string): FieldDef[] {
   return fields.filter((f) => f.key !== idField)
 }
 
-function initialQuickCreateDraft(fields: FieldDef[]): CsvRow {
+function initialQuickCreateDraft(fields: FieldDef[], todayDate: string): CsvRow {
   const draft: CsvRow = {}
   for (const field of fields) {
-    draft[field.key] = field.type === 'date' && field.defaultToday ? today() : (field.default ?? '')
+    draft[field.key] = field.type === 'date' && field.defaultToday ? todayDate : (field.default ?? '')
   }
   return draft
 }
@@ -145,6 +144,7 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
   const [draft, setDraft] = useState<CsvRow>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const todayDate = useToday()
 
   if (!schema) return null
   const fields = quickCreateFields(schema.fields, schema.idField)
@@ -186,7 +186,7 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
         type="button"
         className="text-sm text-accent underline-offset-2 hover:underline"
         onClick={() => {
-          setDraft(initialQuickCreateDraft(fields))
+          setDraft(initialQuickCreateDraft(fields, todayDate))
           setErrors({})
           setOpen(true)
         }}

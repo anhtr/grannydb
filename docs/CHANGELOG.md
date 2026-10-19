@@ -4,6 +4,25 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-18 — v0.1.30, a project time zone
+
+**Data**
+- `data/project.json` gains an optional `time_zone`, an IANA name such as `"America/Chicago"`.
+  `validate-data` rejects a name the runtime doesn't recognise. Unset (the default) means each
+  device uses its own zone, which is what every device did before.
+
+**App**
+- Settings → Project has a Time zone picker (every IANA zone the browser knows, plus "Device's own").
+  Saved and synced like the start date and target.
+- What day "today" is now comes from that zone: the default date on a new square (in the full form
+  and in quick-create) and, on the Progress screen, the Pace window, the "At this rate" date and the
+  Over time card's today and current week.
+
+**Core**
+- `today(timeZone)` in `core/date.ts`, with `isValidTimeZone` and `deviceTimeZone`; `ProjectInfo`
+  gains `timeZone`; `useToday()` in `app/hooks.ts`. See
+  [ADR 0030](adr/0030-project-time-zone-as-an-iana-name.md).
+
 ## 2026-10-18 — v0.1.29, Pace is the last 28 days, today included
 
 **App**

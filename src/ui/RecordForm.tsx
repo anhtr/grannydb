@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react'
 import type { CsvRow } from '../core/csv'
-import { today } from '../core/date'
 import { effectiveValue, fieldByKey, validateValue } from '../core/schema'
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import { appStore } from '../core/store'
-import { useAppState, useRefIds, useResolveRef, useRow, useTableSchema } from '../app/hooks'
+import { useAppState, useRefIds, useResolveRef, useRow, useTableSchema, useToday } from '../app/hooks'
 import { useNavigate } from '../app/router'
 import { Button, ErrorNote, FieldShell, Spinner } from './components'
 import { rendererFor } from './fields'
 
-function initialValues(schema: TableSchema, row: CsvRow | null, newId: string): CsvRow {
+function initialValues(schema: TableSchema, row: CsvRow | null, newId: string, todayDate: string): CsvRow {
   const values: CsvRow = {}
   for (const field of schema.fields) {
     if (row) {
@@ -17,7 +16,7 @@ function initialValues(schema: TableSchema, row: CsvRow | null, newId: string): 
     } else if (field.key === schema.idField) {
       values[field.key] = newId
     } else if (field.type === 'date' && field.defaultToday) {
-      values[field.key] = today()
+      values[field.key] = todayDate
     } else {
       values[field.key] = field.default ?? ''
     }
@@ -77,13 +76,14 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
 
   // Ids available in each referenced table, so a `ref` pointing nowhere is caught before saving.
   const refIds = useRefIds()
+  const todayDate = useToday()
 
   if (!schema) return <Spinner label="Loading schema" />
   if (id && !existing) {
     return <ErrorNote>No {schema.labelSingular.toLowerCase()} with id {id}.</ErrorNote>
   }
 
-  const current = values ?? initialValues(schema, existing, newId)
+  const current = values ?? initialValues(schema, existing, newId, todayDate)
   const recordId = current[schema.idField] || newId
 
   const setField = (key: string, value: string) => {

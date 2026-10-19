@@ -1,8 +1,9 @@
+import { isValidTimeZone } from '../date'
 import type { Issue } from '../schema'
 
 /**
  * `project.json` — facts about the project as a whole rather than about any one row: when it
- * started and how many squares it is aiming at. Data, not a device preference, so every device
+ * started, how many squares it is aiming at, and which time zone its days are counted in. Data, not a device preference, so every device
  * agrees on them and changing one is a synced, reviewable commit like any other edit.
  *
  * Kept as the raw parsed object rather than a typed record so that a key added by hand survives a
@@ -19,9 +20,11 @@ export interface ProjectInfo {
   startDate: string
   /** Target number of squares, or 0 for no target. */
   targetSquares: number
+  /** IANA time zone "today" is counted in, or empty for the device's own. */
+  timeZone: string
 }
 
-export const PROJECT_KEYS = { startDate: 'start_date', targetSquares: 'target_squares' } as const
+export const PROJECT_KEYS = { startDate: 'start_date', targetSquares: 'target_squares', timeZone: 'time_zone' } as const
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -46,9 +49,11 @@ export function serializeProject(doc: ProjectDoc): string {
 export function projectInfo(doc: ProjectDoc): ProjectInfo {
   const start = doc[PROJECT_KEYS.startDate]
   const target = doc[PROJECT_KEYS.targetSquares]
+  const zone = doc[PROJECT_KEYS.timeZone]
   return {
     startDate: typeof start === 'string' && DATE_RE.test(start) ? start : '',
     targetSquares: typeof target === 'number' && Number.isInteger(target) && target > 0 ? target : 0,
+    timeZone: typeof zone === 'string' && isValidTimeZone(zone) ? zone : '',
   }
 }
 
@@ -63,6 +68,10 @@ export function validateProject(doc: ProjectDoc): Issue[] {
   const target = doc[PROJECT_KEYS.targetSquares]
   if (target !== undefined && !(typeof target === 'number' && Number.isInteger(target) && target >= 0)) {
     at(PROJECT_KEYS.targetSquares, `expected a whole number, got ${JSON.stringify(target)}`)
+  }
+  const zone = doc[PROJECT_KEYS.timeZone]
+  if (zone !== undefined && zone !== '' && !(typeof zone === 'string' && isValidTimeZone(zone))) {
+    at(PROJECT_KEYS.timeZone, `expected an IANA time zone such as "America/Chicago", got ${JSON.stringify(zone)}`)
   }
   return issues
 }

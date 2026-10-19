@@ -147,12 +147,13 @@ Facts about the project as a whole rather than about any one row:
 |---|---|---|
 | `start_date` | `YYYY-MM-DD` | Where the Progress screen's pace and Over time charts begin, so empty weeks after it count and weeks before it don't (if a square is dated earlier, they begin there instead) |
 | `target_squares` | whole number | The "X / 400" on Progress, and the length of the status bar |
+| `time_zone` | IANA name, e.g. `America/Chicago` | Which zone decides what day it is: a new square's default date, and where today begins on Progress. Unset means each device's own zone |
 
 JSON rather than a one-row CSV because there is exactly one of it: a table with a header row, an id
 column and a single record would be a table in shape only. It is still data in every way that
 matters — read at the same pinned sha as the CSVs, edited through the change queue, validated by the
 build, and committed by sync — and, like the CSV writer, the app keeps keys it does not know, so one
-added by hand survives an edit from Settings. Both keys are optional; a missing one reads as unset.
+added by hand survives an edit from Settings. Every key is optional; a missing one reads as unset.
 See [ADR 0028](adr/0028-project-settings-as-a-synced-json-document.md), which replaced the
 device-local values of [ADR 0017](adr/0017-device-local-goal-override.md).
 

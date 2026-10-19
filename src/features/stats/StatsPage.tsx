@@ -639,7 +639,7 @@ export function StatsPage() {
     // count the same squares on the same days; they differ only in whether today is averaged in.
     const overTime = squaresOverTime(
       finished.map((r) => r.date ?? ''),
-      today(),
+      today(project.timeZone),
       project.startDate,
     )
 
@@ -697,7 +697,7 @@ export function StatsPage() {
   // From the exact rate, not the rounded-up weeks: adding whole weeks would push the date up to six
   // days later than the pace implies.
   const completionDate =
-    exactWeeksLeft === null ? null : new Date(`${dayString(dayNumber(today()) + Math.ceil(exactWeeksLeft * 7))}T12:00`)
+    exactWeeksLeft === null ? null : new Date(`${dayString(dayNumber(today(project.timeZone)) + Math.ceil(exactWeeksLeft * 7))}T12:00`)
 
   return (
     <div className="space-y-2 px-4 pb-24">

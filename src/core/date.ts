@@ -1,8 +1,37 @@
-/** Today's date as `YYYY-MM-DD`, in the local timezone (not UTC, so it matches what the person sees). */
-export function today(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+/** Whether `timeZone` is an IANA time zone name this runtime knows, e.g. `America/Chicago`. */
+export function isValidTimeZone(timeZone: string): boolean {
+  if (timeZone === '') return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** The time zone this device is set to, e.g. `America/Chicago`. */
+export function deviceTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+/**
+ * Today's date as `YYYY-MM-DD` in the project's time zone — or this device's, when the project sets
+ * none (or one this runtime doesn't recognise). Never UTC: for anyone west of Greenwich, UTC's
+ * "today" turns over in the evening, which is exactly when squares get finished.
+ *
+ * A project-wide zone is what makes "today" the same day on every device: a phone that is still on
+ * home time while travelling would otherwise date a square, and size the Pace window, by a different
+ * calendar from the laptop at home.
+ */
+export function today(timeZone = '', now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: isValidTimeZone(timeZone) ? timeZone : undefined,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000

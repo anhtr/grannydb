@@ -4,21 +4,25 @@ import { applyProjectChanges } from '../store/merge'
 import { projectChange } from '../store/queue'
 
 describe('project.json', () => {
-  it('reads start date and target, treating malformed values as unset', () => {
-    expect(projectInfo({ start_date: '2026-07-03', target_squares: 400 })).toEqual({
+  it('reads start date, target and time zone, treating malformed values as unset', () => {
+    expect(projectInfo({ start_date: '2026-07-03', target_squares: 400, time_zone: 'America/Chicago' })).toEqual({
       startDate: '2026-07-03',
       targetSquares: 400,
+      timeZone: 'America/Chicago',
     })
-    expect(projectInfo({ start_date: '3 July', target_squares: '400' })).toEqual({ startDate: '', targetSquares: 0 })
-    expect(projectInfo({})).toEqual({ startDate: '', targetSquares: 0 })
+    expect(projectInfo({ start_date: '3 July', target_squares: '400', time_zone: 'Central' })).toEqual({
+      startDate: '',
+      targetSquares: 0,
+      timeZone: '',
+    })
+    expect(projectInfo({})).toEqual({ startDate: '', targetSquares: 0, timeZone: '' })
   })
 
   it('flags malformed values for the build-time data check', () => {
-    expect(validateProject({ start_date: '2026-07-03', target_squares: 400 })).toEqual([])
-    expect(validateProject({ start_date: '07/03/2026', target_squares: 1.5 }).map((i) => i.field)).toEqual([
-      'start_date',
-      'target_squares',
-    ])
+    expect(validateProject({ start_date: '2026-07-03', target_squares: 400, time_zone: 'Europe/London' })).toEqual([])
+    expect(
+      validateProject({ start_date: '07/03/2026', target_squares: 1.5, time_zone: 'Mars/Olympus' }).map((i) => i.field),
+    ).toEqual(['start_date', 'target_squares', 'time_zone'])
   })
 
   it('rejects a file that is not a JSON object', () => {

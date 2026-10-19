@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayNumber, dayString, weekStart, weekdayIndex } from '../date'
+import { dayNumber, dayString, today, weekStart, weekdayIndex } from '../date'
 import { paceOf, squaresOverTime } from '../timeline'
 
 describe('calendar days', () => {
@@ -9,6 +9,14 @@ describe('calendar days', () => {
     expect(dayNumber('2026-02-31')).toBeNaN()
     expect(dayNumber('18/10/2026')).toBeNaN()
     expect(dayNumber('')).toBeNaN()
+  })
+
+  it("counts today in the given time zone, falling back to the device's", () => {
+    // 03:30 UTC on the 19th is still the evening of the 18th in Chicago, and already the 19th in Tokyo.
+    const now = new Date('2026-10-19T03:30:00Z')
+    expect(today('America/Chicago', now)).toBe('2026-10-18')
+    expect(today('Asia/Tokyo', now)).toBe('2026-10-19')
+    expect(today('Not/AZone', now)).toBe(today('', now))
   })
 
   it('starts the week on Monday', () => {

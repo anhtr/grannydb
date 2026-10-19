@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { appStore } from '../../core/store'
 import { commitUrl, DEFAULT_CONFIG, repoUrl } from '../../core/github'
 import type { ConnectionCheck, RepoConfig } from '../../core/github'
+import { deviceTimeZone } from '../../core/date'
 import { PROJECT_KEYS } from '../../core/project'
 import type { ProjectInfo } from '../../core/project'
 import { useAppState, useCanEdit, useProject } from '../../app/hooks'
@@ -59,7 +60,37 @@ function parseTarget(input: string): number | null | undefined {
 }
 
 /**
- * Start date and target, edited in place but stored in `project.json`: Save queues a `set`
+ * Every IANA zone this browser knows, with the saved one kept in the list even if it doesn't — so a
+ * zone saved on another device never silently reads as "device time zone" here. Older browsers
+ * without `Intl.supportedValuesOf` get just the device's zone and the saved one.
+ */
+function timeZoneOptions(saved: string): string[] {
+  const known = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [deviceTimeZone()]
+  return saved && !known.includes(saved) ? [saved, ...known] : known
+}
+
+function TimeZoneField({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled: boolean }) {
+  return (
+    <div className="px-4 py-3">
+      <label className="block text-sm font-medium text-muted">Time zone</label>
+      <select className={`${inputClass} mt-1.5`} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+        <option value="">Device's own ({deviceTimeZone().replace(/_/g, ' ')})</option>
+        {timeZoneOptions(value).map((zone) => (
+          <option key={zone} value={zone}>
+            {zone.replace(/_/g, ' ')}
+          </option>
+        ))}
+      </select>
+      <p className="mt-1 text-xs text-muted">
+        Which time zone decides what day it is: the date a new square gets, and where today begins and ends on the
+        Progress screen. Set it so every device agrees, even one still on another zone while you travel.
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Start date, target and time zone, edited in place but stored in `project.json`: Save queues a `set`
  * operation like any record edit, so the change shows up everywhere straight away and reaches the
  * repo — and every other device — on the next sync. Remounted (via `key`) whenever the stored values
  * change, so the inputs pick up a fresh load or a synced edit instead of holding stale text.
@@ -68,8 +99,10 @@ function ProjectSection({ project }: { project: ProjectInfo }) {
   const canEdit = useCanEdit()
   const [startDate, setStartDate] = useState(project.startDate)
   const [targetInput, setTargetInput] = useState(project.targetSquares > 0 ? String(project.targetSquares) : '')
+  const [timeZone, setTimeZone] = useState(project.timeZone)
   const target = parseTarget(targetInput)
-  const dirty = startDate !== project.startDate || (target ?? 0) !== project.targetSquares
+  const dirty =
+    startDate !== project.startDate || (target ?? 0) !== project.targetSquares || timeZone !== project.timeZone
 
   return (
     <Section title="Project">
@@ -79,7 +112,7 @@ function ProjectSection({ project }: { project: ProjectInfo }) {
         value={startDate}
         onChange={setStartDate}
         disabled={!canEdit}
-        hint="When you started the blanket. Used to size the pace calculation on the Progress screen so it isn't diluted by weeks before you began."
+        hint="When you started the blanket. The Progress screen's pace and charts count from here, so weeks before you began don't dilute them."
       />
       <Field
         label="Target squares"
@@ -89,6 +122,7 @@ function ProjectSection({ project }: { project: ProjectInfo }) {
         disabled={!canEdit}
         hint={`How many squares finish the blanket, shown as "X / target" on Progress. Leave blank for no target.`}
       />
+      <TimeZoneField value={timeZone} onChange={setTimeZone} disabled={!canEdit} />
       <div className="space-y-2 px-4 py-3">
         {canEdit ? (
           <Button
@@ -98,6 +132,7 @@ function ProjectSection({ project }: { project: ProjectInfo }) {
               void appStore.saveProject({
                 [PROJECT_KEYS.startDate]: startDate === '' ? null : startDate,
                 [PROJECT_KEYS.targetSquares]: target ?? null,
+                [PROJECT_KEYS.timeZone]: timeZone === '' ? null : timeZone,
               })
             }
           >
@@ -212,7 +247,7 @@ export function SettingsPage() {
         ) : null}
       </Section>
 
-      <ProjectSection key={`${project.startDate}|${project.targetSquares}`} project={project} />
+      <ProjectSection key={`${project.startDate}|${project.targetSquares}|${project.timeZone}`} project={project} />
 
       <Section title="Data location">
         <Field label="Owner" value={config.owner} onChange={(v) => setConfig({ ...config, owner: v })} />
