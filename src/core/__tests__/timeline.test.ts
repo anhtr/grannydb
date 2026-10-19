@@ -71,26 +71,29 @@ describe('squaresOverTime', () => {
 })
 
 describe('paceOf', () => {
-  it('averages the last four full Monday–Sunday weeks, ignoring the current one', () => {
-    // Five full weeks from Mon 7 Sep (1, 2, 3, 4, 5 squares on each Monday), then 9 squares this week.
+  it('averages the last 28 days, today included, as a weekly rate', () => {
     const dates = [
-      ...['2026-09-07'],
-      ...Array(2).fill('2026-09-14'),
-      ...Array(3).fill('2026-09-21'),
-      ...Array(4).fill('2026-09-28'),
-      ...Array(5).fill('2026-10-05'),
-      ...Array(9).fill('2026-10-12'),
+      '2026-09-16', // 29 days before today: just outside the window
+      '2026-09-17', // 28th day back: the first day in it
+      ...Array(6).fill('2026-10-01'),
+      '2026-10-14', // today
     ]
     const pace = paceOf(squaresOverTime(dates, '2026-10-14'))
-    expect(pace.perWeek).toBe((2 + 3 + 4 + 5) / 4)
-    expect(pace.windowWeeks).toBe(4)
-    // Overall: all 24 squares, over the 37 full days 7 Sep – 13 Oct (Monday the 12th is a full day).
-    expect(pace.overallPerWeek).toBeCloseTo((24 / 37) * 7)
+    expect(pace.windowDays).toBe(28)
+    expect(pace.perWeek).toBe(8 / 4)
+    // Overall: all 9 squares over the 29 days 16 Sep – 14 Oct.
+    expect(pace.overallPerWeek).toBeCloseTo((9 / 29) * 7)
   })
 
-  it('shrinks the window early on and has no recent pace before the first full week', () => {
-    expect(paceOf(squaresOverTime(['2026-10-06', '2026-10-13'], '2026-10-14'))).toMatchObject({ perWeek: 1, windowWeeks: 1 })
-    expect(paceOf(squaresOverTime(['2026-10-12'], '2026-10-14'))).toMatchObject({ perWeek: null, windowWeeks: 0 })
-    expect(paceOf(null)).toEqual({ perWeek: null, windowWeeks: 0, overallPerWeek: null })
+  it('dips as a new day starts and recovers as its squares come in', () => {
+    const before = ['2026-09-17', '2026-10-13']
+    expect(paceOf(squaresOverTime(before, '2026-10-14')).perWeek).toBe(2 / 4)
+    expect(paceOf(squaresOverTime(before, '2026-10-15')).perWeek).toBe(1 / 4)
+    expect(paceOf(squaresOverTime([...before, '2026-10-15'], '2026-10-15')).perWeek).toBe(2 / 4)
+  })
+
+  it('shrinks the window to a younger project', () => {
+    expect(paceOf(squaresOverTime(['2026-10-08', '2026-10-14'], '2026-10-14'))).toMatchObject({ perWeek: 2, windowDays: 7 })
+    expect(paceOf(null)).toEqual({ perWeek: null, windowDays: 0, overallPerWeek: null })
   })
 })

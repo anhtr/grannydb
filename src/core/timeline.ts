@@ -115,32 +115,40 @@ export function squaresOverTime(dates: string[], todayDate: string, startDate = 
   return { days, weeks, weekdays }
 }
 
+/** The trailing window the Pace tile averages over: the last 28 days, today included. */
+export const PACE_WINDOW_DAYS = 28
+
 export interface Pace {
-  /** Mean squares per week over the last `windowWeeks` full weeks; null before the first full week. */
+  /** Squares per week over the last `windowDays` days, today included. */
   perWeek: number | null
-  /** How many full weeks `perWeek` averages — `WEEKLY_AVERAGE_WEEKS`, or fewer early in the project. */
-  windowWeeks: number
-  /** Squares per week across every full day of the range. */
+  /** `PACE_WINDOW_DAYS`, or fewer when the project hasn't been running that long. */
+  windowDays: number
+  /** Squares per week across every day of the range, today included. */
   overallPerWeek: number | null
 }
 
 /**
- * The Progress screen's Pace tile, read off the same series the Over time card draws, so the tile and
- * the chart's latest moving-average point are one number rather than two that disagree.
+ * The Progress screen's Pace tile: squares in the last 28 days, today included, as a weekly rate.
  *
- * Recent pace is over full Monday–Sunday weeks, and overall pace over full days — today and the
- * current week are left out of both, for the reasons in ADR 0029. Overall pace is counted in days, not
- * weeks, because a project that started mid-week would otherwise carry its short first week in the
- * average forever; in the 4-week window that week drops out within a month.
+ * Today counts as a full day on purpose. The tile then dips a little each morning, when a new and
+ * still-empty day joins the window and a full one drops off the far end, and climbs back as the day's
+ * squares are added — so it reads as "where today leaves me", which is the question it is glanced at
+ * for. That is a different choice from the Over time card, whose averages leave today and the current
+ * week out (ADR 0029): a chart shows a trend, where a dip that only reflects the time of day is noise.
+ * The two numbers can therefore differ by a square or two, and are meant to.
+ *
+ * The window is a rolling 28 days, not four Monday–Sunday weeks, so it moves a day at a time rather
+ * than jumping each Monday. It shrinks to the length of the range when the project is younger than
+ * that, so a project in its second week isn't divided by four weeks and read as a quarter of its rate.
  */
 export function paceOf(overTime: SquaresOverTime | null): Pace {
-  if (!overTime) return { perWeek: null, windowWeeks: 0, overallPerWeek: null }
-  const complete = overTime.weeks.filter((w) => !w.partial)
-  const windowWeeks = Math.min(WEEKLY_AVERAGE_WEEKS, complete.length)
-  const fullDays = overTime.days.length - 1
+  if (!overTime) return { perWeek: null, windowDays: 0, overallPerWeek: null }
+  const { days } = overTime
+  const window = days.slice(-PACE_WINDOW_DAYS)
+  const inWindow = window.reduce((sum, d) => sum + d.count, 0)
   return {
-    perWeek: complete.length > 0 ? complete[complete.length - 1].average : null,
-    windowWeeks,
-    overallPerWeek: fullDays > 0 ? (overTime.days[fullDays - 1].cumulative / fullDays) * 7 : null,
+    perWeek: (inWindow / window.length) * 7,
+    windowDays: window.length,
+    overallPerWeek: (days[days.length - 1].cumulative / days.length) * 7,
   }
 }

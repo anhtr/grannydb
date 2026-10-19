@@ -51,11 +51,18 @@ Moving averages use a trailing window — 4 weeks, 7 days — that shrinks at th
 instead of treating days before the project as zeros: a project in its second week shouldn't read as
 half its real rate.
 
-The Pace tile is the same calculation (`paceOf`), not a parallel one. It used to be a trailing
-28 × 24-hour window ending at the current moment, which broke both rules at once: it counted a
-barely-started today as a full day, and because it read CSV dates as UTC midnight it dropped a day
-at the far end as well, while still dividing by four full weeks — so it read low. Overall pace is
-counted in full days rather than weeks, so a short first week doesn't drag on it forever.
+### The Pace tile is the deliberate exception
+
+The Pace tile reads the same day-by-day series (`paceOf`) but takes the other option for today: it
+is the squares in the last 28 calendar days, *today included*, divided by four. Briefly it was
+changed to match the chart (the last four full weeks), and the owner reversed that: on a tile glanced
+at to see where today leaves you, the morning dip and the recovery through the day *are* the
+information, not noise. A rolling 28 days rather than four Monday–Sunday weeks also lets it move a
+day at a time instead of jumping each Monday.
+
+What was genuinely wrong with the original tile was the arithmetic, not the choice: its window was 28
+× 24 hours back from the current moment, and it read CSV dates as UTC midnight, so it held 27 days
+plus a sliver while dividing by four full weeks. Counting whole calendar days fixes that.
 
 ## Consequences
 

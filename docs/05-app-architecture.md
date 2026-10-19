@@ -192,9 +192,12 @@ Three components in `ui/` serve every table:
   ([ADR 0029](adr/0029-monday-weeks-and-averages-over-complete-periods.md)). The charts are
   hand-drawn SVG sized by `useMeasuredWidth` (`ui/useMeasuredWidth.ts`); a tap or hover picks the
   point the readout line above each chart describes, defaulting to the latest.
-  The Pace and "At this rate" tiles read the same series through `paceOf`: recent pace is the last
-  full week's 4-week moving average — the same number as the chart's last line point — and overall
-  pace is squares per full day since the start, times seven.
+  The Pace and "At this rate" tiles read the same day-by-day series through `paceOf`, but count
+  today as a full day: recent pace is the squares in the last 28 days, today included, divided by
+  four, and overall pace is squares per day since the start, times seven. So the tile dips a little
+  each morning and recovers as the day's squares come in — wanted on a tile, where it reads as
+  "where today leaves me", and not on a trend chart. The tile and the chart's last average point can
+  therefore differ slightly.
   List rows generally float their badges to one side (`BadgeStack` in `ui/components.tsx`) so a long
   title or subtitle wraps under them instead of being truncated to make room.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional

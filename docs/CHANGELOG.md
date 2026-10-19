@@ -4,6 +4,19 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-18 — v0.1.29, Pace is the last 28 days, today included
+
+**App**
+- The Pace tile is now the squares finished in the last 28 calendar days, *today included*, divided
+  by four ("last 4 weeks"; fewer days early in a project). Today counts as a full day, so the pace
+  dips a little as each new day starts and climbs back as that day's squares are added. This
+  replaces v0.1.28's last-four-full-weeks figure, which hid today altogether.
+- The "overall" figure counts today the same way: squares per day since the start, today included,
+  times seven.
+- The Over time card is unchanged: its averages still leave today and the current week out, so the
+  tile and the chart's last average point can differ slightly. See the amended
+  [ADR 0029](adr/0029-monday-weeks-and-averages-over-complete-periods.md).
+
 ## 2026-10-18 — v0.1.28, Pace counts full weeks
 
 **App**

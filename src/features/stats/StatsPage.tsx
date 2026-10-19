@@ -4,7 +4,7 @@ import type { CsvRow } from '../../core/csv'
 import { dayNumber, dayString, today } from '../../core/date'
 import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, titleFor } from '../../core/schema'
 import type { IdenticalSquares, TableSchema } from '../../core/schema'
-import { WEEKLY_AVERAGE_WEEKS, paceOf, squaresOverTime } from '../../core/timeline'
+import { PACE_WINDOW_DAYS, paceOf, squaresOverTime } from '../../core/timeline'
 import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
 import type { DonutSlice } from '../../ui/components'
@@ -635,10 +635,8 @@ export function StatsPage() {
           a.label.localeCompare(b.label),
       )
 
-    // Pace is read off the Over time card's series — full Monday–Sunday weeks, with today and the
-    // current week left out — so the tile and the chart's latest moving-average point always agree.
-    // It used to be a 28×24-hour window ending at this moment, which counted a barely-started today
-    // as a full day and, by reading CSV dates as UTC midnight, lost a day at the far end too.
+    // One day-by-day series backs both the Over time card and the Pace tile (`paceOf`), so they
+    // count the same squares on the same days; they differ only in whether today is averaged in.
     const overTime = squaresOverTime(
       finished.map((r) => r.date ?? ''),
       today(),
@@ -693,7 +691,7 @@ export function StatsPage() {
 
   const goal = project.targetSquares
   const remaining = Math.max(0, goal - stats.done)
-  const { perWeek, windowWeeks, overallPerWeek } = stats.pace
+  const { perWeek, windowDays, overallPerWeek } = stats.pace
   const exactWeeksLeft = perWeek !== null && perWeek > 0 ? remaining / perWeek : null
   const weeksLeft = exactWeeksLeft === null ? null : Math.ceil(exactWeeksLeft)
   // From the exact rate, not the rounded-up weeks: adding whole weeks would push the date up to six
@@ -715,8 +713,8 @@ export function StatsPage() {
           value={perWeek === null ? '—' : perWeek.toFixed(1)}
           sub={
             perWeek === null
-              ? 'no full week yet'
-              : `squares per week, last ${windowWeeks >= WEEKLY_AVERAGE_WEEKS ? `${WEEKLY_AVERAGE_WEEKS} full weeks` : windowWeeks === 1 ? 'full week' : `${windowWeeks} full weeks`}`
+              ? 'nothing finished yet'
+              : `squares per week, last ${windowDays >= PACE_WINDOW_DAYS ? '4 weeks' : `${windowDays} day${windowDays === 1 ? '' : 's'}`}`
           }
           extra={
             overallPerWeek !== null ? (
@@ -727,7 +725,7 @@ export function StatsPage() {
         <Stat
           label="At this rate"
           value={weeksLeft === null ? '—' : `${weeksLeft}w`}
-          sub={perWeek === null ? 'no full week yet' : weeksLeft === null ? 'no recent squares' : 'until the last square'}
+          sub={perWeek === null ? 'nothing finished yet' : weeksLeft === null ? 'no recent squares' : 'until the last square'}
           extra={
             completionDate ? (
               <p className="text-[11px] italic text-muted">
