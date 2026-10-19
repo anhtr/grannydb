@@ -145,7 +145,7 @@ Facts about the project as a whole rather than about any one row:
 
 | Key | Type | Notes |
 |---|---|---|
-| `start_date` | `YYYY-MM-DD` | Sizes the Progress screen's pace window so weeks before you began don't dilute it |
+| `start_date` | `YYYY-MM-DD` | Where the Progress screen's pace and Over time charts begin, so empty weeks after it count and weeks before it don't (if a square is dated earlier, they begin there instead) |
 | `target_squares` | whole number | The "X / 400" on Progress, and the length of the status bar |
 
 JSON rather than a one-row CSV because there is exactly one of it: a table with a header row, an id

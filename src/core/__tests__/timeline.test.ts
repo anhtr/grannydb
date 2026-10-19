@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dayNumber, dayString, weekStart, weekdayIndex } from '../date'
-import { squaresOverTime } from '../timeline'
+import { paceOf, squaresOverTime } from '../timeline'
 
 describe('calendar days', () => {
   it('round-trips dates and rejects ones that are not real days', () => {
@@ -67,5 +67,30 @@ describe('squaresOverTime', () => {
     expect(result.weekdays[2]).toEqual({ average: 0, thisWeek: 1, lastWeek: 0 })
     // Thursday hasn't come yet this week.
     expect(result.weekdays[3]).toEqual({ average: 0, thisWeek: null, lastWeek: 0 })
+  })
+})
+
+describe('paceOf', () => {
+  it('averages the last four full Monday–Sunday weeks, ignoring the current one', () => {
+    // Five full weeks from Mon 7 Sep (1, 2, 3, 4, 5 squares on each Monday), then 9 squares this week.
+    const dates = [
+      ...['2026-09-07'],
+      ...Array(2).fill('2026-09-14'),
+      ...Array(3).fill('2026-09-21'),
+      ...Array(4).fill('2026-09-28'),
+      ...Array(5).fill('2026-10-05'),
+      ...Array(9).fill('2026-10-12'),
+    ]
+    const pace = paceOf(squaresOverTime(dates, '2026-10-14'))
+    expect(pace.perWeek).toBe((2 + 3 + 4 + 5) / 4)
+    expect(pace.windowWeeks).toBe(4)
+    // Overall: all 24 squares, over the 37 full days 7 Sep – 13 Oct (Monday the 12th is a full day).
+    expect(pace.overallPerWeek).toBeCloseTo((24 / 37) * 7)
+  })
+
+  it('shrinks the window early on and has no recent pace before the first full week', () => {
+    expect(paceOf(squaresOverTime(['2026-10-06', '2026-10-13'], '2026-10-14'))).toMatchObject({ perWeek: 1, windowWeeks: 1 })
+    expect(paceOf(squaresOverTime(['2026-10-12'], '2026-10-14'))).toMatchObject({ perWeek: null, windowWeeks: 0 })
+    expect(paceOf(null)).toEqual({ perWeek: null, windowWeeks: 0, overallPerWeek: null })
   })
 })

@@ -48,8 +48,14 @@ runs on whole day numbers (`dayNumber`, read through `Date.UTC`) rather than loc
 a daylight-saving change can't move a square into the neighbouring day.
 
 Moving averages use a trailing window — 4 weeks, 7 days — that shrinks at the start of the series
-instead of treating days before the project as zeros, for the same reason the Pace tile's window
-shrinks: a project in its second week shouldn't read as half its real rate.
+instead of treating days before the project as zeros: a project in its second week shouldn't read as
+half its real rate.
+
+The Pace tile is the same calculation (`paceOf`), not a parallel one. It used to be a trailing
+28 × 24-hour window ending at the current moment, which broke both rules at once: it counted a
+barely-started today as a full day, and because it read CSV dates as UTC midnight it dropped a day
+at the far end as well, while still dividing by four full weeks — so it read low. Overall pace is
+counted in full days rather than weeks, so a short first week doesn't drag on it forever.
 
 ## Consequences
 

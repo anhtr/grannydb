@@ -114,3 +114,33 @@ export function squaresOverTime(dates: string[], todayDate: string, startDate = 
 
   return { days, weeks, weekdays }
 }
+
+export interface Pace {
+  /** Mean squares per week over the last `windowWeeks` full weeks; null before the first full week. */
+  perWeek: number | null
+  /** How many full weeks `perWeek` averages — `WEEKLY_AVERAGE_WEEKS`, or fewer early in the project. */
+  windowWeeks: number
+  /** Squares per week across every full day of the range. */
+  overallPerWeek: number | null
+}
+
+/**
+ * The Progress screen's Pace tile, read off the same series the Over time card draws, so the tile and
+ * the chart's latest moving-average point are one number rather than two that disagree.
+ *
+ * Recent pace is over full Monday–Sunday weeks, and overall pace over full days — today and the
+ * current week are left out of both, for the reasons in ADR 0029. Overall pace is counted in days, not
+ * weeks, because a project that started mid-week would otherwise carry its short first week in the
+ * average forever; in the 4-week window that week drops out within a month.
+ */
+export function paceOf(overTime: SquaresOverTime | null): Pace {
+  if (!overTime) return { perWeek: null, windowWeeks: 0, overallPerWeek: null }
+  const complete = overTime.weeks.filter((w) => !w.partial)
+  const windowWeeks = Math.min(WEEKLY_AVERAGE_WEEKS, complete.length)
+  const fullDays = overTime.days.length - 1
+  return {
+    perWeek: complete.length > 0 ? complete[complete.length - 1].average : null,
+    windowWeeks,
+    overallPerWeek: fullDays > 0 ? (overTime.days[fullDays - 1].cumulative / fullDays) * 7 : null,
+  }
+}

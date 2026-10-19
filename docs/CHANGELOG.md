@@ -4,6 +4,24 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-18 — v0.1.28, Pace counts full weeks
+
+**App**
+- Fix: the Pace tile read low. It averaged a 28 × 24-hour window ending at the current moment — so a
+  barely-started today counted as a full day — and, by reading square dates as UTC midnight, dropped
+  a day at the far end while still dividing by four weeks. On 18 October it showed 11.3 a week where
+  the last four full weeks averaged 13.0.
+- Pace is now the average of the last 4 full Monday–Sunday weeks, the same number as the Over time
+  card's latest moving-average point ("last 4 full weeks"; fewer early in a project, and "—" before
+  the first full week). The "overall" figure is squares per full day since the start, times seven,
+  and now shows even without a start date (counting from the first square).
+- Fix: "At this rate" dated the last square by adding whole rounded-up weeks to today, up to six
+  days late. It now uses the exact rate; the "Nw" figure still rounds up.
+
+**Core**
+- `paceOf` in `core/timeline.ts`, covered in `timeline.test.ts`. See the amended
+  [ADR 0029](adr/0029-monday-weeks-and-averages-over-complete-periods.md).
+
 ## 2026-10-18 — v0.1.27, "Over time" on Progress
 
 **App**

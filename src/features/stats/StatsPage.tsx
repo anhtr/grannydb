@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CsvRow } from '../../core/csv'
-import { today } from '../../core/date'
+import { dayNumber, dayString, today } from '../../core/date'
 import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, titleFor } from '../../core/schema'
 import type { IdenticalSquares, TableSchema } from '../../core/schema'
-import { squaresOverTime } from '../../core/timeline'
+import { WEEKLY_AVERAGE_WEEKS, paceOf, squaresOverTime } from '../../core/timeline'
 import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
 import type { DonutSlice } from '../../ui/components'
@@ -12,9 +12,6 @@ import { statusMark, statusTone } from '../../ui/status'
 import { useMeasuredWidth } from '../../ui/useMeasuredWidth'
 import { OverTimeCard } from './OverTimeCard'
 
-const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
-/** The trailing window "Pace" normally averages over. */
-const PACE_WINDOW_WEEKS = 4
 
 function yarnLabel(schema: TableSchema | null, row: CsvRow | undefined, fallbackId: string): string {
   if (!schema || !row) return fallbackId
@@ -638,22 +635,15 @@ export function StatsPage() {
           a.label.localeCompare(b.label),
       )
 
-    // Pace over a trailing window, from the dates on finished squares. The window is normally 4
-    // weeks, but shrinks to however long the project has actually been running when that is less —
-    // otherwise a project in its second week would have its pace divided by 4 anyway and read as a
-    // quarter of the real rate.
-    const startMs = project.startDate ? Date.parse(project.startDate) : NaN
-    const elapsedWeeks = Number.isFinite(startMs) ? (Date.now() - startMs) / MS_PER_WEEK : Infinity
-    const paceWindowWeeks = Math.min(PACE_WINDOW_WEEKS, Math.max(elapsedWeeks, 1 / 7))
-    const cutoff = Date.now() - paceWindowWeeks * MS_PER_WEEK
-    const recent = finished.filter((r) => {
-      const t = Date.parse(r.date ?? '')
-      return Number.isFinite(t) && t >= cutoff
-    }).length
-
-    // Lifetime pace, for comparison against the trailing window above — null when there's no
-    // project start date to measure the "since when" from.
-    const overallPerWeek = Number.isFinite(startMs) && elapsedWeeks > 0 ? finished.length / elapsedWeeks : null
+    // Pace is read off the Over time card's series — full Monday–Sunday weeks, with today and the
+    // current week left out — so the tile and the chart's latest moving-average point always agree.
+    // It used to be a 28×24-hour window ending at this moment, which counted a barely-started today
+    // as a full day and, by reading CSV dates as UTC midnight, lost a day at the far end too.
+    const overTime = squaresOverTime(
+      finished.map((r) => r.date ?? ''),
+      today(),
+      project.startDate,
+    )
 
     const sortDesc = (m: Map<string, number>) =>
       [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -684,9 +674,7 @@ export function StatsPage() {
       done: finished.length,
       blocked: blocked.length,
       unblocked: finished.length - blocked.length,
-      perWeek: recent / paceWindowWeeks,
-      overallPerWeek,
-      paceWindowWeeks,
+      pace: paceOf(overTime),
       byStatus: byStatusOrdered,
       byDesign: sortDesc(byDesign),
       byYarn: sortDesc(byYarn),
@@ -697,11 +685,7 @@ export function StatsPage() {
       missingMainYarn: insights.missingMainYarn.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
       missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
       identical: identicalSquares(squares),
-      overTime: squaresOverTime(
-        finished.map((r) => r.date ?? ''),
-        today(),
-        project.startDate,
-      ),
+      overTime,
     }
   }, [squares, schema, project, resolve, yarns, yarnSchema, designs, sources])
 
@@ -709,8 +693,13 @@ export function StatsPage() {
 
   const goal = project.targetSquares
   const remaining = Math.max(0, goal - stats.done)
-  const weeksLeft = stats.perWeek > 0 ? Math.ceil(remaining / stats.perWeek) : null
-  const completionDate = weeksLeft !== null ? new Date(Date.now() + weeksLeft * MS_PER_WEEK) : null
+  const { perWeek, windowWeeks, overallPerWeek } = stats.pace
+  const exactWeeksLeft = perWeek !== null && perWeek > 0 ? remaining / perWeek : null
+  const weeksLeft = exactWeeksLeft === null ? null : Math.ceil(exactWeeksLeft)
+  // From the exact rate, not the rounded-up weeks: adding whole weeks would push the date up to six
+  // days later than the pace implies.
+  const completionDate =
+    exactWeeksLeft === null ? null : new Date(`${dayString(dayNumber(today()) + Math.ceil(exactWeeksLeft * 7))}T12:00`)
 
   return (
     <div className="space-y-2 px-4 pb-24">
@@ -723,22 +712,22 @@ export function StatsPage() {
         <Stat label="Blocked" value={`${stats.blocked}`} sub={`${stats.unblocked} still to block`} />
         <Stat
           label="Pace"
-          value={stats.perWeek.toFixed(1)}
-          sub={`squares per week, last ${
-            stats.paceWindowWeeks >= PACE_WINDOW_WEEKS
-              ? `${PACE_WINDOW_WEEKS} weeks`
-              : `${stats.paceWindowWeeks.toFixed(1)} week${stats.paceWindowWeeks >= 1.05 ? 's' : ''}`
-          }`}
+          value={perWeek === null ? '—' : perWeek.toFixed(1)}
+          sub={
+            perWeek === null
+              ? 'no full week yet'
+              : `squares per week, last ${windowWeeks >= WEEKLY_AVERAGE_WEEKS ? `${WEEKLY_AVERAGE_WEEKS} full weeks` : windowWeeks === 1 ? 'full week' : `${windowWeeks} full weeks`}`
+          }
           extra={
-            stats.overallPerWeek !== null ? (
-              <p className="text-[10px] text-muted">{stats.overallPerWeek.toFixed(1)}/week overall</p>
+            overallPerWeek !== null ? (
+              <p className="text-[10px] text-muted">{overallPerWeek.toFixed(1)}/week overall</p>
             ) : null
           }
         />
         <Stat
           label="At this rate"
           value={weeksLeft === null ? '—' : `${weeksLeft}w`}
-          sub={weeksLeft === null ? 'no recent squares' : 'until the last square'}
+          sub={perWeek === null ? 'no full week yet' : weeksLeft === null ? 'no recent squares' : 'until the last square'}
           extra={
             completionDate ? (
               <p className="text-[11px] italic text-muted">
