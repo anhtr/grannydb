@@ -4,6 +4,25 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-18 — v0.1.27, "Over time" on Progress
+
+**App**
+- New **Over time** card on the Progress screen, after "By status", collapsed by default. Collapsed:
+  finished squares per week (Monday to Sunday) as columns, with a 4-week moving average line.
+  Expanded adds: the average number of squares on each weekday, with this week's and last week's
+  counts marked across each column; squares per day with a 7-day moving average; and the running
+  total. Tapping or hovering a chart shows that point's numbers in the line above it.
+- Today and the current week are drawn faded and left out of every average, so a Monday morning
+  doesn't drag the trend down. See
+  [ADR 0029](adr/0029-monday-weeks-and-averages-over-complete-periods.md).
+
+**Core**
+- `core/date.ts` gains `dayNumber`/`dayString`/`dayLabel`, and `weekdayIndex`/`weekStart` — the
+  project's single definition of a week, Monday first. New `core/timeline.ts` (`squaresOverTime`)
+  computes the card's series; covered by `timeline.test.ts`.
+- `useMeasuredWidth` moves from `StatsPage.tsx` to `ui/useMeasuredWidth.ts`, now shared by the status
+  bar and the charts.
+
 ## 2026-10-17 — v0.1.26, project start date and target are data
 
 **Data**

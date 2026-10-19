@@ -10,6 +10,8 @@ src/
     github/        config, HTTP client, snapshot reads, commits, auth
     project/       project.json: parse, validate, read start date and target, apply key edits
     prefs/         device-local app preferences (per-table list filters/sort)
+    date.ts        calendar days as integers, and the one definition of a week (Monday first)
+    timeline.ts    finished squares bucketed by day, week and weekday, with moving averages
     store/         change queue, merge, sync, the offline snapshot cache, the app store
   ui/              shared React: primitives, field renderers, generic list/detail/form
   features/        one folder per screen that is more than "a table"
@@ -180,6 +182,16 @@ Three components in `ui/` serve every table:
   share a design, main colour and set of extras, using the same notion of "same combination" as the
   yarn and design detail views. Like the gap cards, it only renders when there is something to
   list, so a page with no duplicates stays quiet.
+  The "Over time" card ([`features/stats/OverTimeCard.tsx`](../src/features/stats/OverTimeCard.tsx))
+  draws `squaresOverTime` from [`core/timeline.ts`](../src/core/timeline.ts): squares per week with a
+  4-week moving average when collapsed; expanded, also the average per weekday (with this week's and
+  last week's counts marked across it), squares per day with a 7-day average, and the running total.
+  Weeks run Monday to Sunday everywhere — `weekdayIndex`/`weekStart` in
+  [`core/date.ts`](../src/core/date.ts) are the only place that is decided — and today and the current
+  week are drawn but left out of every average
+  ([ADR 0029](adr/0029-monday-weeks-and-averages-over-complete-periods.md)). The charts are
+  hand-drawn SVG sized by `useMeasuredWidth` (`ui/useMeasuredWidth.ts`); a tap or hover picks the
+  point the readout line above each chart describes, defaulting to the latest.
   List rows generally float their badges to one side (`BadgeStack` in `ui/components.tsx`) so a long
   title or subtitle wraps under them instead of being truncated to make room.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional
@@ -239,6 +251,7 @@ Coverage is deliberately concentrated where a bug loses data rather than annoys 
 | `schema.test.ts` | field validation, schema loading errors, whole-dataset integrity |
 | `sync.test.ts` | the full commit protocol against a fake GitHub, including conflict replay |
 | `router.test.ts` | route matching and specificity ordering |
+| `timeline.test.ts` | Monday-start weeks, day arithmetic across a DST change, and the Over time buckets and averages |
 | `offline.test.ts` | the snapshot cache key and its shape guard, and the load falling back to the saved copy when every read path throws |
 | `sw/__tests__/sw.test.ts` | the service worker in a fake worker global: what it precaches, what it serves, and that a cross-origin request is never intercepted |
 | `app.render.test.tsx` | one end-to-end mount against a frozen fixture dataset (`src/core/__tests__/fixtures/data/`), not `data/*.csv` — real tracker data changes shape and content on its own schedule and has nothing to do with whether the app mounts |

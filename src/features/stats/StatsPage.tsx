@@ -1,12 +1,16 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode, RefObject } from 'react'
+import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { CsvRow } from '../../core/csv'
+import { today } from '../../core/date'
 import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, titleFor } from '../../core/schema'
 import type { IdenticalSquares, TableSchema } from '../../core/schema'
+import { squaresOverTime } from '../../core/timeline'
 import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
 import type { DonutSlice } from '../../ui/components'
 import { statusMark, statusTone } from '../../ui/status'
+import { useMeasuredWidth } from '../../ui/useMeasuredWidth'
+import { OverTimeCard } from './OverTimeCard'
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
 /** The trailing window "Pace" normally averages over. */
@@ -168,29 +172,6 @@ const LABEL_PAD_PX = 8
 /** Whether `text` fits above a segment holding `share` of a bar `barPx` wide. */
 function labelFits(text: string, share: number, barPx: number): boolean {
   return share * barPx >= text.length * LABEL_CHAR_PX + LABEL_PAD_PX
-}
-
-/**
- * The rendered width of an element, kept current as the screen changes.
- *
- * Which labels fit above the status bar is the one thing on this page that a stylesheet cannot decide
- * and an estimate gets wrong in both directions: assume a narrow screen and a 390px phone loses
- * labels it had room for; assume a wide one and a 320px phone clips them. So measure. Before the
- * first measurement — and under jsdom, which has no `ResizeObserver` — the caller falls back to the
- * narrowest-phone estimate, which is never *too* generous.
- */
-function useMeasuredWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
-  const ref = useRef<T>(null)
-  const [width, setWidth] = useState(0)
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (!element || typeof ResizeObserver === 'undefined') return
-    setWidth(element.getBoundingClientRect().width)
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-  return [ref, width]
 }
 
 /**
@@ -575,7 +556,7 @@ function Stat({ label, value, sub, extra }: { label: string; value: string; sub?
 
 /** Collapsed by default — these are the biggest cards on the page, and the summary (a line, a chip
  * row, or "By status"'s stacked bar) is usually all a glance needs. */
-const INITIAL_COLLAPSED = { byStatus: true, byMainColour: true, byColour: true, byDesign: true, bySource: true }
+const INITIAL_COLLAPSED = { overTime: true, byStatus: true, byMainColour: true, byColour: true, byDesign: true, bySource: true }
 
 export function StatsPage() {
   const squares = useTable('squares')
@@ -716,6 +697,11 @@ export function StatsPage() {
       missingMainYarn: insights.missingMainYarn.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
       missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: r.date ?? '' })),
       identical: identicalSquares(squares),
+      overTime: squaresOverTime(
+        finished.map((r) => r.date ?? ''),
+        today(),
+        project.startDate,
+      ),
     }
   }, [squares, schema, project, resolve, yarns, yarnSchema, designs, sources])
 
@@ -770,6 +756,8 @@ export function StatsPage() {
         collapsed={collapsed.byStatus}
         onToggle={() => toggle('byStatus')}
       />
+
+      <OverTimeCard data={stats.overTime} collapsed={collapsed.overTime} onToggle={() => toggle('overTime')} />
 
       <TallyCard
         title="Finished, by construction"
