@@ -192,3 +192,7 @@ S188,done,,,2026-10-17,,D161,Last round is solid hdc instead of dc. Two colors o
 S189,done,,,2026-10-17,,D162,Two colors only. Omit last round. Last dc round is backloop dc instead. Adjust stitch count.,Y81,Y82,,,
 S190,done,,,2026-10-18,,D163,Add extra border round (sc). 2.25 mm hook for last two rounds. Two colors only.,Y136,Y84,,,
 S191,done,,,2026-10-18,,D164,Deviated a lot from the design because the instructions and images are mismatched. Adjusted stitch count. Omit and change height of rounds. 2.25 mm hook.,Y136,,,,
+S192,done,,,2026-10-19,,D165,Add another round (dc) before the final round. Adjust stitch count. Two colors only.,Y68,Y60,,,
+S193,in progress,2026-10-19,2026-10-19,,,D166,,Y68,Y17,,,
+S194,planned,2026-10-19,,,,D167,,Y113,,,,
+S195,planned,2026-10-19,,,,D168,,Y113,Y17,,,
