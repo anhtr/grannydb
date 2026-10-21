@@ -43,47 +43,48 @@ function mayLeave(): boolean {
 }
 
 /**
+ * What an in-app navigation records on its history entry: the path it was opened from. Kept on the
+ * entry itself (`history.state`) rather than in a variable, because it has to survive the browser's
+ * own Back and Forward - after a traversal, "the page shown last" and "the entry behind this one" are
+ * different pages, and only the entry knows the second.
+ */
+interface EntryState {
+  from: string
+}
+
+function entryFrom(): string | null {
+  const state = window.history.state as Partial<EntryState> | null
+  return typeof state?.from === 'string' ? state.from : null
+}
+
+/**
  * Through the History API and a synthetic `hashchange`, not by assigning `location.hash`: assigning
  * it is a fragment navigation, and Chrome scrolls the page to the top for one before the app has even
  * heard about it - wiping the scroll position a list is about to save for when you come back.
+ *
+ * A pushed entry records the current path as where it came from; a replacing one keeps the entry's
+ * existing record, because replacing does not change what is behind it (new record → its saved page).
  */
 export function navigate(to: string, options: { replace?: boolean } = {}): void {
   const target = `#${to.startsWith('/') ? to : `/${to}`}`
   if (target === window.location.hash || !mayLeave()) return
   if (options.replace) {
-    window.history.replaceState(null, '', target)
-    replacing = true
+    const from = entryFrom()
+    window.history.replaceState(from === null ? null : ({ from } satisfies EntryState), '', target)
   } else {
-    window.history.pushState(null, '', target)
+    window.history.pushState({ from: currentPath() } satisfies EntryState, '', target)
   }
   window.dispatchEvent(new HashChangeEvent('hashchange'))
 }
 
 /**
- * The path shown before the current one, so a "back" link can tell whether the page it points to is
- * the one actually behind it in history. Tracked here rather than read from `history`, which does not
- * expose its entries.
- */
-let shownPath = typeof window === 'undefined' ? '/' : currentPath()
-let previousPath: string | null = null
-/** Set by a replacing `navigate`: the entry behind the new page is the same one as before. */
-let replacing = false
-if (typeof window !== 'undefined') {
-  window.addEventListener('hashchange', () => {
-    if (!replacing) previousPath = shownPath
-    replacing = false
-    shownPath = currentPath()
-  })
-}
-
-/**
- * Go "up" to `to`: by stepping back through history when that is where the last navigation came
- * from, so list → record → back does not leave a second copy of the list on the history stack (and the
- * browser restores where the list was scrolled to); by navigating there otherwise, e.g. after opening
- * a record from a shared link, where stepping back would leave the app altogether.
+ * Go "up" to `to`: by stepping back through history when the entry behind this one is `to`, so
+ * list → record → back does not leave a second copy of the list on the history stack; by navigating
+ * there otherwise - after opening a record from a shared link, say, where stepping back would leave
+ * the app altogether, or on an entry the browser reached by its own Back/Forward from elsewhere.
  */
 export function goBack(to: string): void {
-  if (previousPath === to && window.history.length > 1) {
+  if (entryFrom() === to) {
     if (mayLeave()) window.history.back()
   } else {
     navigate(to)

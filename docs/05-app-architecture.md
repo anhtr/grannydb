@@ -148,9 +148,13 @@ Fixed routes are checked before `/:table` so `/settings` is not read as a table 
 
 Record, edit and new screens carry a back link to their parent route (`PageHeader`'s `back`), since
 an app installed to the home screen has no browser back button. It goes through `goBack` in
-`router.ts`, which steps back through history when the parent is the screen you just came from - so
+`router.ts`, which steps back through history when the entry behind the current one is the parent - so
 list → record → back restores the list's scroll position and leaves no duplicate history entry - and
 navigates there otherwise, e.g. on a record opened from a shared link. The form's Cancel does the same.
+Which entry is behind is recorded on the entry itself: `navigate` pushes `{ from: <current path> }` as
+its `history.state` (a replace keeps the entry's existing `from`). A variable holding "the page shown
+last" would be wrong after the browser's own Back or Forward, where the page just left and the entry
+behind are different pages; `history.state` travels with the entry through any traversal.
 
 Every screen opens at the top (`ScrollToTop` in `App.tsx`, with the browser's own scroll
 restoration switched off); a list puts back its own scroll position and search text when you return
