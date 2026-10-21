@@ -424,7 +424,7 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
  * Selection order is preserved, because for a square the order colours were worked in is real
  * information.
  */
-function RefListInput({ field, value, onChange }: FieldInputProps) {
+function RefListInput({ field, value, onChange, id }: FieldInputProps) {
   const separator = field.separator ?? ';'
   const selected = splitList(value, separator)
   const schema = useTableSchema(field.refTable ?? '')
@@ -453,6 +453,7 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
     <div className="space-y-2">
       {entries.length > 0 ? (
         <input
+          id={id}
           type="search"
           className={inputClass}
           placeholder={`Search ${schema?.label.toLowerCase() ?? '…'}`}
@@ -498,7 +499,13 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
             </button>
           )
         })}
-        {entries.length === 0 ? <Muted>Nothing to pick from yet.</Muted> : null}
+        {/* With no search box rendered, this note carries the field's id instead, so the form can still
+            move focus here when the field has an error (a selected yarn that no longer exists). */}
+        {entries.length === 0 ? (
+          <span id={id} tabIndex={-1} className="text-muted outline-none">
+            Nothing to pick from yet.
+          </span>
+        ) : null}
         {entries.length > 0 && !searching && visible.length === 0 ? (
           <Muted>Type to search — nothing selected yet.</Muted>
         ) : null}
