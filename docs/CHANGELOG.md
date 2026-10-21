@@ -29,6 +29,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   heading above it.
 - Settings: each label is tied to its box (tapping it focuses the box, screen readers announce it),
   and Enter in the token box saves the token.
+- A long sort rule no longer squeezes the list's search box: the Sort button's field name truncates,
+  keeping the direction arrow or "+N", and the full rule is in its tooltip.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
