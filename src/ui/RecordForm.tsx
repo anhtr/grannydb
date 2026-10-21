@@ -159,8 +159,9 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
         })}
       </div>
 
-      {/* Sticky so Save is always in thumb reach on a long form. */}
-      <div className="fixed inset-x-0 bottom-16 z-20 border-t border-line bg-paper/95 px-4 py-3 pb-safe backdrop-blur">
+      {/* Sticky so Save is always in thumb reach on a long form. Rides on the footer's measured height
+          (see `useFooterHeight` in App.tsx), which already pads for the home indicator. */}
+      <div className="fixed inset-x-0 bottom-[var(--footer-height,4rem)] z-20 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-2xl gap-3">
           <Button
             variant="ghost"

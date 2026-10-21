@@ -728,7 +728,7 @@ function FilterPanel({
  */
 function NewRecordButton({ table, schema }: { table: string; schema: TableSchema }) {
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-16 z-20 flex justify-end px-4 pb-safe">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[var(--footer-height,4rem)] z-20 flex justify-end px-4 pb-2">
       <div className="mx-auto flex w-full max-w-2xl justify-end">
         <Link to={`/${table}/new`} className="pointer-events-auto">
           <Button variant="primary" className="shadow-lg shadow-black/20">
