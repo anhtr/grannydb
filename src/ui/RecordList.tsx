@@ -311,12 +311,11 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
   const activeFilters = Object.values(filters).filter((v) => v.length > 0).length
   const sortActive = !sortsEqual(sorts, defaultSorts(schema))
   const sortLabel = (key: string) => allSortOptions.find((o) => o.key === key)?.label ?? key
-  const sortButtonText =
-    sorts.length === 0
-      ? 'Sort'
-      : sorts.length === 1
-        ? `Sort: ${sortLabel(sorts[0].key)} ${sorts[0].dir === 'asc' ? '↑' : '↓'}`
-        : `Sort: ${sortLabel(sorts[0].key)} +${sorts.length - 1}`
+  // Split so only the field name truncates on a narrow screen, never the direction or the "+1".
+  const sortButtonMain = sorts.length === 0 ? 'Sort' : `Sort: ${sortLabel(sorts[0].key)}`
+  const sortButtonTail =
+    sorts.length === 0 ? '' : sorts.length === 1 ? (sorts[0].dir === 'asc' ? '↑' : '↓') : `+${sorts.length - 1}`
+  const sortButtonText = `${sortButtonMain} ${sortButtonTail}`.trim()
 
   return (
     <div className="pb-32">
@@ -336,9 +335,11 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
           {allSortOptions.length > 0 ? (
             <button
               type="button"
-              aria-label="Sort"
+              title={sortButtonText}
               aria-expanded={sortPanelOpen}
-              className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
+              // Capped and truncated: a long rule ("Sort: Main colour +1") otherwise squeezes the search
+              // box down to a few letters on a phone. The panel spells the rules out in full.
+              className={`tap-target flex min-w-0 max-w-[40%] shrink items-center gap-1 whitespace-nowrap rounded-xl border px-3 text-sm ${
                 sortActive ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
               }`}
               onClick={() => {
@@ -346,7 +347,8 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
                 setSortPanelOpen((v) => !v)
               }}
             >
-              {sortButtonText}
+              <span className="min-w-0 truncate">{sortButtonMain}</span>
+              {sortButtonTail ? <span className="shrink-0">{sortButtonTail}</span> : null}
             </button>
           ) : null}
           {filterDescriptors.length > 0 ? (
