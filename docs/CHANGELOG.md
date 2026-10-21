@@ -42,6 +42,9 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   column keys, mark a record that is new, and link to the record.
 - The active bottom-nav tab is announced as the current page to screen readers, and Escape closes the
   Sort and Filter panels.
+- On a narrow phone the Sort panel wraps each rule's buttons under its name instead of cutting the
+  name to two letters, and the Sort and Filter panels stop above the bottom bar instead of running
+  under it.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
