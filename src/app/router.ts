@@ -24,13 +24,32 @@ export function useRoute(): string {
 }
 
 /**
+ * Asked before any in-app navigation; returning false cancels it. Set by a screen holding unsaved
+ * work (the record form). Only in-app links go through it — the browser's own back gesture cannot be
+ * stopped from a hash route, which is why the form also asks on `beforeunload` for a closed tab.
+ */
+let leaveGuard: (() => boolean) | null = null
+
+/** Install `guard` until the returned cleanup runs. */
+export function setLeaveGuard(guard: () => boolean): () => void {
+  leaveGuard = guard
+  return () => {
+    if (leaveGuard === guard) leaveGuard = null
+  }
+}
+
+function mayLeave(): boolean {
+  return leaveGuard === null || leaveGuard()
+}
+
+/**
  * Through the History API and a synthetic `hashchange`, not by assigning `location.hash`: assigning
  * it is a fragment navigation, and Chrome scrolls the page to the top for one before the app has even
  * heard about it — wiping the scroll position a list is about to save for when you come back.
  */
 export function navigate(to: string, options: { replace?: boolean } = {}): void {
   const target = `#${to.startsWith('/') ? to : `/${to}`}`
-  if (target === window.location.hash) return
+  if (target === window.location.hash || !mayLeave()) return
   if (options.replace) {
     window.history.replaceState(null, '', target)
   } else {
@@ -61,7 +80,7 @@ if (typeof window !== 'undefined') {
  */
 export function goBack(to: string): void {
   if (previousPath === to && window.history.length > 1) {
-    window.history.back()
+    if (mayLeave()) window.history.back()
   } else {
     navigate(to)
   }
