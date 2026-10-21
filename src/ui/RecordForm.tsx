@@ -4,7 +4,7 @@ import { changeStatus, effectiveValue, fieldByKey, fillStatusDates, statusDateIs
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import { appStore } from '../core/store'
 import { useAppState, useRefIds, useResolveRef, useRow, useTableSchema, useToday } from '../app/hooks'
-import { useNavigate } from '../app/router'
+import { goBack, useNavigate } from '../app/router'
 import { Button, ErrorNote, FieldShell, Spinner } from './components'
 import { rendererFor } from './fields'
 
@@ -166,7 +166,7 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
           <Button
             variant="ghost"
             className="flex-1"
-            onClick={() => navigate(id ? `/${table}/${id}` : `/${table}`)}
+            onClick={() => goBack(id ? `/${table}/${id}` : `/${table}`)}
           >
             Cancel
           </Button>

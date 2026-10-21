@@ -143,6 +143,12 @@ Routes, matched most-specific first:
 
 Fixed routes are checked before `/:table` so `/settings` is not read as a table named "settings".
 
+Record, edit and new screens carry a back link to their parent route (`PageHeader`'s `back`), since
+an app installed to the home screen has no browser back button. It goes through `goBack` in
+`router.ts`, which steps back through history when the parent is the screen you just came from — so
+list → record → back restores the list's scroll position and leaves no duplicate history entry — and
+navigates there otherwise, e.g. on a record opened from a shared link. The form's Cancel does the same.
+
 ## The generic CRUD components
 
 Three components in `ui/` serve every table:

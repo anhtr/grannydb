@@ -10,6 +10,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 - The form's Save bar and a list's "New" button float on the bottom bar's measured height
   (`--footer-height`, set in `App.tsx`) instead of a fixed 64px, so the offline/update line and an
   iPhone's home-indicator inset no longer cover them.
+- Record, edit and new screens have a back link to the list (or record) above the title, and a
+  record's header shows its title ("92 (Lagoon)") with the id underneath instead of the bare id.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
