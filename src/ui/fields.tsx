@@ -298,10 +298,13 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
               setOpen(true)
               setQuery('')
               setActive(0)
-              // Lift the box towards the top so its results open in view, not under the Save bar or
-              // the on-screen keyboard — after a beat, once the keyboard has finished resizing things.
+              // On a touch screen, lift the box towards the top so its results open in view, not under
+              // the Save bar or the on-screen keyboard — after a beat, once the keyboard has finished
+              // resizing things. With a mouse there is no keyboard to dodge, and the jump is just noise.
               const input = e.currentTarget
-              setTimeout(() => input.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300)
+              if (window.matchMedia?.('(pointer: coarse)').matches) {
+                setTimeout(() => input.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300)
+              }
             }}
             onChange={(e) => {
               setQuery(e.target.value)
