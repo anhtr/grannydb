@@ -12,6 +12,9 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   iPhone's home-indicator inset no longer cover them.
 - Record, edit and new screens have a back link to the list (or record) above the title, and a
   record's header shows its title ("92 (Lagoon)") with the id underneath instead of the bare id.
+- Coming back to a list from a record puts you where you were, with your search still typed in
+  (for the session; filters and sort were already remembered). Every other screen opens at the top,
+  and tapping the tab you are already on scrolls back to the top.
 
 ## 2026-10-18 — v0.1.31, a date per status
 

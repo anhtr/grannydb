@@ -23,14 +23,20 @@ export function useRoute(): string {
   return useSyncExternalStore(subscribe, currentPath, () => '/')
 }
 
+/**
+ * Through the History API and a synthetic `hashchange`, not by assigning `location.hash`: assigning
+ * it is a fragment navigation, and Chrome scrolls the page to the top for one before the app has even
+ * heard about it — wiping the scroll position a list is about to save for when you come back.
+ */
 export function navigate(to: string, options: { replace?: boolean } = {}): void {
   const target = `#${to.startsWith('/') ? to : `/${to}`}`
+  if (target === window.location.hash) return
   if (options.replace) {
     window.history.replaceState(null, '', target)
-    window.dispatchEvent(new HashChangeEvent('hashchange'))
   } else {
-    window.location.hash = target
+    window.history.pushState(null, '', target)
   }
+  window.dispatchEvent(new HashChangeEvent('hashchange'))
 }
 
 /**
