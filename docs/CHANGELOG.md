@@ -22,6 +22,9 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 - Each screen sets the page title ("Squares · grannydb"), so tabs and history entries are told apart.
 - An empty table says so ("No designs yet") instead of "No designs match"; a search or filter that
   matches nothing offers a button that clears it.
+- The colour editor's RGB boxes are their intended narrow width again (they had stretched to full
+  width and wrapped, squeezing the add/remove buttons off the row); add/remove are outlined buttons
+  and the reorder arrows have a larger tap area.
 
 ## 2026-10-18 — v0.1.31, a date per status
 

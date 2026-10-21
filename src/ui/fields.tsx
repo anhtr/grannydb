@@ -490,7 +490,8 @@ function ColorPickerRow({
             min={0}
             max={255}
             aria-label={channel.toUpperCase()}
-            className={`${inputClass} w-14 px-1.5 py-1 text-center text-sm`}
+            // Not `inputClass`: its `w-full` wins over a width set here and stretches each box across the row.
+            className="tap-target w-14 rounded-xl border border-line bg-card px-1.5 py-1 text-center text-sm outline-none focus:border-accent"
             value={rgb[channel]}
             onChange={(e) => setChannel(channel, Number(e.target.value))}
           />
@@ -543,7 +544,7 @@ function ColorListInput({ field, value, onChange, id }: FieldInputProps) {
             <div className="flex shrink-0 flex-col">
               <button
                 type="button"
-                className="px-1 text-xs leading-tight text-muted hover:text-ink disabled:opacity-30"
+                className="px-2 py-1.5 text-xs leading-tight text-muted hover:text-ink disabled:opacity-30"
                 disabled={i === 0}
                 onClick={() => moveColour(i, -1)}
                 aria-label="Move colour earlier"
@@ -552,7 +553,7 @@ function ColorListInput({ field, value, onChange, id }: FieldInputProps) {
               </button>
               <button
                 type="button"
-                className="px-1 text-xs leading-tight text-muted hover:text-ink disabled:opacity-30"
+                className="px-2 py-1.5 text-xs leading-tight text-muted hover:text-ink disabled:opacity-30"
                 disabled={i === colours.length - 1}
                 onClick={() => moveColour(i, 1)}
                 aria-label="Move colour later"
@@ -563,14 +564,14 @@ function ColorListInput({ field, value, onChange, id }: FieldInputProps) {
           ) : null}
           <ColorPickerRow value={hex} onChange={(v) => setColour(i, v)} id={i === 0 ? id : undefined} />
           {i === 0 ? (
-            <Button type="button" variant="ghost" className="shrink-0 px-3" onClick={addColour} aria-label="Add another colour">
+            <Button type="button" variant="secondary" className="shrink-0 self-start px-3" onClick={addColour} aria-label="Add another colour">
               +
             </Button>
           ) : (
             <Button
               type="button"
-              variant="ghost"
-              className="shrink-0 px-3"
+              variant="secondary"
+              className="shrink-0 self-start px-3"
               onClick={() => removeColour(i)}
               aria-label="Remove this colour"
             >
