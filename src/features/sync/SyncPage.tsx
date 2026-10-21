@@ -8,7 +8,7 @@ import { useAppState } from '../../app/hooks'
 import { Badge, Button, Card, EmptyState, ErrorNote, Link } from '../../ui/components'
 
 /**
- * One queued change in words: which record, whether it is new, and which fields — by their labels, as
+ * One queued change in words: which record, whether it is new, and which fields - by their labels, as
  * the form shows them, rather than the CSV column keys the queue stores.
  */
 function describe(change: Change, state: AppState): { record: string; fields: string; link?: string } {

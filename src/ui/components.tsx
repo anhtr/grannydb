@@ -453,7 +453,7 @@ export function ErrorNote({ children }: { children: ReactNode }) {
   )
 }
 
-/** `inlineLabel` is for a control that already names itself beside it — a checkbox — where a second
+/** `inlineLabel` is for a control that already names itself beside it - a checkbox - where a second
  * copy of the label above it would just repeat; the label stays for screen readers and for
  * `scrollIntoView` targeting by `label[for]`. */
 export function FieldShell({

@@ -200,7 +200,7 @@ function Screen({ path }: { path: string }) {
           action={<SyncButton />}
         />
         {/* Keyed per record, like the list per table: following a link from one record to another
-            must not carry over the first one's state — least of all an armed "Really delete". */}
+            must not carry over the first one's state - least of all an armed "Really delete". */}
         <RecordDetail
           key={`${detailMatch.table}/${detailMatch.id}`}
           table={detailMatch.table}
@@ -236,7 +236,7 @@ function Screen({ path }: { path: string }) {
   )
 }
 
-/** A record's title for a page header — "92 (Lagoon)" rather than "Y75" — or its id if it has none. */
+/** A record's title for a page header - "92 (Lagoon)" rather than "Y75" - or its id if it has none. */
 function recordTitle(state: AppState, table: string, id: string): string {
   const schema = state.snapshot?.schemas.tables[table]
   const data = state.data[table]
@@ -326,7 +326,7 @@ function BottomNav({ path }: { path: string }) {
           <li
             key={item.to}
             className="flex-1"
-            // Tapping the tab you are already on goes back to the top, the way a phone's own apps do —
+            // Tapping the tab you are already on goes back to the top, the way a phone's own apps do -
             // the one way back up a list that now keeps its scroll position.
             onClickCapture={() => {
               if (path === item.to) window.scrollTo({ top: 0, behavior: 'smooth' })

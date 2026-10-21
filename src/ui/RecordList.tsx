@@ -221,7 +221,7 @@ function initialListPrefs(schema: TableSchema | null, saved: ListPrefs | undefin
 }
 
 /**
- * Each list's search text and scroll position, for this session only — opening a record and coming
+ * Each list's search text and scroll position, for this session only - opening a record and coming
  * back should land where you were, typed search included. Not saved with the filters and sort in
  * `prefs`: a search is a passing question, and finding one still applied tomorrow would be a surprise.
  */
@@ -512,7 +512,7 @@ function SortPanel({
         <ol className="space-y-1.5">
           {sorts.map((sort, i) => (
             // Wraps the four controls under the name on a narrow phone rather than truncating the name to
-            // a couple of letters — which rule is which matters more than keeping it on one line.
+            // a couple of letters - which rule is which matters more than keeping it on one line.
             <li key={sort.key} className="flex flex-wrap items-center gap-1.5">
               <span className="w-4 shrink-0 text-center text-xs text-muted">{i + 1}</span>
               <span className="min-w-[7rem] flex-1 truncate text-sm">

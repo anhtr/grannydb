@@ -257,7 +257,7 @@ export function squareConstructionInsights(
   }
 }
 
-/** The rows in one table whose `field` points at a given record — see `referencesTo`. */
+/** The rows in one table whose `field` points at a given record - see `referencesTo`. */
 export interface IncomingReference {
   table: string
   field: FieldDef
@@ -265,7 +265,7 @@ export interface IncomingReference {
 }
 
 /**
- * Every row, in any table, whose `ref` or `reflist` field names `table`/`id` — what a delete would
+ * Every row, in any table, whose `ref` or `reflist` field names `table`/`id` - what a delete would
  * leave pointing at nothing. Worth saying before the delete rather than after: a dangling reference
  * is a validation error, so the next deploy's data check would fail on it.
  */
