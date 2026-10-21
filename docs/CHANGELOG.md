@@ -25,6 +25,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 - The colour editor's RGB boxes are their intended narrow width again (they had stretched to full
   width and wrapped, squeezing the add/remove buttons off the row); add/remove are outlined buttons
   and the reorder arrows have a larger tap area.
+- A checkbox field (Partial skein, Too low) shows its name once, beside the box, instead of also as a
+  heading above it.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
