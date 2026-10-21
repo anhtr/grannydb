@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { IncomingReference } from '../core/schema'
 import type { ReactNode } from 'react'
 import { appStore } from '../core/store'
@@ -22,6 +22,13 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
   const navigate = useNavigate()
   const resolve = useResolveRef()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const actionsRef = useRef<HTMLDivElement>(null)
+
+  // The impact note opens above the buttons and pushes "Really delete" down, often under the bottom
+  // bar; bring the buttons back into view so the confirm step is not hidden behind its own warning.
+  useEffect(() => {
+    if (confirmingDelete) actionsRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+  }, [confirmingDelete])
 
   if (!schema) return <Spinner label="Loading schema" />
   if (!row) {
@@ -75,7 +82,7 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
       ) : null}
 
       {canEdit ? (
-        <div className="flex gap-3 px-4">
+        <div ref={actionsRef} className="flex scroll-mb-[calc(var(--footer-height,4rem)+1rem)] gap-3 px-4">
           <Button variant="primary" className="flex-1" onClick={() => navigate(`/${table}/${id}/edit`)}>
             Edit
           </Button>
