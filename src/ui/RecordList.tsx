@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CsvRow, CsvTable } from '../core/csv'
 import { compareIds } from '../core/csv'
@@ -220,13 +220,45 @@ function initialListPrefs(schema: TableSchema | null, saved: ListPrefs | undefin
   return { filters: normalizeFilters(saved?.filters), sorts: defaultSorts(schema) }
 }
 
+/**
+ * Each list's search text and scroll position, for this session only — opening a record and coming
+ * back should land where you were, typed search included. Not saved with the filters and sort in
+ * `prefs`: a search is a passing question, and finding one still applied tomorrow would be a surprise.
+ */
+const listMemory = new Map<string, { query: string; scrollY: number }>()
+
+/** Keeps `listMemory` current for `table` and puts the scroll position back on return. */
+function useListMemory(table: string, query: string, ready: boolean) {
+  const queryRef = useRef(query)
+  queryRef.current = query
+  const restored = useRef(false)
+
+  useLayoutEffect(() => {
+    if (!ready || restored.current) return
+    restored.current = true
+    const saved = listMemory.get(table)
+    if (saved) window.scrollTo(0, saved.scrollY)
+  }, [table, ready])
+
+  // Not before the rows are in: a spinner's scroll position of 0 would overwrite the saved one. A
+  // layout effect, so the listener is gone before the next screen resets the scroll to the top.
+  useLayoutEffect(() => {
+    if (!ready) return
+    const remember = () => listMemory.set(table, { query: queryRef.current, scrollY: window.scrollY })
+    remember()
+    window.addEventListener('scroll', remember, { passive: true })
+    return () => window.removeEventListener('scroll', remember)
+  }, [table, query, ready])
+}
+
 export function RecordList({ table, renderRow, header, extraSortOptions, extraFilters }: RecordListProps) {
   const state = useAppState()
   const schema = useTableSchema(table)
   const data = useTable(table)
   const resolve = useResolveRef()
   const canEdit = useCanEdit()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => listMemory.get(table)?.query ?? '')
+  useListMemory(table, query, schema !== null && data !== null)
   const [sortPanelOpen, setSortPanelOpen] = useState(false)
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [listPrefs, setListPrefsState] = useState<ListPrefs>(() =>

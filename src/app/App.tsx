@@ -62,6 +62,8 @@ export function App() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
+      {/* Before <Screen> so its reset runs first and a list can put back its own position after it. */}
+      <ScrollToTop path={path} />
       <Screen path={path} />
       {/* One sticky footer: the nav, with the status line riding directly above it. Two separate
           sticky elements would overlap by the safe-area inset on a phone with a home indicator. */}
@@ -95,6 +97,21 @@ function useFooterHeight() {
     return () => observer.disconnect()
   }, [])
   return ref
+}
+
+/**
+ * Every screen opens at the top. Restoring scroll is left to the one screen where it matters, the list
+ * (see `RecordList`), because the browser's own restoration runs before React has re-rendered the
+ * list it would be restoring into, and lands on a page that is still the short record screen.
+ */
+function ScrollToTop({ path }: { path: string }) {
+  useLayoutEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'
+  }, [])
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [path])
+  return null
 }
 
 function Screen({ path }: { path: string }) {
@@ -303,7 +320,15 @@ function BottomNav({ path }: { path: string }) {
     <nav className="border-t border-line bg-paper/95 pb-safe backdrop-blur">
       <ul className="mx-auto flex max-w-2xl">
         {items.map((item) => (
-          <li key={item.to} className="flex-1">
+          <li
+            key={item.to}
+            className="flex-1"
+            // Tapping the tab you are already on goes back to the top, the way a phone's own apps do —
+            // the one way back up a list that now keeps its scroll position.
+            onClickCapture={() => {
+              if (path === item.to) window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          >
             <Link
               to={item.to}
               className={`tap-target flex h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium transition ${

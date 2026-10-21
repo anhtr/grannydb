@@ -149,6 +149,13 @@ an app installed to the home screen has no browser back button. It goes through 
 list → record → back restores the list's scroll position and leaves no duplicate history entry — and
 navigates there otherwise, e.g. on a record opened from a shared link. The form's Cancel does the same.
 
+Every screen opens at the top (`ScrollToTop` in `App.tsx`, with the browser's own scroll
+restoration switched off); a list puts back its own scroll position and search text when you return
+to it in the same session (`listMemory` in `RecordList.tsx`). The browser cannot do this itself: it
+restores scroll before React has re-rendered the list, onto a page that is still the short record
+screen. `navigate` pushes history entries with `pushState` rather than assigning `location.hash`,
+because a fragment navigation makes Chrome jump to the top before the list can save where it was.
+
 ## The generic CRUD components
 
 Three components in `ui/` serve every table:
