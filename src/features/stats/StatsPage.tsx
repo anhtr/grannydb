@@ -546,7 +546,8 @@ function Stat({ label, value, sub, extra }: { label: string; value: string; sub?
   return (
     <Card className="p-3">
       <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      {/* Scales down a touch on the narrowest phones so "194 / 400" stays one figure, not two lines. */}
+      <p className="mt-1 whitespace-nowrap text-[clamp(1.25rem,6.5vw,1.5rem)] font-semibold tabular-nums">{value}</p>
       {sub ? <p className="text-xs text-muted">{sub}</p> : null}
       {extra}
     </Card>

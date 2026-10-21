@@ -45,6 +45,7 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 - On a narrow phone the Sort panel wraps each rule's buttons under its name instead of cutting the
   name to two letters, and the Sort and Filter panels stop above the bottom bar instead of running
   under it.
+- Progress tiles keep a figure like "194 / 400" on one line on the narrowest phones.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
