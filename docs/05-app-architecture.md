@@ -261,6 +261,12 @@ Used mostly one-handed, on a phone, sometimes standing up:
 - **16px minimum font size on inputs**, otherwise iOS zooms the viewport on focus.
 - **Sticky search** with `enterKeyHint="search"` and `inputMode` hints for the right keyboard.
 - **Sticky save bar** so Save is reachable on a long form without scrolling.
+- **Float on the measured footer.** Anything fixed above the bottom bar (the save bar, the "New"
+  button) sits at `bottom: var(--footer-height)`, which `App.tsx` keeps equal to the bar's real
+  height. The bar grows with the offline/update line and the home-indicator inset, so no constant
+  offset is right on every phone.
+- **A back link on every screen below a list**, because an app installed to the home screen has no
+  browser back button (see Routing).
 - **Tap-to-toggle chips** for multi-select instead of a `<select multiple>`, which is close to
   unusable on a phone. Selection order is shown, because for a square the order colours were worked
   in is real information.
