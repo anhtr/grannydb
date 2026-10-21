@@ -240,7 +240,9 @@ Three components in `ui/` serve every table:
   status, clear later ones) and save also checks `statusDateIssues`; quick-create does the same.
   A save that fails validation scrolls to and focuses the first field with an error. Leaving with
   unsaved edits asks first: in-app navigation goes through a guard the form installs with
-  `setLeaveGuard` (`app/router.ts`), and closing or reloading the tab through `beforeunload`. The
+  `setLeaveGuard` (`app/router.ts`), and closing or reloading the tab through `beforeunload`. "Unsaved"
+  includes a half-filled inline "+ New …" form, which reports itself to the record form through
+  `DraftReporterContext` (`ui/fields.tsx`), since its draft lives in its own state, not the record's. The
   browser's own back gesture cannot be stopped from a hash route, so that one path is unguarded.
 
 Search, filter options and sort all read a `ref`/`reflist` field by its *resolved* value — a design's
