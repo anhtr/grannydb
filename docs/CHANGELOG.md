@@ -16,7 +16,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   (for the session; filters and sort were already remembered). Every other screen opens at the top,
   and tapping the tab you are already on scrolls back to the top.
 - The record form takes you to the first field with a problem when Save finds one, and asks before
-  throwing away unsaved edits (Cancel, the back link, a nav tab, or closing the tab).
+  throwing away unsaved edits, a half-filled "+ New design" included (Cancel, the back link, a nav
+  tab, or closing the tab).
 - Deleting a record that other records still point at (a yarn some squares use, a design) lists
   them in the confirmation, since the data check rejects a dangling reference. Delete still works.
 - Each screen sets the page title ("Squares · grannydb"), so tabs and history entries are told apart.
