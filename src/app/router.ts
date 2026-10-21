@@ -52,6 +52,7 @@ export function navigate(to: string, options: { replace?: boolean } = {}): void 
   if (target === window.location.hash || !mayLeave()) return
   if (options.replace) {
     window.history.replaceState(null, '', target)
+    replacing = true
   } else {
     window.history.pushState(null, '', target)
   }
@@ -65,9 +66,12 @@ export function navigate(to: string, options: { replace?: boolean } = {}): void 
  */
 let shownPath = typeof window === 'undefined' ? '/' : currentPath()
 let previousPath: string | null = null
+/** Set by a replacing `navigate`: the entry behind the new page is the same one as before. */
+let replacing = false
 if (typeof window !== 'undefined') {
   window.addEventListener('hashchange', () => {
-    previousPath = shownPath
+    if (!replacing) previousPath = shownPath
+    replacing = false
     shownPath = currentPath()
   })
 }

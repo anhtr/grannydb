@@ -76,6 +76,16 @@ describe('goBack', () => {
     expect(window.location.hash).toBe('#/yarns')
   })
 
+  it('treats a replaced page as still having the same page behind it', () => {
+    // list → new record → saved (the form replaces "new" with the record) → back to the list
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => {})
+    navigate('/squares')
+    navigate('/squares/new')
+    navigate('/squares/S010', { replace: true })
+    goBack('/squares')
+    expect(back).toHaveBeenCalledTimes(1)
+  })
+
   it('asks the leave guard before stepping back', () => {
     const back = vi.spyOn(window.history, 'back').mockImplementation(() => {})
     navigate('/yarns')
