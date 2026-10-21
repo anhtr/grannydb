@@ -28,7 +28,7 @@ directly and runs them in Node during the build. The rules CI enforces and the r
 believes are literally the same code, so they cannot drift.
 
 Second, everything interesting — CSV round-tripping, queue collapsing, replay semantics, the whole
-commit protocol — is testable by calling functions. All but two of the test files run in a plain
+commit protocol - is testable by calling functions. All but two of the test files run in a plain
 Node environment with no DOM. That is why the tests are fast and why they are about behaviour
 rather than markup.
 
@@ -148,8 +148,8 @@ Fixed routes are checked before `/:table` so `/settings` is not read as a table 
 
 Record, edit and new screens carry a back link to their parent route (`PageHeader`'s `back`), since
 an app installed to the home screen has no browser back button. It goes through `goBack` in
-`router.ts`, which steps back through history when the parent is the screen you just came from — so
-list → record → back restores the list's scroll position and leaves no duplicate history entry — and
+`router.ts`, which steps back through history when the parent is the screen you just came from - so
+list → record → back restores the list's scroll position and leaves no duplicate history entry - and
 navigates there otherwise, e.g. on a record opened from a shared link. The form's Cancel does the same.
 
 Every screen opens at the top (`ScrollToTop` in `App.tsx`, with the browser's own scroll

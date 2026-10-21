@@ -25,7 +25,7 @@ export function useRoute(): string {
 
 /**
  * Asked before any in-app navigation; returning false cancels it. Set by a screen holding unsaved
- * work (the record form). Only in-app links go through it — the browser's own back gesture cannot be
+ * work (the record form). Only in-app links go through it - the browser's own back gesture cannot be
  * stopped from a hash route, which is why the form also asks on `beforeunload` for a closed tab.
  */
 let leaveGuard: (() => boolean) | null = null
@@ -45,7 +45,7 @@ function mayLeave(): boolean {
 /**
  * Through the History API and a synthetic `hashchange`, not by assigning `location.hash`: assigning
  * it is a fragment navigation, and Chrome scrolls the page to the top for one before the app has even
- * heard about it — wiping the scroll position a list is about to save for when you come back.
+ * heard about it - wiping the scroll position a list is about to save for when you come back.
  */
 export function navigate(to: string, options: { replace?: boolean } = {}): void {
   const target = `#${to.startsWith('/') ? to : `/${to}`}`

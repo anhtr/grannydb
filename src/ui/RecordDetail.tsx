@@ -127,8 +127,8 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
 }
 
 /**
- * What a delete would orphan, shown while it waits for "Really delete". Deleting stays allowed — the
- * rows can be repointed afterwards — but a dangling reference fails the deploy's data check, so it
+ * What a delete would orphan, shown while it waits for "Really delete". Deleting stays allowed - the
+ * rows can be repointed afterwards - but a dangling reference fails the deploy's data check, so it
  * should never be a surprise.
  */
 function DeleteImpact({ references, what }: { references: IncomingReference[]; what: string }) {

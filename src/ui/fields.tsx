@@ -299,7 +299,7 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
               setQuery('')
               setActive(0)
               // On a touch screen, lift the box towards the top so its results open in view, not under
-              // the Save bar or the on-screen keyboard — after a beat, once the keyboard has finished
+              // the Save bar or the on-screen keyboard - after a beat, once the keyboard has finished
               // resizing things. With a mouse there is no keyboard to dodge, and the jump is just noise.
               const input = e.currentTarget
               if (window.matchMedia?.('(pointer: coarse)').matches) {
@@ -311,8 +311,8 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
               setActive(0)
               setOpen(true)
             }}
-            // Enter would otherwise submit the whole form — saving the record without the choice you
-            // were in the middle of making — so it picks the highlighted match instead.
+            // Enter would otherwise submit the whole form - saving the record without the choice you
+            // were in the middle of making - so it picks the highlighted match instead.
             enterKeyHint="done"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -662,7 +662,7 @@ function textInput(type: string, inputMode?: string): FieldRenderer['Input'] {
 const URL_IN_TEXT = /(https?:\/\/[^\s]+[^\s.,;:!?)\]'"])/g
 
 /**
- * Free text with any web address in it made tappable — a design's notes often hold the pattern's
+ * Free text with any web address in it made tappable - a design's notes often hold the pattern's
  * page, and copying a URL out of a read-only line on a phone is fiddly. Trailing punctuation stays
  * outside the link, so "see https://example.com." does not link the full stop.
  */
@@ -691,7 +691,7 @@ function TextWithLinks({ text }: { text: string }) {
 }
 
 const plainDisplay: FieldRenderer['Display'] = ({ value }) =>
-  value === '' ? <Muted>—</Muted> : <TextWithLinks text={value} />
+  value === '' ? <Muted>-</Muted> : <TextWithLinks text={value} />
 
 export const fieldRenderers: Record<FieldType, FieldRenderer> = {
   id: {
