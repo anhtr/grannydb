@@ -53,6 +53,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 - Fixed: opening another record straight from a record page (a colour chip, a square in the delete
   warning) kept the first page's state, so a delete you had started was already armed on the next
   record.
+- Web addresses inside text fields (a design's notes holding the pattern's page) are tappable links,
+  and long addresses wrap instead of running off the card.
 
 ## 2026-10-18 — v0.1.31, a date per status
 

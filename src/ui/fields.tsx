@@ -659,8 +659,39 @@ function textInput(type: string, inputMode?: string): FieldRenderer['Input'] {
   )
 }
 
+const URL_IN_TEXT = /(https?:\/\/[^\s]+[^\s.,;:!?)\]'"])/g
+
+/**
+ * Free text with any web address in it made tappable — a design's notes often hold the pattern's
+ * page, and copying a URL out of a read-only line on a phone is fiddly. Trailing punctuation stays
+ * outside the link, so "see https://example.com." does not link the full stop.
+ */
+function TextWithLinks({ text }: { text: string }) {
+  const parts = text.split(URL_IN_TEXT)
+  return (
+    <span className="whitespace-pre-wrap">
+      {parts.map((part, i) =>
+        // `split` with a capturing group puts each match at an odd index.
+        i % 2 === 1 ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="break-all text-accent underline underline-offset-2"
+          >
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </span>
+  )
+}
+
 const plainDisplay: FieldRenderer['Display'] = ({ value }) =>
-  value === '' ? <Muted>—</Muted> : <span className="whitespace-pre-wrap">{value}</span>
+  value === '' ? <Muted>—</Muted> : <TextWithLinks text={value} />
 
 export const fieldRenderers: Record<FieldType, FieldRenderer> = {
   id: {
@@ -798,7 +829,7 @@ export const fieldRenderers: Record<FieldType, FieldRenderer> = {
           href={value}
           target="_blank"
           rel="noreferrer noopener"
-          className="text-accent underline underline-offset-2"
+          className="break-all text-accent underline underline-offset-2"
         >
           {value}
         </a>
