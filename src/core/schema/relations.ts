@@ -285,7 +285,9 @@ export function referencesTo(
       const rowIds = data.rows
         .filter((row) => {
           const value = row[field.key] ?? ''
-          return field.type === 'ref' ? value === id : splitList(value, field.separator ?? ';').includes(id)
+          // Trimmed, as `validateValue` reads a ref: a hand-edited " Y2 " is a reference to Y2 there,
+          // so it has to be one here too or deleting Y2 would orphan it unannounced.
+          return field.type === 'ref' ? value.trim() === id : splitList(value, field.separator ?? ';').includes(id)
         })
         .map((row) => row[schema.idField] ?? '')
       if (rowIds.length > 0) found.push({ table: name, field, rowIds })

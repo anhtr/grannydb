@@ -187,6 +187,15 @@ describe('referencesTo', () => {
     ])
   })
 
+  it('matches a hand-edited reference with stray spaces, the way validation reads it', () => {
+    const spaced: CsvTable = { columns: squares.columns, rows: [{ id: 'S009', main_yarn: ' Y9 ', extra_yarns: 'Y1; Y9' }] }
+    const refs = referencesTo(schemas, { squares: spaced }, 'yarns', 'Y9')
+    expect(refs.map((r) => [r.field.key, r.rowIds])).toEqual([
+      ['main_yarn', ['S009']],
+      ['extra_yarns', ['S009']],
+    ])
+  })
+
   it('does not match an id that is only a prefix of another', () => {
     expect(referencesTo(schemas, { squares }, 'yarns', 'Y')).toEqual([])
   })
