@@ -28,7 +28,7 @@ directly and runs them in Node during the build. The rules CI enforces and the r
 believes are literally the same code, so they cannot drift.
 
 Second, everything interesting — CSV round-tripping, queue collapsing, replay semantics, the whole
-commit protocol — is testable by calling functions. All but one of the test files run in a plain
+commit protocol — is testable by calling functions. All but two of the test files run in a plain
 Node environment with no DOM. That is why the tests are fast and why they are about behaviour
 rather than markup.
 
@@ -287,6 +287,7 @@ Coverage is deliberately concentrated where a bug loses data rather than annoys 
 | `schema.test.ts` | field validation, schema loading errors, whole-dataset integrity |
 | `sync.test.ts` | the full commit protocol against a fake GitHub, including conflict replay |
 | `router.test.ts` | route matching and specificity ordering |
+| `router.history.test.ts` | `navigate` pushing history without a fragment jump, `goBack` stepping back only to the page actually behind you, and the leave guard (jsdom) |
 | `timeline.test.ts` | Monday-start weeks, day arithmetic across a DST change, and the Over time buckets and averages |
 | `offline.test.ts` | the snapshot cache key and its shape guard, and the load falling back to the saved copy when every read path throws |
 | `sw/__tests__/sw.test.ts` | the service worker in a fake worker global: what it precaches, what it serves, and that a cross-origin request is never intercepted |
