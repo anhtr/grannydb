@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useId, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { CsvRow } from '../core/csv'
 import { compareIds } from '../core/csv'
 import type { FieldDef, FieldType, TableSchema } from '../core/schema'
@@ -286,6 +286,13 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
+  const resultsRef = useRef<HTMLUListElement>(null)
+
+  // Keep the highlighted result visible as the arrow keys move it, so Enter never picks a row that
+  // has scrolled out of the dropdown.
+  useEffect(() => {
+    if (open) resultsRef.current?.children[active]?.scrollIntoView({ block: 'nearest' })
+  }, [open, active])
 
   const selectedRow = value !== '' ? lookup.get(value) : undefined
   const selectedLabel = schema && selectedRow ? titleFor(schema, selectedRow) : value
@@ -371,7 +378,7 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
           ) : null}
         </div>
         {open ? (
-          <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-line bg-card shadow-lg">
+          <ul ref={resultsRef} className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-line bg-card shadow-lg">
             {results.length === 0 ? (
               <li className="px-3 py-2 text-sm text-muted">No matches</li>
             ) : (
