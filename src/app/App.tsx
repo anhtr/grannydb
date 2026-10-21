@@ -167,7 +167,7 @@ function Screen({ path }: { path: string }) {
           back={{ to: `/${newMatch.table}`, label: schema.label }}
           action={<SyncButton />}
         />
-        <RecordForm table={newMatch.table} />
+        <RecordForm key={`${newMatch.table}/new`} table={newMatch.table} />
       </main>
     )
   }
@@ -183,7 +183,7 @@ function Screen({ path }: { path: string }) {
           back={{ to: `/${editMatch.table}/${editMatch.id}`, label: title }}
           action={<SyncButton />}
         />
-        <RecordForm table={editMatch.table} id={editMatch.id} />
+        <RecordForm key={`${editMatch.table}/${editMatch.id}`} table={editMatch.table} id={editMatch.id} />
       </main>
     )
   }
@@ -199,7 +199,10 @@ function Screen({ path }: { path: string }) {
           back={{ to: `/${detailMatch.table}`, label: schema.label }}
           action={<SyncButton />}
         />
+        {/* Keyed per record, like the list per table: following a link from one record to another
+            must not carry over the first one's state — least of all an armed "Really delete". */}
         <RecordDetail
+          key={`${detailMatch.table}/${detailMatch.id}`}
           table={detailMatch.table}
           id={detailMatch.id}
           extra={TABLE_DETAIL_EXTRAS[detailMatch.table]?.(detailMatch.id)}

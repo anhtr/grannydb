@@ -50,6 +50,9 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   list already filters as you type), and every search box has an accessible name.
 - Tapping Delete scrolls "Really delete" into view; the reference warning above it had pushed it under
   the bottom bar.
+- Fixed: opening another record straight from a record page (a colour chip, a square in the delete
+  warning) kept the first page's state, so a delete you had started was already armed on the next
+  record.
 
 ## 2026-10-18 — v0.1.31, a date per status
 

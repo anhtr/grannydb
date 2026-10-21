@@ -89,6 +89,9 @@ counts as the same combination" (same main, same *set* of extras) is decided in 
 in the bottom nav) always gets a fresh component instance instead of one React reuses in place —
 otherwise the previous table's search text and in-memory filter state would leak into the next
 table's list until something else happened to remount it.
+`RecordDetail` and `RecordForm` are keyed per record for the same reason: following a link from one
+record to another would otherwise keep the first one's state, including a delete waiting on
+"Really delete".
 
 ## State
 
