@@ -223,7 +223,10 @@ Three components in `ui/` serve every table:
   title or subtitle wraps under them instead of being truncated to make room.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional
   `extra` slot for computed sections (see `TABLE_DETAIL_EXTRAS` above), edit and delete, a link to
-  the underlying CSV on github.com.
+  the underlying CSV on github.com. Confirming a delete lists every row whose `ref`/`reflist` field
+  still points at the record (`referencesTo` in `core/schema/relations.ts`), because a dangling
+  reference fails the data check on the next deploy. It warns rather than blocks: repointing the rows
+  afterwards is a legitimate order to do things in.
 - **[`RecordForm`](../src/ui/RecordForm.tsx)** — every field via its `Input`, validation on save
   including referential integrity, sticky save bar.
   On a table with `statusDates`, changing the status goes through `changeStatus` (date the new

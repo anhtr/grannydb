@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { designCombinations, designSquareCounts, identicalSquares, isYarnActive, yarnCombinations, yarnUsageCounts } from '../schema/relations'
+import { designCombinations, designSquareCounts, identicalSquares, isYarnActive, referencesTo, yarnCombinations, yarnUsageCounts } from '../schema/relations'
 import type { CsvTable } from '../csv'
+import type { SchemaSet } from '../schema'
 
 const squares: CsvTable = {
   columns: ['id', 'design_id', 'main_yarn', 'extra_yarns'],
@@ -158,5 +159,39 @@ describe('identicalSquares', () => {
 
   it('returns nothing when every square is unique', () => {
     expect(identicalSquares({ ...table, rows: table.rows.slice(2, 4) })).toEqual([])
+  })
+})
+
+describe('referencesTo', () => {
+  const schemas = {
+    order: ['squares', 'yarns'],
+    tables: {
+      squares: {
+        table: 'squares',
+        idField: 'id',
+        fields: [
+          { key: 'id', label: 'ID', type: 'id' },
+          { key: 'main_yarn', label: 'Main colour', type: 'ref', refTable: 'yarns' },
+          { key: 'extra_yarns', label: 'Extra colours', type: 'reflist', refTable: 'yarns' },
+        ],
+      },
+      yarns: { table: 'yarns', idField: 'id', fields: [{ key: 'id', label: 'ID', type: 'id' }] },
+    },
+  } as unknown as SchemaSet
+
+  it('lists the rows naming a record, field by field, through ref and reflist alike', () => {
+    const refs = referencesTo(schemas, { squares }, 'yarns', 'Y2')
+    expect(refs.map((r) => [r.field.key, r.rowIds])).toEqual([
+      ['main_yarn', ['S002']],
+      ['extra_yarns', ['S001', 'S003']],
+    ])
+  })
+
+  it('does not match an id that is only a prefix of another', () => {
+    expect(referencesTo(schemas, { squares }, 'yarns', 'Y')).toEqual([])
+  })
+
+  it('is empty for a record nothing points at', () => {
+    expect(referencesTo(schemas, { squares }, 'yarns', 'Y9')).toEqual([])
   })
 })
