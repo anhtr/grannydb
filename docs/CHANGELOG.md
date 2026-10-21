@@ -46,6 +46,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   name to two letters, and the Sort and Filter panels stop above the bottom bar instead of running
   under it.
 - Progress tiles keep a figure like "194 / 400" on one line on the narrowest phones.
+- The keyboard's Search key in a list's search box puts the keyboard away so the results show (the
+  list already filters as you type), and every search box has an accessible name.
 
 ## 2026-10-18 — v0.1.31, a date per status
 

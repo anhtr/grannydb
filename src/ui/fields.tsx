@@ -435,6 +435,7 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
           type="search"
           className={inputClass}
           placeholder={`Search ${schema?.label.toLowerCase() ?? '…'}`}
+          aria-label={`Search ${schema?.label.toLowerCase() ?? ''} to add to ${field.label.toLowerCase()}`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           enterKeyHint="done"
