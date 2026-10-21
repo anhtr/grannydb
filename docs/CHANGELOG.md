@@ -31,6 +31,10 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   and Enter in the token box saves the token.
 - A long sort rule no longer squeezes the list's search box: the Sort button's field name truncates,
   keeping the direction arrow or "+N", and the full rule is in its tooltip.
+- Enter (the phone keyboard's Go/Done key) no longer submits the whole form from inside a picker.
+  In a design or colour picker it chooses the highlighted match (arrow keys move the highlight,
+  Escape closes it); in the extra-colours search it adds the first match; inside an inline
+  "+ New design" form it adds that design.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
