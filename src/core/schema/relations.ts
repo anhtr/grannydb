@@ -2,7 +2,7 @@ import type { CsvRow, CsvTable } from '../csv'
 import { effectiveValue } from './search'
 import type { ResolveRef } from './search'
 import { fieldByKey } from './types'
-import type { TableSchema } from './types'
+import type { FieldDef, SchemaSet, TableSchema } from './types'
 import { parseBool, splitList } from './validate'
 
 /**
@@ -255,4 +255,41 @@ export function squareConstructionInsights(
     missingMainYarn,
     missingDesign,
   }
+}
+
+/** The rows in one table whose `field` points at a given record — see `referencesTo`. */
+export interface IncomingReference {
+  table: string
+  field: FieldDef
+  rowIds: string[]
+}
+
+/**
+ * Every row, in any table, whose `ref` or `reflist` field names `table`/`id` — what a delete would
+ * leave pointing at nothing. Worth saying before the delete rather than after: a dangling reference
+ * is a validation error, so the next deploy's data check would fail on it.
+ */
+export function referencesTo(
+  schemas: SchemaSet,
+  tables: Record<string, CsvTable>,
+  table: string,
+  id: string,
+): IncomingReference[] {
+  const found: IncomingReference[] = []
+  for (const name of schemas.order) {
+    const schema = schemas.tables[name]
+    const data = tables[name]
+    if (!schema || !data) continue
+    for (const field of schema.fields) {
+      if (field.refTable !== table || (field.type !== 'ref' && field.type !== 'reflist')) continue
+      const rowIds = data.rows
+        .filter((row) => {
+          const value = row[field.key] ?? ''
+          return field.type === 'ref' ? value === id : splitList(value, field.separator ?? ';').includes(id)
+        })
+        .map((row) => row[schema.idField] ?? '')
+      if (rowIds.length > 0) found.push({ table: name, field, rowIds })
+    }
+  }
+  return found
 }

@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import type { IncomingReference } from '../core/schema'
 import type { ReactNode } from 'react'
 import { appStore } from '../core/store'
 import { fileUrl } from '../core/github'
-import { effectiveValue, fieldByKey } from '../core/schema'
+import { effectiveValue, fieldByKey, referencesTo } from '../core/schema'
 import { useAppState, useCanEdit, useResolveRef, useRow, useTableSchema } from '../app/hooks'
 import { useNavigate } from '../app/router'
 import { Button, Card, ErrorNote, Link, Spinner } from './components'
@@ -66,6 +67,13 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
 
       {extra}
 
+      {canEdit && confirmingDelete && state.snapshot ? (
+        <DeleteImpact
+          references={referencesTo(state.snapshot.schemas, state.data, table, id)}
+          what={schema.labelSingular.toLowerCase()}
+        />
+      ) : null}
+
       {canEdit ? (
         <div className="flex gap-3 px-4">
           <Button variant="primary" className="flex-1" onClick={() => navigate(`/${table}/${id}/edit`)}>
@@ -106,6 +114,42 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
         >
           {schema.file}
         </a>
+      </p>
+    </div>
+  )
+}
+
+/**
+ * What a delete would orphan, shown while it waits for "Really delete". Deleting stays allowed — the
+ * rows can be repointed afterwards — but a dangling reference fails the deploy's data check, so it
+ * should never be a surprise.
+ */
+function DeleteImpact({ references, what }: { references: IncomingReference[]; what: string }) {
+  const schemas = useAppState().snapshot?.schemas
+  if (references.length === 0) return null
+  return (
+    <div className="mx-4 space-y-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+      {references.map(({ table, field, rowIds }) => {
+        const label = schemas?.tables[table]
+        const noun = rowIds.length === 1 ? label?.labelSingular : label?.label
+        return (
+          <p key={`${table}.${field.key}`}>
+            {rowIds.length} {(noun ?? table).toLowerCase()} use{rowIds.length === 1 ? 's' : ''} this {what} as{' '}
+            {field.label.toLowerCase()}:{' '}
+            {rowIds.map((rowId, i) => (
+              <span key={rowId}>
+                {i > 0 ? ', ' : ''}
+                <Link to={`/${table}/${rowId}`} className="font-mono underline underline-offset-2">
+                  {rowId}
+                </Link>
+              </span>
+            ))}
+          </p>
+        )
+      })}
+      <p>
+        Deleting it leaves {references.length === 1 && references[0].rowIds.length === 1 ? 'that' : 'those'} pointing at
+        a missing {what}, which the data check rejects. Repoint them first, or delete anyway and fix them after.
       </p>
     </div>
   )

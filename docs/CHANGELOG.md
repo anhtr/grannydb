@@ -17,6 +17,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   and tapping the tab you are already on scrolls back to the top.
 - The record form takes you to the first field with a problem when Save finds one, and asks before
   throwing away unsaved edits (Cancel, the back link, a nav tab, or closing the tab).
+- Deleting a record that other records still point at (a yarn some squares use, a design) lists
+  them in the confirmation, since the data check rejects a dangling reference. Delete still works.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
