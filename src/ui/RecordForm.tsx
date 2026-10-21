@@ -85,7 +85,10 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
   useEffect(() => {
     const confirmLeave = () => !unsaved.current || window.confirm('Discard your unsaved changes?')
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (unsaved.current) e.preventDefault()
+      if (!unsaved.current) return
+      e.preventDefault()
+      // Safari still asks only when this is set, whatever the spec says about `preventDefault`.
+      e.returnValue = ''
     }
     window.addEventListener('beforeunload', onBeforeUnload)
     const clearGuard = setLeaveGuard(confirmLeave)
