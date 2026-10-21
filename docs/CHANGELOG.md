@@ -27,6 +27,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   and the reorder arrows have a larger tap area.
 - A checkbox field (Partial skein, Too low) shows its name once, beside the box, instead of also as a
   heading above it.
+- Settings: each label is tied to its box (tapping it focuses the box, screen readers announce it),
+  and Enter in the token box saves the token.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
