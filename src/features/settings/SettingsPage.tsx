@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { appStore } from '../../core/store'
 import { commitUrl, DEFAULT_CONFIG, repoUrl } from '../../core/github'
 import type { ConnectionCheck, RepoConfig } from '../../core/github'
@@ -33,10 +33,14 @@ function Field({
   hint?: string
   disabled?: boolean
 }) {
+  const id = useId()
   return (
     <div className="px-4 py-3">
-      <label className="block text-sm font-medium text-muted">{label}</label>
+      <label htmlFor={id} className="block text-sm font-medium text-muted">
+        {label}
+      </label>
       <input
+        id={id}
         type={type}
         className={`${inputClass} mt-1.5`}
         value={value}
@@ -70,10 +74,13 @@ function timeZoneOptions(saved: string): string[] {
 }
 
 function TimeZoneField({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled: boolean }) {
+  const id = useId()
   return (
     <div className="px-4 py-3">
-      <label className="block text-sm font-medium text-muted">Time zone</label>
-      <select className={`${inputClass} mt-1.5`} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+      <label htmlFor={id} className="block text-sm font-medium text-muted">
+        Time zone
+      </label>
+      <select id={id} className={`${inputClass} mt-1.5`} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
         <option value="">Device's own ({deviceTimeZone().replace(/_/g, ' ')})</option>
         {timeZoneOptions(value).map((zone) => (
           <option key={zone} value={zone}>
@@ -210,7 +217,13 @@ export function SettingsPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-3 px-4 py-3">
+          <form
+            className="space-y-3 px-4 py-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void onSaveToken()
+            }}
+          >
             <p className="text-sm text-muted">
               Paste a fine-grained personal access token scoped to this repo with{' '}
               <strong className="text-ink">Contents: read and write</strong>. It is stored in this
@@ -219,6 +232,8 @@ export function SettingsPage() {
             </p>
             <input
               type="password"
+              aria-label="GitHub token"
+              enterKeyHint="done"
               className={inputClass}
               placeholder="github_pat_…"
               value={token}
@@ -227,10 +242,10 @@ export function SettingsPage() {
               autoCorrect="off"
               spellCheck={false}
             />
-            <Button variant="primary" onClick={() => void onSaveToken()} disabled={busy || !token.trim()}>
+            <Button type="submit" variant="primary" disabled={busy || !token.trim()}>
               Save token
             </Button>
-          </div>
+          </form>
         )}
 
         {check ? (
