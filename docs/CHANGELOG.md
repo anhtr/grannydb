@@ -4,6 +4,13 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-21 — v0.1.32, polish
+
+**App**
+- The form's Save bar and a list's "New" button float on the bottom bar's measured height
+  (`--footer-height`, set in `App.tsx`) instead of a fixed 64px, so the offline/update line and an
+  iPhone's home-indicator inset no longer cover them.
+
 ## 2026-10-18 — v0.1.31, a date per status
 
 **Data**

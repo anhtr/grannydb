@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { appStore } from '../core/store'
 import { RecordDetail } from '../ui/RecordDetail'
 import { RecordForm } from '../ui/RecordForm'
@@ -49,6 +49,7 @@ const TABLE_DETAIL_EXTRAS: Record<string, (id: string) => React.ReactNode> = {
 export function App() {
   const state = useAppState()
   const path = useRoute()
+  const footerRef = useFooterHeight()
 
   useEffect(() => {
     void appStore.init()
@@ -61,7 +62,7 @@ export function App() {
       <Screen path={path} />
       {/* One sticky footer: the nav, with the status line riding directly above it. Two separate
           sticky elements would overlap by the safe-area inset on a phone with a home indicator. */}
-      <div className="sticky bottom-0 z-30">
+      <div ref={footerRef} className="sticky bottom-0 z-30">
         <StatusBar />
         <BottomNav path={path} />
       </div>
@@ -70,6 +71,27 @@ export function App() {
       ) : null}
     </div>
   )
+}
+
+/**
+ * Publishes the sticky footer's height as `--footer-height`, for the things that float just above it
+ * (a form's save bar, the "New" button). A fixed offset cannot be right: the footer grows by a line
+ * whenever the offline or update bar shows, and by the home-indicator inset on a phone that has one,
+ * and either would otherwise slide the footer over the Save button.
+ */
+function useFooterHeight() {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const root = document.documentElement
+    const publish = () => root.style.setProperty('--footer-height', `${element.offsetHeight}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  return ref
 }
 
 function Screen({ path }: { path: string }) {
