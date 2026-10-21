@@ -390,10 +390,24 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
         {activeFilters > 0 || query !== '' ? ' (filtered)' : ''}
       </p>
 
-      {rows.length === 0 ? (
+      {data.rows.length === 0 ? (
+        <EmptyState
+          title={`No ${schema.label.toLowerCase()} yet`}
+          hint={canEdit ? `Add one with the New ${schema.labelSingular.toLowerCase()} button.` : undefined}
+        />
+      ) : rows.length === 0 ? (
         <EmptyState
           title={`No ${schema.label.toLowerCase()} match`}
-          hint="Try clearing the search or filters."
+          action={
+            <Button
+              onClick={() => {
+                setQuery('')
+                if (activeFilters > 0) setListPrefs({ filters: {} })
+              }}
+            >
+              Clear {query !== '' && activeFilters > 0 ? 'search and filters' : query !== '' ? 'search' : 'filters'}
+            </Button>
+          }
         />
       ) : (
         <ul className="space-y-1.5 px-4">

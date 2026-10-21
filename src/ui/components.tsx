@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { goBack, navigate } from '../app/router'
 
@@ -390,6 +391,10 @@ export function PageHeader({
   action?: ReactNode
   back?: { to: string; label: string }
 }) {
+  // The tab, the app switcher and long-pressing back all name a page by its document title.
+  useEffect(() => {
+    document.title = `${title} · grannydb`
+  }, [title])
   return (
     <header className="flex items-start justify-between gap-2 px-4 pt-3 pb-1.5">
       <div className="min-w-0">
@@ -414,11 +419,12 @@ export function PageHeader({
   )
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
     <div className="px-6 py-16 text-center">
       <p className="font-medium">{title}</p>
       {hint ? <p className="mt-1 text-sm text-muted">{hint}</p> : null}
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   )
 }

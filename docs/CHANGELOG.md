@@ -19,6 +19,9 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   throwing away unsaved edits (Cancel, the back link, a nav tab, or closing the tab).
 - Deleting a record that other records still point at (a yarn some squares use, a design) lists
   them in the confirmation, since the data check rejects a dangling reference. Delete still works.
+- Each screen sets the page title ("Squares · grannydb"), so tabs and history entries are told apart.
+- An empty table says so ("No designs yet") instead of "No designs match"; a search or filter that
+  matches nothing offers a button that clears it.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
