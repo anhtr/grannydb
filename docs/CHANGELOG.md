@@ -38,6 +38,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 - The design and colour pickers list matches in natural order ("77" before "129"), as the lists do;
   keep showing the current choice while you search; and scroll up when opened so the results are not
   under the Save bar or keyboard.
+- Pending changes name fields by their labels ("Status, Blocked, Notes") in full instead of truncated
+  column keys, mark a record that is new, and link to the record.
 
 ## 2026-10-18 — v0.1.31, a date per status
 

@@ -1,16 +1,30 @@
 import { useState } from 'react'
 import { appStore } from '../../core/store'
-import type { Change, SyncResult } from '../../core/store'
+import type { AppState, Change, SyncResult } from '../../core/store'
+import { findRow } from '../../core/csv'
+import { fieldByKey } from '../../core/schema'
 import { commitUrl } from '../../core/github'
 import { useAppState } from '../../app/hooks'
 import { Badge, Button, Card, EmptyState, ErrorNote, Link } from '../../ui/components'
 
-function describe(change: Change) {
-  if (change.op === 'set') return `${change.doc} · ${Object.keys(change.values).join(', ')}`
-  if (change.op === 'delete') return `Delete ${change.rowId}`
-  const fields = Object.keys(change.values ?? {}).filter((k) => k !== 'id')
-  if (fields.length === 0) return `Save ${change.rowId}`
-  return `${change.rowId} · ${fields.join(', ')}`
+/**
+ * One queued change in words: which record, whether it is new, and which fields — by their labels, as
+ * the form shows them, rather than the CSV column keys the queue stores.
+ */
+function describe(change: Change, state: AppState): { record: string; fields: string; link?: string } {
+  if (change.op === 'set') return { record: 'Project settings', fields: Object.keys(change.values).join(', ') }
+  if (change.op === 'delete') return { record: `Delete ${change.rowId}`, fields: '' }
+  const schema = state.snapshot?.schemas.tables[change.table]
+  const base = state.snapshot?.tables[change.table]
+  const isNew = schema && base ? !findRow(base, schema.idField, change.rowId) : false
+  const fields = Object.keys(change.values ?? {})
+    .filter((k) => k !== (schema?.idField ?? 'id'))
+    .map((k) => (schema ? fieldByKey(schema, k)?.label : undefined) ?? k)
+  return {
+    record: isNew ? `New ${change.rowId}` : change.rowId,
+    fields: fields.join(', '),
+    link: `/${change.table}/${change.rowId}`,
+  }
 }
 
 export function SyncPage() {
@@ -86,22 +100,32 @@ export function SyncPage() {
       ) : (
         <>
           <Card className="divide-y divide-line overflow-hidden">
-            {state.changes.map((change) => (
-              <div key={change.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm">
-                    <span className="font-mono">{describe(change)}</span>
-                  </p>
-                  <p className="text-xs text-muted">
-                    {change.op === 'set' ? `${change.doc}.json` : change.table} · {new Date(change.ts).toLocaleString()}
-                  </p>
+            {state.changes.map((change) => {
+              const { record, fields, link } = describe(change, state)
+              return (
+                <div key={change.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm">
+                      {link ? (
+                        <Link to={link} className="font-mono underline underline-offset-2">
+                          {record}
+                        </Link>
+                      ) : (
+                        <span className="font-mono">{record}</span>
+                      )}
+                      {fields ? <span className="text-muted"> · {fields}</span> : null}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {change.op === 'set' ? `${change.doc}.json` : change.table} · {new Date(change.ts).toLocaleString()}
+                    </p>
+                  </div>
+                  {change.op === 'delete' ? <Badge tone="warn">delete</Badge> : null}
+                  <Button variant="ghost" onClick={() => void appStore.discardChange(change.id)}>
+                    Discard
+                  </Button>
                 </div>
-                {change.op === 'delete' ? <Badge tone="warn">delete</Badge> : null}
-                <Button variant="ghost" onClick={() => void appStore.discardChange(change.id)}>
-                  Discard
-                </Button>
-              </div>
-            ))}
+              )
+            })}
           </Card>
 
           <div className="flex flex-wrap gap-3">
