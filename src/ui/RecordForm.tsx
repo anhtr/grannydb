@@ -172,6 +172,7 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
               help={field.help}
               error={errors[field.key]}
               htmlFor={inputId}
+              inlineLabel={field.type === 'bool'}
             >
               <Input
                 field={field}

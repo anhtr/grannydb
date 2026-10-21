@@ -449,25 +449,31 @@ export function ErrorNote({ children }: { children: ReactNode }) {
   )
 }
 
+/** `inlineLabel` is for a control that already names itself beside it — a checkbox — where a second
+ * copy of the label above it would just repeat; the label stays for screen readers and for
+ * `scrollIntoView` targeting by `label[for]`. */
 export function FieldShell({
   label,
   help,
   error,
   htmlFor,
+  inlineLabel = false,
   children,
 }: {
   label: string
   help?: string
   error?: string | null
   htmlFor?: string
+  inlineLabel?: boolean
   children: ReactNode
 }) {
   return (
-    <div className="px-4 py-2.5">
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-muted">
+    // `relative` keeps an `sr-only` label positioned inside its own field, where scrolling to it lands.
+    <div className="relative px-4 py-2.5">
+      <label htmlFor={htmlFor} className={inlineLabel ? 'sr-only' : 'block text-sm font-medium text-muted'}>
         {label}
       </label>
-      <div className="mt-1">{children}</div>
+      <div className={inlineLabel ? undefined : 'mt-1'}>{children}</div>
       {error ? (
         <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
       ) : help ? (

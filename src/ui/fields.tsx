@@ -219,6 +219,7 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
               help={field.help}
               error={errors[field.key]}
               htmlFor={inputId}
+              inlineLabel={field.type === 'bool'}
             >
               <Input
                 field={field}
