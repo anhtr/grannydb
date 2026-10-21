@@ -85,6 +85,15 @@ describe('App renders against the real data', () => {
     expect(text).toContain('Fixture Rose') // one of the extra_yarns, via the reflist renderer
   })
 
+  it('titles a record page by name, keeps its id in view, and links back to the list', async () => {
+    await render('#/yarns/FY2')
+    const header = container.querySelector('header')
+    expect(header?.querySelector('h1')?.textContent).toBe('Fixture Rose')
+    expect(header?.textContent).toContain('Yarn · FY2')
+    expect(header?.querySelector('a')?.getAttribute('href')).toBe('#/yarns')
+    expect(document.title).toBe('Fixture Rose · grannydb')
+  })
+
   it('hides editing controls without a token', async () => {
     await render('#/squares/FS1')
     const text = container.textContent ?? ''
