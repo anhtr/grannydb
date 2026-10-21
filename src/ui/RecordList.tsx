@@ -452,6 +452,11 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
   )
 }
 
+/** A dropdown panel under the search row, no taller than the space between that row (~7rem from the
+ * top while it is stuck there) and the bottom bar, so its end never slides under the nav. */
+const panelClass =
+  'absolute inset-x-0 top-full z-20 mt-2 max-h-[calc(100dvh-var(--footer-height,4rem)-8rem)] overflow-y-auto rounded-xl border border-line bg-card shadow-lg'
+
 /**
  * Sort as a priority-ordered list of rules rather than one field: each rule only breaks ties left by
  * the ones above it (see `sortRows`), so someone can, say, sort squares by design and then by
@@ -496,49 +501,53 @@ function SortPanel({
   return (
     <>
       <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className="absolute inset-x-0 top-full z-20 mt-2 rounded-xl border border-line bg-card p-3 shadow-lg">
+      <div className={`${panelClass} p-3`}>
         <p className="mb-2 text-xs font-medium text-muted">Sort by, in priority order</p>
         <ol className="space-y-1.5">
           {sorts.map((sort, i) => (
-            <li key={sort.key} className="flex items-center gap-1.5">
+            // Wraps the four controls under the name on a narrow phone rather than truncating the name to
+            // a couple of letters — which rule is which matters more than keeping it on one line.
+            <li key={sort.key} className="flex flex-wrap items-center gap-1.5">
               <span className="w-4 shrink-0 text-center text-xs text-muted">{i + 1}</span>
-              <span className="min-w-0 flex-1 truncate text-sm">
+              <span className="min-w-[7rem] flex-1 truncate text-sm">
                 {options.find((o) => o.key === sort.key)?.label ?? sort.key}
               </span>
-              <button
-                type="button"
-                aria-label={sort.dir === 'asc' ? 'Ascending' : 'Descending'}
-                className="tap-target rounded-lg border border-line px-2 text-xs"
-                onClick={() => toggleDir(i)}
-              >
-                {sort.dir === 'asc' ? '↑' : '↓'}
-              </button>
-              <button
-                type="button"
-                aria-label="Move up in priority"
-                disabled={i === 0}
-                className="tap-target rounded-lg border border-line px-2 text-xs disabled:opacity-30"
-                onClick={() => move(i, -1)}
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                aria-label="Move down in priority"
-                disabled={i === sorts.length - 1}
-                className="tap-target rounded-lg border border-line px-2 text-xs disabled:opacity-30"
-                onClick={() => move(i, 1)}
-              >
-                ▼
-              </button>
-              <button
-                type="button"
-                aria-label={`Remove ${options.find((o) => o.key === sort.key)?.label ?? sort.key} from sort`}
-                className="tap-target rounded-lg border border-line px-2 text-xs text-muted"
-                onClick={() => remove(i)}
-              >
-                ×
-              </button>
+              <span className="ml-auto flex gap-1.5">
+                <button
+                  type="button"
+                  aria-label={sort.dir === 'asc' ? 'Ascending' : 'Descending'}
+                  className="tap-target rounded-lg border border-line px-2 text-xs"
+                  onClick={() => toggleDir(i)}
+                >
+                  {sort.dir === 'asc' ? '↑' : '↓'}
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move up in priority"
+                  disabled={i === 0}
+                  className="tap-target rounded-lg border border-line px-2 text-xs disabled:opacity-30"
+                  onClick={() => move(i, -1)}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move down in priority"
+                  disabled={i === sorts.length - 1}
+                  className="tap-target rounded-lg border border-line px-2 text-xs disabled:opacity-30"
+                  onClick={() => move(i, 1)}
+                >
+                  ▼
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Remove ${options.find((o) => o.key === sort.key)?.label ?? sort.key} from sort`}
+                  className="tap-target rounded-lg border border-line px-2 text-xs text-muted"
+                  onClick={() => remove(i)}
+                >
+                  ×
+                </button>
+              </span>
             </li>
           ))}
         </ol>
@@ -748,7 +757,7 @@ function FilterPanel({
   return (
     <>
       <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className="absolute inset-x-0 top-full z-20 mt-2 max-h-[70vh] overflow-y-auto rounded-xl border border-line bg-card p-3 shadow-lg">
+      <div className={`${panelClass} p-3`}>
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs font-medium text-muted">Filter by</p>
           {activeCount > 0 ? (
