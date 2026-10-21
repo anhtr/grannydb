@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { CsvRow } from '../core/csv'
+import { compareIds } from '../core/csv'
 import type { FieldDef, FieldType, TableSchema } from '../core/schema'
 import {
   fieldByKey,
@@ -278,7 +279,8 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
       query.trim() === ''
         ? entries
         : entries.filter(([, row]) => matchesSearch(searchText(schema, row, resolve, field.searchFields), query))
-    return matched.sort((a, b) => titleFor(schema, a[1]).localeCompare(titleFor(schema, b[1]))).slice(0, 50)
+    // Natural order, the same as the lists, so "77 (Sunflower)" comes before "129 (…)".
+    return matched.sort((a, b) => compareIds(titleFor(schema, a[1]), titleFor(schema, b[1]))).slice(0, 50)
   }, [schema, lookup, query, resolve, field.searchFields])
 
   return (
@@ -288,12 +290,18 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
           <input
             id={id}
             type="text"
-            className={inputClass}
-            placeholder={`Search ${schema?.labelSingular.toLowerCase() ?? '…'}`}
+            className={`${inputClass} scroll-mt-16`}
+            // While searching, the current choice stays visible as the placeholder rather than vanishing.
+            placeholder={selectedLabel || `Search ${schema?.labelSingular.toLowerCase() ?? '…'}`}
             value={open ? query : selectedLabel}
-            onFocus={() => {
+            onFocus={(e) => {
               setOpen(true)
               setQuery('')
+              setActive(0)
+              // Lift the box towards the top so its results open in view, not under the Save bar or
+              // the on-screen keyboard — after a beat, once the keyboard has finished resizing things.
+              const input = e.currentTarget
+              setTimeout(() => input.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300)
             }}
             onChange={(e) => {
               setQuery(e.target.value)

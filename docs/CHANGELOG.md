@@ -35,6 +35,9 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   In a design or colour picker it chooses the highlighted match (arrow keys move the highlight,
   Escape closes it); in the extra-colours search it adds the first match; inside an inline
   "+ New design" form it adds that design.
+- The design and colour pickers list matches in natural order ("77" before "129"), as the lists do;
+  keep showing the current choice while you search; and scroll up when opened so the results are not
+  under the Save bar or keyboard.
 
 ## 2026-10-18 — v0.1.31, a date per status
 
