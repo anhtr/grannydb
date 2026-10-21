@@ -339,8 +339,14 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
             enterKeyHint="search"
             className={`${inputClass} min-w-0 flex-1`}
             placeholder={`Search ${schema.label.toLowerCase()}`}
+            aria-label={`Search ${schema.label.toLowerCase()}`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            // The list already filters as you type, so the keyboard's Search key has nothing left to do
+            // but get out of the way of the results.
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+            }}
           />
           {allSortOptions.length > 0 ? (
             <button
@@ -630,6 +636,7 @@ function SearchableFilterPills({
         type="search"
         className={`${inputClass} px-2.5 py-1.5 text-xs`}
         placeholder={`Search ${descriptor.label.toLowerCase()}`}
+        aria-label={`Search ${descriptor.label.toLowerCase()} options`}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
