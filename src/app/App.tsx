@@ -1,5 +1,8 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { appStore } from '../core/store'
+import type { AppState } from '../core/store'
+import { findRow } from '../core/csv'
+import { titleFor } from '../core/schema'
 import { RecordDetail } from '../ui/RecordDetail'
 import { RecordForm } from '../ui/RecordForm'
 import { RecordList } from '../ui/RecordList'
@@ -142,7 +145,11 @@ function Screen({ path }: { path: string }) {
     const schema = schemas.tables[newMatch.table]
     return (
       <main className="flex-1">
-        <PageHeader title={`New ${schema.labelSingular.toLowerCase()}`} action={<SyncButton />} />
+        <PageHeader
+          title={`New ${schema.labelSingular.toLowerCase()}`}
+          back={{ to: `/${newMatch.table}`, label: schema.label }}
+          action={<SyncButton />}
+        />
         <RecordForm table={newMatch.table} />
       </main>
     )
@@ -150,10 +157,15 @@ function Screen({ path }: { path: string }) {
 
   const editMatch = matchRoute('/:table/:id/edit', path)
   if (editMatch && schemas.tables[editMatch.table]) {
-    const schema = schemas.tables[editMatch.table]
+    const title = recordTitle(state, editMatch.table, editMatch.id)
     return (
       <main className="flex-1">
-        <PageHeader title={`Edit ${editMatch.id}`} subtitle={schema.label} action={<SyncButton />} />
+        <PageHeader
+          title={`Edit ${title}`}
+          subtitle={recordSubtitle(state, editMatch.table, editMatch.id)}
+          back={{ to: `/${editMatch.table}/${editMatch.id}`, label: title }}
+          action={<SyncButton />}
+        />
         <RecordForm table={editMatch.table} id={editMatch.id} />
       </main>
     )
@@ -165,8 +177,9 @@ function Screen({ path }: { path: string }) {
     return (
       <main className="flex-1">
         <PageHeader
-          title={detailMatch.id}
-          subtitle={schema.labelSingular}
+          title={recordTitle(state, detailMatch.table, detailMatch.id)}
+          subtitle={recordSubtitle(state, detailMatch.table, detailMatch.id)}
+          back={{ to: `/${detailMatch.table}`, label: schema.label }}
           action={<SyncButton />}
         />
         <RecordDetail
@@ -201,6 +214,21 @@ function Screen({ path }: { path: string }) {
       </div>
     </main>
   )
+}
+
+/** A record's title for a page header — "92 (Lagoon)" rather than "Y75" — or its id if it has none. */
+function recordTitle(state: AppState, table: string, id: string): string {
+  const schema = state.snapshot?.schemas.tables[table]
+  const data = state.data[table]
+  const row = schema && data ? findRow(data, schema.idField, id) : undefined
+  return (schema && row ? titleFor(schema, row) : '') || id
+}
+
+/** "Yarn · Y75" under a titled record, so the id is still on screen; just "Square" when the id is the title. */
+function recordSubtitle(state: AppState, table: string, id: string): string {
+  const schema = state.snapshot?.schemas.tables[table]
+  if (!schema) return ''
+  return recordTitle(state, table, id) === id ? schema.labelSingular : `${schema.labelSingular} · ${id}`
 }
 
 /**

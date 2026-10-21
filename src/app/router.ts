@@ -33,6 +33,34 @@ export function navigate(to: string, options: { replace?: boolean } = {}): void 
   }
 }
 
+/**
+ * The path shown before the current one, so a "back" link can tell whether the page it points to is
+ * the one actually behind it in history. Tracked here rather than read from `history`, which does not
+ * expose its entries.
+ */
+let shownPath = typeof window === 'undefined' ? '/' : currentPath()
+let previousPath: string | null = null
+if (typeof window !== 'undefined') {
+  window.addEventListener('hashchange', () => {
+    previousPath = shownPath
+    shownPath = currentPath()
+  })
+}
+
+/**
+ * Go "up" to `to`: by stepping back through history when that is where the last navigation came
+ * from, so list → record → back does not leave a second copy of the list on the history stack (and the
+ * browser restores where the list was scrolled to); by navigating there otherwise, e.g. after opening
+ * a record from a shared link, where stepping back would leave the app altogether.
+ */
+export function goBack(to: string): void {
+  if (previousPath === to && window.history.length > 1) {
+    window.history.back()
+  } else {
+    navigate(to)
+  }
+}
+
 export function useNavigate(): (to: string, options?: { replace?: boolean }) => void {
   return useCallback(navigate, [])
 }

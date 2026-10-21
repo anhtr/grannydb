@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { navigate } from '../app/router'
+import { goBack, navigate } from '../app/router'
 
 export function Link({
   to,
@@ -374,18 +374,38 @@ export function BadgeStack({
   )
 }
 
+/**
+ * `back` puts a link to the parent screen above the title. Installed to a home screen the app has no
+ * browser chrome, so without it the only way off a record is the bottom nav, which drops you at the
+ * top of the list instead of where you were.
+ */
 export function PageHeader({
   title,
   subtitle,
   action,
+  back,
 }: {
   title: string
   subtitle?: string
   action?: ReactNode
+  back?: { to: string; label: string }
 }) {
   return (
     <header className="flex items-start justify-between gap-2 px-4 pt-3 pb-1.5">
       <div className="min-w-0">
+        {back ? (
+          <a
+            href={`#${back.to}`}
+            className="-ml-1 inline-flex min-h-8 items-center gap-1 px-1 text-sm text-accent"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+              e.preventDefault()
+              goBack(back.to)
+            }}
+          >
+            <span aria-hidden>‹</span> {back.label}
+          </a>
+        ) : null}
         <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
         {subtitle ? <p className="mt-0.5 text-sm text-muted">{subtitle}</p> : null}
       </div>
