@@ -40,6 +40,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   under the Save bar or keyboard.
 - Pending changes name fields by their labels ("Status, Blocked, Notes") in full instead of truncated
   column keys, mark a record that is new, and link to the record.
+- The active bottom-nav tab is announced as the current page to screen readers, and Escape closes the
+  Sort and Filter panels.
 
 ## 2026-10-18 — v0.1.31, a date per status
 

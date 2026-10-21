@@ -331,6 +331,7 @@ function BottomNav({ path }: { path: string }) {
           >
             <Link
               to={item.to}
+              current={active === item.section}
               className={`tap-target flex h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium transition ${
                 active === item.section ? 'text-accent' : 'text-muted'
               }`}

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CsvRow, CsvTable } from '../core/csv'
 import { compareIds } from '../core/csv'
@@ -261,6 +261,16 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
   useListMemory(table, query, schema !== null && data !== null)
   const [sortPanelOpen, setSortPanelOpen] = useState(false)
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
+  useEffect(() => {
+    if (!sortPanelOpen && !filterPanelOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setSortPanelOpen(false)
+      setFilterPanelOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sortPanelOpen, filterPanelOpen])
   const [listPrefs, setListPrefsState] = useState<ListPrefs>(() =>
     initialListPrefs(schema, state.prefs.lists[table]),
   )

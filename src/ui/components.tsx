@@ -5,16 +5,20 @@ import { goBack, navigate } from '../app/router'
 export function Link({
   to,
   className = '',
+  current,
   children,
 }: {
   to: string
   className?: string
+  /** Marks the link as the page being shown, for screen readers (the nav's active tab). */
+  current?: boolean
   children: ReactNode
 }) {
   return (
     <a
       href={`#${to}`}
       className={className}
+      aria-current={current ? 'page' : undefined}
       onClick={(e) => {
         // Let modifier-clicks open a new tab the way any other link would.
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
