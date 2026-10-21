@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CsvRow } from '../core/csv'
 import { changeStatus, effectiveValue, fieldByKey, fillStatusDates, statusDateIssues, validateValue } from '../core/schema'
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import { appStore } from '../core/store'
 import { useAppState, useRefIds, useResolveRef, useRow, useTableSchema, useToday } from '../app/hooks'
-import { goBack, useNavigate } from '../app/router'
+import { goBack, setLeaveGuard, useNavigate } from '../app/router'
 import { Button, ErrorNote, FieldShell, Spinner } from './components'
 import { rendererFor } from './fields'
 
@@ -79,13 +79,31 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
   const refIds = useRefIds()
   const todayDate = useToday()
 
+  // Whether there are edits that leaving would throw away. A ref, so the guard installed once below
+  // always reads the latest answer; cleared on save so the form's own navigation is not questioned.
+  const unsaved = useRef(false)
+  useEffect(() => {
+    const confirmLeave = () => !unsaved.current || window.confirm('Discard your unsaved changes?')
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (unsaved.current) e.preventDefault()
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    const clearGuard = setLeaveGuard(confirmLeave)
+    return () => {
+      clearGuard()
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+  }, [])
+
   if (!schema) return <Spinner label="Loading schema" />
   if (id && !existing) {
     return <ErrorNote>No {schema.labelSingular.toLowerCase()} with id {id}.</ErrorNote>
   }
 
-  const current = values ?? initialValues(schema, existing, newId, todayDate)
+  const initial = initialValues(schema, existing, newId, todayDate)
+  const current = values ?? initial
   const recordId = current[schema.idField] || newId
+  unsaved.current = values !== null && schema.fields.some((f) => (values[f.key] ?? '') !== (initial[f.key] ?? ''))
 
   const setField = (key: string, value: string) => {
     // Changing the status also dates it (and clears any later status's date) — see `changeStatus`.
@@ -112,11 +130,20 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
     }
     for (const { field, message } of statusDateIssues(schema, current)) found[field] ??= message
     setErrors(found)
-    if (Object.keys(found).length > 0) return
+    const firstError = schema.fields.find((f) => found[f.key])
+    if (firstError) {
+      // The problem is often a screen or two above Save, so take you to it rather than leave the
+      // only sign of it out of view.
+      const inputId = `f-${table}-${firstError.key}`
+      document.querySelector(`label[for="${inputId}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      document.getElementById(inputId)?.focus({ preventScroll: true })
+      return
+    }
 
     setSaving(true)
     try {
       await appStore.save(table, recordId, current)
+      unsaved.current = false
       navigate(`/${table}/${recordId}`, { replace: true })
     } finally {
       setSaving(false)

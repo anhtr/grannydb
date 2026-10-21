@@ -228,6 +228,10 @@ Three components in `ui/` serve every table:
   including referential integrity, sticky save bar.
   On a table with `statusDates`, changing the status goes through `changeStatus` (date the new
   status, clear later ones) and save also checks `statusDateIssues`; quick-create does the same.
+  A save that fails validation scrolls to and focuses the first field with an error. Leaving with
+  unsaved edits asks first: in-app navigation goes through a guard the form installs with
+  `setLeaveGuard` (`app/router.ts`), and closing or reloading the tab through `beforeunload`. The
+  browser's own back gesture cannot be stopped from a hash route, so that one path is unguarded.
 
 Search, filter options and sort all read a `ref`/`reflist` field by its *resolved* value — a design's
 name, not its `D03` id — via `searchText`/`refDisplayLabel` in
