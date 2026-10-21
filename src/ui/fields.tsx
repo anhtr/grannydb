@@ -206,7 +206,18 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-line bg-paper p-2">
+    <div
+      className="space-y-2 rounded-xl border border-line bg-paper p-2"
+      // This sits inside the record's own form, so Enter in one of its boxes would save the record
+      // and drop the half-made design. Here it adds the new row instead; a picker that has already
+      // used the key for itself (see `RefSearchSelect`) has prevented the default and is left alone.
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' || e.defaultPrevented || !(e.target instanceof HTMLInputElement)) return
+        e.preventDefault()
+        e.stopPropagation()
+        void create()
+      }}
+    >
       <p className="px-1 text-xs font-medium text-muted">New {schema.labelSingular.toLowerCase()}</p>
       <div className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-card">
         {fields.map((field) => {
@@ -255,6 +266,7 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
   const resolve = useResolveRef()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
 
   const selectedRow = value !== '' ? lookup.get(value) : undefined
   const selectedLabel = schema && selectedRow ? titleFor(schema, selectedRow) : value
@@ -285,7 +297,30 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
             }}
             onChange={(e) => {
               setQuery(e.target.value)
+              setActive(0)
               setOpen(true)
+            }}
+            // Enter would otherwise submit the whole form — saving the record without the choice you
+            // were in the middle of making — so it picks the highlighted match instead.
+            enterKeyHint="done"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                const pick = open ? results[active] : undefined
+                if (pick) {
+                  onChange(pick[0])
+                  setQuery('')
+                  setOpen(false)
+                }
+              } else if (e.key === 'Escape' && open) {
+                e.preventDefault()
+                setOpen(false)
+              } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault()
+                setOpen(true)
+                const step = e.key === 'ArrowDown' ? 1 : -1
+                setActive((i) => Math.min(Math.max(i + step, 0), Math.max(results.length - 1, 0)))
+              }
             }}
             onBlur={() => {
               // Let the click on a result register before the list disappears.
@@ -311,11 +346,13 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
             {results.length === 0 ? (
               <li className="px-3 py-2 text-sm text-muted">No matches</li>
             ) : (
-              results.map(([rowId, row]) => (
+              results.map(([rowId, row], i) => (
                 <li key={rowId}>
                   <button
                     type="button"
-                    className="tap-target flex w-full items-center gap-2 px-3 text-left text-sm hover:bg-line/40"
+                    className={`tap-target flex w-full items-center gap-2 px-3 text-left text-sm hover:bg-line/40 ${
+                      i === active ? 'bg-line/40' : ''
+                    }`}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       onChange(rowId)
@@ -392,6 +429,17 @@ function RefListInput({ field, value, onChange }: FieldInputProps) {
           placeholder={`Search ${schema?.label.toLowerCase() ?? '…'}`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          enterKeyHint="done"
+          onKeyDown={(e) => {
+            // Adds the first match not already picked, rather than submitting the form around it.
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            const first = searching ? visible.find(([rowId]) => !selected.includes(rowId)) : undefined
+            if (first) {
+              toggle(first[0])
+              setQuery('')
+            }
+          }}
         />
       ) : null}
       <div className="flex flex-wrap gap-2">
