@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import type { CsvRow } from '../core/csv'
 import { compareIds } from '../core/csv'
 import type { FieldDef, FieldType, TableSchema } from '../core/schema'
@@ -121,6 +121,13 @@ function RefDetailFields({ id, refTable, keys }: { id: string; refTable: string;
   )
 }
 
+/**
+ * How an inline quick-create tells the form around it that it holds a half-made row, so the form's
+ * unsaved-changes guard covers that draft as well as the record's own fields. Each draft reports under
+ * its own key: `true` while it has edits, `false` once they are added, cancelled or unmounted.
+ */
+export const DraftReporterContext = createContext<((key: string, dirty: boolean) => void) | null>(null)
+
 /** Every field of a quick-create target except its id, which is assigned on save, not typed. */
 function quickCreateFields(fields: FieldDef[], idField: string): FieldDef[] {
   return fields.filter((f) => f.key !== idField)
@@ -146,12 +153,21 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
   const refIds = useRefIds()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<CsvRow>({})
+  const [opened, setOpened] = useState<CsvRow>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const todayDate = useToday()
+  const reportDraft = useContext(DraftReporterContext)
+  const draftKey = useId()
+
+  const fields = schema ? quickCreateFields(schema.fields, schema.idField) : []
+  const dirty = open && fields.some((f) => (draft[f.key] ?? '') !== (opened[f.key] ?? ''))
+  useEffect(() => {
+    reportDraft?.(draftKey, dirty)
+    return () => reportDraft?.(draftKey, false)
+  }, [reportDraft, draftKey, dirty])
 
   if (!schema) return null
-  const fields = quickCreateFields(schema.fields, schema.idField)
 
   // The same status-date behaviour as the full form (`RecordForm`), so a quick-created row obeys the
   // rules it will be validated against.
@@ -196,7 +212,9 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
         type="button"
         className="text-sm text-accent underline-offset-2 hover:underline"
         onClick={() => {
-          setDraft(initialQuickCreateDraft(schema, fields, todayDate))
+          const fresh = initialQuickCreateDraft(schema, fields, todayDate)
+          setDraft(fresh)
+          setOpened(fresh)
           setErrors({})
           setOpen(true)
         }}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CsvRow } from '../core/csv'
 import { changeStatus, effectiveValue, fieldByKey, fillStatusDates, statusDateIssues, validateValue } from '../core/schema'
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
@@ -6,7 +6,7 @@ import { appStore } from '../core/store'
 import { useAppState, useRefIds, useResolveRef, useRow, useTableSchema, useToday } from '../app/hooks'
 import { goBack, setLeaveGuard, useNavigate } from '../app/router'
 import { Button, ErrorNote, FieldShell, Spinner } from './components'
-import { rendererFor } from './fields'
+import { DraftReporterContext, rendererFor } from './fields'
 
 function initialValues(schema: TableSchema, row: CsvRow | null, newId: string, todayDate: string): CsvRow {
   const values: CsvRow = {}
@@ -82,10 +82,18 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
   // Whether there are edits that leaving would throw away. A ref, so the guard installed once below
   // always reads the latest answer; cleared on save so the form's own navigation is not questioned.
   const unsaved = useRef(false)
+  // Inline "+ New …" drafts with edits in them (see `DraftReporterContext`): leaving would lose those
+  // too, even on a form whose own fields are untouched.
+  const dirtyDrafts = useRef(new Set<string>())
+  const reportDraft = useCallback((key: string, dirty: boolean) => {
+    if (dirty) dirtyDrafts.current.add(key)
+    else dirtyDrafts.current.delete(key)
+  }, [])
   useEffect(() => {
-    const confirmLeave = () => !unsaved.current || window.confirm('Discard your unsaved changes?')
+    const hasUnsaved = () => unsaved.current || dirtyDrafts.current.size > 0
+    const confirmLeave = () => !hasUnsaved() || window.confirm('Discard your unsaved changes?')
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!unsaved.current) return
+      if (!hasUnsaved()) return
       e.preventDefault()
       // Safari still asks only when this is set, whatever the spec says about `preventDefault`.
       e.returnValue = ''
@@ -154,58 +162,60 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
   }
 
   return (
-    <form
-      className="pb-28"
-      onSubmit={(e) => {
-        e.preventDefault()
-        void onSave()
-      }}
-    >
-      <div className="mx-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
-        {schema.fields.map((field) => {
-          const { Input } = rendererFor(field)
-          const inputId = `f-${table}-${field.key}`
-          return (
-            <FieldShell
-              key={field.key}
-              label={field.label}
-              help={field.help}
-              error={errors[field.key]}
-              htmlFor={inputId}
-              inlineLabel={field.type === 'bool'}
-            >
-              <Input
-                field={field}
-                value={current[field.key] ?? ''}
-                onChange={(v) => setField(field.key, v)}
-                id={inputId}
-                row={current}
-                schema={schema}
-              />
-              {field.inheritFrom ? (
-                <InheritHint field={field} schema={schema} draft={current} resolve={resolve} />
-              ) : null}
-            </FieldShell>
-          )
-        })}
-      </div>
-
-      {/* Sticky so Save is always in thumb reach on a long form. Rides on the footer's measured height
-          (see `useFooterHeight` in App.tsx), which already pads for the home indicator. */}
-      <div className="fixed inset-x-0 bottom-[var(--footer-height,4rem)] z-20 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl gap-3">
-          <Button
-            variant="ghost"
-            className="flex-1"
-            onClick={() => goBack(id ? `/${table}/${id}` : `/${table}`)}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" className="flex-[2]" disabled={saving}>
-            {saving ? 'Saving…' : `Save ${schema.labelSingular.toLowerCase()}`}
-          </Button>
+    <DraftReporterContext.Provider value={reportDraft}>
+      <form
+        className="pb-28"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void onSave()
+        }}
+      >
+        <div className="mx-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+          {schema.fields.map((field) => {
+            const { Input } = rendererFor(field)
+            const inputId = `f-${table}-${field.key}`
+            return (
+              <FieldShell
+                key={field.key}
+                label={field.label}
+                help={field.help}
+                error={errors[field.key]}
+                htmlFor={inputId}
+                inlineLabel={field.type === 'bool'}
+              >
+                <Input
+                  field={field}
+                  value={current[field.key] ?? ''}
+                  onChange={(v) => setField(field.key, v)}
+                  id={inputId}
+                  row={current}
+                  schema={schema}
+                />
+                {field.inheritFrom ? (
+                  <InheritHint field={field} schema={schema} draft={current} resolve={resolve} />
+                ) : null}
+              </FieldShell>
+            )
+          })}
         </div>
-      </div>
-    </form>
+
+        {/* Sticky so Save is always in thumb reach on a long form. Rides on the footer's measured height
+            (see `useFooterHeight` in App.tsx), which already pads for the home indicator. */}
+        <div className="fixed inset-x-0 bottom-[var(--footer-height,4rem)] z-20 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur">
+          <div className="mx-auto flex max-w-2xl gap-3">
+            <Button
+              variant="ghost"
+              className="flex-1"
+              onClick={() => goBack(id ? `/${table}/${id}` : `/${table}`)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" className="flex-[2]" disabled={saving}>
+              {saving ? 'Saving…' : `Save ${schema.labelSingular.toLowerCase()}`}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </DraftReporterContext.Provider>
   )
 }
