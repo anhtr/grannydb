@@ -101,7 +101,10 @@ navigates, and navigation is when browsers check on their own. A stale *dataset*
 snapshot, and Settings → Reload from GitHub forgets it and reads again.
 
 To check installability, use `npm run preview` and DevTools → Application → Manifest (it lists any
-install blockers) and → Service workers. With Network → Offline ticked, the app should still open
+install blockers) and → Service workers. The Manifest pane will note that no `id` is specified; that
+is deliberate. On a github.io origin shared with other project pages, a relative `id` resolves to
+the origin root and claims every app on it, so identity is left to default to `start_url` — see
+[ADR 0033](adr/0033-no-manifest-id-on-a-shared-origin.md). With Network → Offline ticked, the app should still open
 from a fresh tab, edits should queue, and unticking it should push them within a second or two.
 
 ## First-time setup

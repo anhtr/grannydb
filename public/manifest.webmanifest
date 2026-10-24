@@ -1,5 +1,4 @@
 {
-  "id": "./",
   "name": "grannydb",
   "short_name": "grannydb",
   "description": "Granny square tracker backed by a GitHub repo.",

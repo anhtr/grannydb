@@ -4,6 +4,17 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-24 - v0.1.34, install alongside other apps on the same github.io origin
+
+**Install**
+- Fixed: the manifest's `id` (`"./"`, added in v0.1.33) resolves against the *origin*, not the
+  manifest's directory, so grannydb claimed `https://anhtr.github.io/` as its identity and blocked
+  installing other project pages from the same origin. `id` is removed; identity is `start_url`
+  again (`/grannydb/`), as before v0.1.33. An install made from v0.1.33 should be uninstalled and
+  installed again. See [ADR 0033](adr/0033-no-manifest-id-on-a-shared-origin.md).
+- New `src/sw/__tests__/manifest.test.ts` resolves the identity as browsers do and fails if it
+  leaves the app's own scope.
+
 ## 2026-10-24 - v0.1.33, sync on its own, and a complete offline install
 
 **Sync**
@@ -27,8 +38,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   (`src/app/install.ts`), and explains Add to Home Screen where there is not.
 - A status line above the nav now says when the device is offline even if the data on screen was
   read live, and what will happen to an edit.
-- Manifest gains `id`, `lang`, `dir`, `categories` and `prefer_related_applications`. `id` is the
-  value browsers already derived from `start_url`, so existing installs keep their identity.
+- Manifest gains `id`, `lang`, `dir`, `categories` and `prefer_related_applications`. (The `id`
+  was wrong: it resolved to the origin root, not `start_url`. Removed in v0.1.34.)
 
 ## 2026-10-21 - v0.1.32, polish
 
