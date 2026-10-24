@@ -25,9 +25,15 @@ export interface Prefs {
    * *this device* likes to look at the data, not the data itself.
    */
   lists: Record<string, ListPrefs>
+  /**
+   * Push the queue on its own whenever there is a connection (see `core/store/autoSync.ts`).
+   * Per device rather than per project: whether a phone should commit behind your back is a
+   * question about that phone, and a laptop you are hand-editing CSVs on may well want it off.
+   */
+  autoSync: boolean
 }
 
-export const DEFAULT_PREFS: Prefs = { lists: {} }
+export const DEFAULT_PREFS: Prefs = { lists: {}, autoSync: true }
 
 const STORAGE_KEY = 'grannydb.prefs'
 
@@ -38,7 +44,10 @@ export function loadPrefs(): Prefs {
     const parsed = JSON.parse(raw) as Partial<Prefs>
     // Picks known keys rather than spreading, so the retired `projectStartDate`/`squaresGoal` (now
     // in `project.json`) fall away on the next save instead of lingering in storage forever.
-    return { lists: parsed.lists ?? DEFAULT_PREFS.lists }
+    return {
+      lists: parsed.lists ?? DEFAULT_PREFS.lists,
+      autoSync: typeof parsed.autoSync === 'boolean' ? parsed.autoSync : DEFAULT_PREFS.autoSync,
+    }
   } catch {
     return DEFAULT_PREFS
   }

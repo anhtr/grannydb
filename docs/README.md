@@ -32,6 +32,8 @@ If you already know these ideas from data engineering, here is where each one sh
 |---|---|
 | Write-ahead log / event sourcing | The pending-change queue — [sync engine](04-sync-engine.md) |
 | Log replay onto a new base | `syncChanges` retry loop — [sync engine](04-sync-engine.md) |
+| Group commit / write-behind | Automatic sync, debounced to one commit per burst — [sync engine](04-sync-engine.md) |
+| Idempotent replay | Why a cut-off sync can simply be retried — [sync engine](04-sync-engine.md) |
 | CQRS (separate read and write models) | `merge.ts` produces the read model — [app architecture](05-app-architecture.md) |
 | Materialised view | `data/bundle.json`, rebuilt by the pipeline — [operations](06-operations.md) |
 | Snapshot isolation | All reads pinned to one commit sha — [storage layer](03-storage-layer.md) |

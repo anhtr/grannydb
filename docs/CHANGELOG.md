@@ -4,6 +4,32 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-24 - v0.1.33, sync on its own, and a complete offline install
+
+**Sync**
+- The queue now pushes itself: 30 seconds after the last edit, when the app is hidden or shown
+  again, when the connection comes back, and at start-up if edits are waiting. Each edit resets the
+  timer, so a burst of edits is one commit. Policy in `src/core/store/autoSync.ts`; reverses the v1
+  "Why not auto-sync" decision. See
+  [ADR 0032](adr/0032-sync-automatically-when-there-is-a-connection.md).
+- An automatic push that cannot reach GitHub is not reported (the device is offline; the queue says
+  what is waiting). Any other failure is, and turns the header badge amber.
+- Settings → This device → Sync automatically turns it off per device (new `Prefs.autoSync`,
+  default on). The Sync button still works either way.
+- The first edit of a session asks for persistent storage (`src/core/store/persistence.ts`), so the
+  browser does not evict an unsynced queue. Settings shows whether it was granted.
+
+**Offline and install**
+- The service worker precaches the manifest and icons as well as the shell, so an installed app
+  launches offline with its own icon and splash. Their contents feed the worker version.
+- The app checks for a newer worker each time it returns to the foreground.
+- Settings → This device offers the browser's install prompt where there is one
+  (`src/app/install.ts`), and explains Add to Home Screen where there is not.
+- A status line above the nav now says when the device is offline even if the data on screen was
+  read live, and what will happen to an edit.
+- Manifest gains `id`, `lang`, `dir`, `categories` and `prefer_related_applications`. `id` is the
+  value browsers already derived from `start_url`, so existing installs keep their identity.
+
 ## 2026-10-21 - v0.1.32, polish
 
 **App**

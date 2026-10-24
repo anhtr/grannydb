@@ -13,10 +13,11 @@ src/
     date.ts        today in the project's time zone, calendar days as integers, and the one
                    definition of a week (Monday first)
     timeline.ts    finished squares bucketed by day, week and weekday, with moving averages
-    store/         change queue, merge, sync, the offline snapshot cache, the app store
+    store/         change queue, merge, sync and when to run it automatically, the offline
+                   snapshot cache, persistent-storage requests, the app store
   ui/              shared React: primitives, field renderers, generic list/detail/form
   features/        one folder per screen that is more than "a table"
-  app/             router, hooks, shell, service-worker registration
+  app/             router, hooks, shell, service-worker registration, the install prompt
   sw/              the service worker itself (plain JS, shipped unbundled)
 scripts/           the data pipeline and the icon generator (run in Node)
 ```

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { defineConfig } from 'vitest/config'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -70,17 +71,19 @@ function dataBundlePlugin(): Plugin {
  *
  * The worker cannot import the manifest and cannot guess the filenames, since they only exist once
  * rollup has hashed them — so the list is substituted here, where it is known. Only the shell is
- * precached: the HTML document and the JS/CSS it loads. Sourcemaps and `data/bundle.json` are left
- * out on purpose (see the header comment in `sw.js`).
+ * precached: the HTML document, the JS/CSS it loads, and the manifest and icons from `public/`.
+ * Sourcemaps and `data/bundle.json` are left out on purpose (see the header comment in `sw.js`).
  */
 function serviceWorkerPlugin(): Plugin {
   let base = '/'
+  let publicDir = ''
 
   return {
     name: 'grannydb-service-worker',
 
     configResolved(config) {
       base = config.base
+      publicDir = config.publicDir
     },
 
     generateBundle(_options, bundle) {
@@ -88,20 +91,32 @@ function serviceWorkerPlugin(): Plugin {
         .filter((name) => name.endsWith('.js') || name.endsWith('.css'))
         .sort()
 
+      // The manifest and icons are part of what an installed app needs to launch: offline, an
+      // uncached manifest is a failed fetch on every cold start and the splash screen has no icon.
+      // `public/` is flat and holds nothing else, so all of it is the list.
+      const statics = publicDir
+        ? readdirSync(publicDir)
+            .filter((name) => statSync(join(publicDir, name)).isFile())
+            .sort()
+        : []
+
       // index.html first: the worker serves it for every navigation, hash routing having made every
       // route the same document.
-      const precache = [`${base}index.html`, ...assets.map((name) => `${base}${name}`)]
+      const precache = [
+        `${base}index.html`,
+        ...assets.map((name) => `${base}${name}`),
+        ...statics.map((name) => `${base}${name}`),
+      ]
 
       // A build that changes nothing must produce the same worker, or every deploy would prompt an
-      // update. Hashed filenames already encode the JS and CSS; the document is hashed explicitly
-      // because editing index.html alone (a CSP change, say) leaves every asset name untouched.
+      // update. Hashed filenames already encode the JS and CSS; the document and the public files
+      // are hashed by content because their names never change — editing index.html alone (a CSP
+      // change, say) or redrawing an icon leaves every name untouched.
       const html = bundle['index.html']
       const htmlSource = html && html.type === 'asset' ? String(html.source) : ''
-      const version = createHash('sha256')
-        .update(precache.join('|'))
-        .update(htmlSource)
-        .digest('hex')
-        .slice(0, 12)
+      const hash = createHash('sha256').update(precache.join('|')).update(htmlSource)
+      for (const name of statics) hash.update(readFileSync(join(publicDir, name)))
+      const version = hash.digest('hex').slice(0, 12)
 
       const template = readFileSync('src/sw/sw.js', 'utf8')
       this.emitFile({

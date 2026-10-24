@@ -19,6 +19,7 @@ import { relativeTime } from '../ui/time'
 import { useAppState } from './hooks'
 import { matchRoute, useRoute } from './router'
 import { applyUpdate, registerServiceWorker } from './serviceWorker'
+import { watchInstall } from './install'
 
 /**
  * Feature screens that are not just "a table".
@@ -57,7 +58,12 @@ export function App() {
   useEffect(() => {
     void appStore.init()
     registerServiceWorker()
-    return appStore.watchConnectivity()
+    const stopInstall = watchInstall()
+    const stopConnectivity = appStore.watchConnectivity()
+    return () => {
+      stopInstall()
+      stopConnectivity()
+    }
   }, [])
 
   return (
@@ -252,14 +258,20 @@ function recordSubtitle(state: AppState, table: string, id: string): string {
 }
 
 /**
- * One line above the nav for the two things the app knows and you cannot see: that the data on
- * screen came off this device rather than the network, and that a newer build is waiting.
+ * One line above the nav for the things the app knows and you cannot see: that a newer build is
+ * waiting, that the data on screen came off this device rather than the network, or that there is
+ * no network at all right now.
  *
  * Above the nav rather than under the header because it is device state, not page state — it is
  * true of every screen, and down here it is in reach of a thumb without pushing the page around.
  */
 function StatusBar() {
-  const { snapshot, updateReady } = useAppState()
+  const { snapshot, updateReady, online, token, prefs } = useAppState()
+  // Says what will happen to an edit, since that is the question being offline raises.
+  const fate =
+    token && prefs.autoSync
+      ? "Edits are saved on this device and sync when you're back online."
+      : 'Edits are queued as usual.'
 
   if (updateReady) {
     return (
@@ -272,14 +284,19 @@ function StatusBar() {
     )
   }
 
-  if (snapshot?.source !== 'cache') return null
+  if (snapshot?.source === 'cache') {
+    return (
+      <div className="border-t border-line bg-card px-4 py-2 text-sm text-muted">
+        Offline — showing the copy saved on this device, {relativeTime(snapshot.fetchedAt)}. {fate}
+      </div>
+    )
+  }
 
-  return (
-    <div className="border-t border-line bg-card px-4 py-2 text-sm text-muted">
-      Offline — showing the copy saved on this device, {relativeTime(snapshot.fetchedAt)}. Edits are
-      queued as usual.
-    </div>
-  )
+  if (!online) {
+    return <div className="border-t border-line bg-card px-4 py-2 text-sm text-muted">Offline. {fate}</div>
+  }
+
+  return null
 }
 
 function Redirect({ to }: { to: string }) {
@@ -289,13 +306,22 @@ function Redirect({ to }: { to: string }) {
   return <Spinner />
 }
 
+/**
+ * The header badge. With automatic sync it is mostly a flicker of "Syncing…"; it stays put, and
+ * turns amber, when a push failed for a reason waiting will not fix — that is the one failure
+ * automatic sync must not let you miss.
+ */
 function SyncButton() {
-  const { changes, syncing } = useAppState()
+  const { changes, syncing, syncError } = useAppState()
   if (changes.length === 0 && !syncing) return null
+  const failed = !syncing && syncError !== null
+  const tone = failed
+    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+    : 'bg-accent-soft text-accent'
   return (
     <Link to="/sync">
-      <span className="tap-target inline-flex items-center gap-2 rounded-xl bg-accent-soft px-3 text-sm font-medium text-accent">
-        {syncing ? 'Syncing…' : `${changes.length} unsynced`}
+      <span className={`tap-target inline-flex items-center gap-2 rounded-xl px-3 text-sm font-medium ${tone}`}>
+        {syncing ? 'Syncing…' : failed ? `${changes.length} unsynced · failed` : `${changes.length} unsynced`}
       </span>
     </Link>
   )

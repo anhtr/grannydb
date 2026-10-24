@@ -58,8 +58,9 @@ npm run build          # validates data, then builds
 npm run validate-data  # data contract check only, seconds
 ```
 
-Note that `npm run dev` with a token in Settings writes to the **real repo**. Point Settings →
-Branch at a scratch branch when experimenting.
+Note that `npm run dev` with a token in Settings writes to the **real repo** — and with automatic
+sync on (the default), it does so by itself 30 seconds after an edit. Point Settings → Branch at a
+scratch branch, or turn off Settings → This device → Sync automatically, when experimenting.
 
 ## Commits
 

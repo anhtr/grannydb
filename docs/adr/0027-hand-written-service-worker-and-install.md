@@ -34,7 +34,10 @@ Ship `src/sw/sw.js` as plain JS. A Vite plugin substitutes the hashed filenames 
 derived from them at build time, since that is the only point where the names are known, and emits
 `dist/sw.js`.
 
-**What it caches: the shell, and nothing else.** The document and the hashed JS/CSS. Explicitly not:
+**What it caches: the shell, and nothing else.** The document and the hashed JS/CSS. (Amended
+2026-10-24: and the manifest and icons from `public/`, which an installed app also fetches at
+launch — see the v0.1.33 entry in [the changelog](../CHANGELOG.md).)
+Explicitly not:
 
 - anything cross-origin — the `fetch` handler returns without calling `respondWith`, so the GitHub
   API is not merely uncached, it is untouched. No authenticated response can ever land in a cache on

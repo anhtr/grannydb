@@ -1,11 +1,12 @@
 import { useId, useState } from 'react'
-import { appStore } from '../../core/store'
+import { appStore, AUTO_SYNC_IDLE_MS } from '../../core/store'
 import { commitUrl, DEFAULT_CONFIG, repoUrl } from '../../core/github'
 import type { ConnectionCheck, RepoConfig } from '../../core/github'
 import { deviceTimeZone } from '../../core/date'
 import { PROJECT_KEYS } from '../../core/project'
 import type { ProjectInfo } from '../../core/project'
 import { useAppState, useCanEdit, useProject } from '../../app/hooks'
+import { promptInstall } from '../../app/install'
 import { Button, Card, Link, inputClass } from '../../ui/components'
 import { relativeTime } from '../../ui/time'
 
@@ -341,6 +342,8 @@ export function SettingsPage() {
         </dl>
       </Section>
 
+      <DeviceSection />
+
       <Section title="Local data">
         <div className="space-y-3 px-4 py-3">
           <p className="text-sm text-muted">
@@ -352,6 +355,72 @@ export function SettingsPage() {
       </Section>
     </div>
   )
+}
+
+/** How the app behaves on this device: installed or not, pushing on its own or not, safe or not. */
+function DeviceSection() {
+  const state = useAppState()
+  const { prefs, install, storage } = state
+
+  return (
+    <Section title="This device">
+      <div className="space-y-2 px-4 py-3">
+        <label htmlFor="auto-sync" className="tap-target flex items-center gap-3">
+          <input
+            id="auto-sync"
+            type="checkbox"
+            className="size-5 accent-[var(--color-accent)]"
+            checked={prefs.autoSync}
+            onChange={(e) => appStore.setPrefs({ ...prefs, autoSync: e.target.checked })}
+          />
+          <span className="text-sm font-medium">Sync automatically</span>
+        </label>
+        <p className="text-xs text-muted">
+          {prefs.autoSync
+            ? `Edits are pushed ${AUTO_SYNC_IDLE_MS / 1000} seconds after the last one, when you leave the app, and as soon as a connection comes back. Turn this off to push only from the Pending changes screen.`
+            : 'Edits wait on the Pending changes screen until you press Sync there.'}
+        </p>
+      </div>
+
+      <div className="space-y-2 px-4 py-3">
+        {install === 'installed' ? (
+          <p className="text-sm">Installed. The app opens from the home screen with or without signal.</p>
+        ) : install === 'available' ? (
+          <>
+            <p className="text-sm text-muted">
+              Install the app so it opens from the home screen with no connection.
+            </p>
+            <Button variant="primary" onClick={() => void promptInstall()}>
+              Install app
+            </Button>
+          </>
+        ) : (
+          <p className="text-sm text-muted">
+            To open the app with no connection, add it to the home screen: on iPhone or iPad, Share →
+            Add to Home Screen; elsewhere, Install from the browser menu. An installed app on iOS
+            keeps its own storage, so paste the token again inside it.
+          </p>
+        )}
+      </div>
+
+      <dl className="text-sm">
+        <Row label="Storage">{describeStorage(storage)}</Row>
+      </dl>
+    </Section>
+  )
+}
+
+function describeStorage(storage: string | null): string {
+  switch (storage) {
+    case 'persistent':
+      return 'kept — the browser will not clear it'
+    case 'best-effort':
+      return 'best effort — may be cleared if space runs low'
+    case 'unsupported':
+      return 'best effort'
+    default:
+      return '—'
+  }
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

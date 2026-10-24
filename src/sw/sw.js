@@ -1,8 +1,9 @@
 /*
  * Service worker: makes the app *open* with no network.
  *
- * It caches the shell — the HTML document and the hashed JS/CSS — and nothing else. It never
- * touches api.github.com, raw.githubusercontent.com, or data/bundle.json. Data offline is a
+ * It caches the shell — the HTML document, the hashed JS/CSS, and the manifest and icons an
+ * installed app launches with — and nothing else. It never touches api.github.com,
+ * raw.githubusercontent.com, or data/bundle.json. Data offline is a
  * separate mechanism (`core/store/snapshotCache.ts`), and keeping the two apart is deliberate:
  * one cache that answers "does the page load" and one that answers "is there anything to show",
  * rather than two competing stories about how stale your squares are. See ADR 0027.
@@ -56,8 +57,9 @@ self.addEventListener('fetch', (event) => {
   const path = url.pathname
   if (!PRECACHE.includes(path)) return
 
-  // Precached entries are content-hashed and therefore immutable: a cache hit needs no
-  // revalidation, and a miss can only mean the cache was evicted.
+  // Precached entries belong to this worker's version — the JS/CSS by content-hashed name, the rest
+  // by the version hash itself — so a cache hit needs no revalidation, and a miss can only mean the
+  // cache was evicted.
   event.respondWith(caches.match(path).then((cached) => cached || fetch(request)))
 })
 

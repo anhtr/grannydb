@@ -179,7 +179,11 @@ Pinned by tests in [`queue.test.ts`](../src/core/__tests__/queue.test.ts).
 
 | What happens | Behaviour |
 |---|---|
-| Offline | The app still opens and renders the last snapshot saved on the device, with the queue replayed on top; edits queue as usual; Sync reports the connection and changes nothing |
+| Offline | The app still opens and renders the last snapshot saved on the device, with the queue replayed on top; edits queue as usual; an automatic push stands down silently, a manual Sync reports the connection; nothing changes |
+| Back online | The app re-reads if it was showing the device's copy, and pushes the queue straight away |
+| Automatic push fails for another reason | Reported like a manual failure: `syncError` on the sync screen, and the header badge turns amber |
+| App frozen or killed mid-push | Safe: the ref only moves on the final fast-forward, the queue is only trimmed after a success, and replaying already-committed operations commits nothing |
+| Browser clears storage | Asked against on the first edit of a session with `navigator.storage.persist()`; Settings shows whether it was granted |
 | Token expired | 401 surfaces on the sync screen; queue is untouched |
 | Branch moved | Re-read, replay, retry — up to 3 times, then reports it |
 | Edited in the GitHub web UI meanwhile | Preserved: we replay onto the version that includes it |
@@ -196,22 +200,52 @@ comparing at replay time — cheap to add, and worth doing if it ever actually b
 single-person blanket tracker it has not been worth the UI it would need. Tracked as a follow-up
 issue.
 
-## Why not auto-sync
+## Automatic sync
 
-Considered, and rejected for v1. Auto-sync means a commit per burst of edits, background failures
-you might not notice, and the app writing to your repo while you are not looking. Explicit Sync
-keeps the git history legible and puts the "this is now permanent" moment where you can see it.
+v1 made syncing a button and argued against automating it: a commit per burst of edits, background
+failures you might not notice, and the app writing to your repo while you are not looking. Because
+the queue is durable and the read model hides the distinction, deferring cost almost nothing; the
+one risk was forgetting. Once the app installed and opened offline, forgetting became the normal
+case — the edits made on the train are exactly the ones nobody remembers to push — so the queue now
+pushes itself. See [ADR 0032](adr/0032-sync-automatically-when-there-is-a-connection.md).
 
-Because the queue is durable and the read model hides the distinction, the cost of deferring — the
-usual argument for auto-sync — is close to zero. The one real risk is forgetting, which the
-persistent unsynced badge in the header addresses.
+It is the same `appStore.sync`, called by a policy in
+[`autoSync.ts`](../src/core/store/autoSync.ts) instead of a button. Nothing about the engine
+changed, which is what the v1 design promised: "a debounced call to the same `syncChanges`".
 
-Auto-sync remains easy to add later: it is a debounced call to the same `syncChanges`. Nothing about
-the design would need to change.
+**When.** 30 seconds after the last queued edit (each edit resets the timer); immediately when
+`online` fires, when the app is hidden, when it is shown again, and at start-up if a queue is
+waiting. The debounce is the **group commit** pattern: many small writes, one durable flush, so
+entering a square's four fields is one commit rather than four. The no-delay triggers are the
+moments a phone gives you — leaving the app is the last chance before the OS freezes it, and a
+frozen app misses `online`, which is why coming back to it counts as a trigger too.
 
-Offline support did not change this. When the device comes back, the app **re-reads** on its own —
-guarded to the case where the snapshot on screen came from the device's cache, since that is the one
-the network was actually blocking — and it does not sync. The asymmetry is the whole argument: a read
-that happens behind your back is invisible and reversible, and a commit to your repo is neither.
+**What it reports.** Not reaching GitHub is the expected state offline, so an automatic attempt that
+fails with a `NetworkError` leaves no error behind — the queue already says what is waiting, and the
+next trigger tries again. Every other failure (expired token, branch that kept moving) will not fix
+itself by waiting, so it surfaces exactly as a manual failure would and turns the header badge
+amber. A manual Sync always reports, offline included: you asked, so you get an answer.
+
+**Why trying again whenever is safe.** Replay is **idempotent**. If a push is cut off after the ref
+moved but before the page heard, the queue is still there; the next sync replays the same
+field-level operations onto a repo that already has them, the tables serialise to the same bytes,
+and nothing is committed. The page then drops the queue as synced.
+
+**Opting out.** Settings → This device → Sync automatically, per device. A laptop you hand-edit CSVs
+from, or `npm run dev` pointed at the real repo, may well want it off; then the Sync button is the
+only path, as in v1.
+
+When the device comes back the app also **re-reads** — guarded to the case where the snapshot on
+screen came from the device's cache, since that is the one the network was actually blocking.
 (`navigator.onLine` reports whether there is an interface, not whether GitHub is reachable — true on
-a captive portal — so it triggers an attempt, never a conclusion.)
+a captive portal — so `true` permits an attempt, never a conclusion. `false` is trusted, and skips
+an attempt that cannot succeed.)
+
+### Keeping the queue on the device
+
+IndexedDB is best-effort by default: a browser may evict it under storage pressure, and Safari clears
+it for a site not visited in seven days unless it is installed. For the snapshot that costs a reload;
+for the queue it loses edits that exist nowhere else. So the first edit of a session asks for
+**persistent storage** ([`persistence.ts`](../src/core/store/persistence.ts)). Firefox may show a
+prompt; Chrome and Safari decide silently and grant it to installed apps. Settings → This device →
+Storage shows the answer.

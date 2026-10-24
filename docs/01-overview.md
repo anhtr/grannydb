@@ -96,13 +96,14 @@ Three ideas carry the design, each with its own page:
 | Data format | CSV, one file per table | [0001](adr/0001-csv-as-the-storage-format.md) |
 | Auth | Fine-grained PAT in `localStorage` | [0002](adr/0002-personal-access-token-auth.md) |
 | Write API | Git Data API, atomic multi-file commits | [0003](adr/0003-git-data-api-for-atomic-commits.md) |
-| Write model | Local-first operation log, explicit Sync | [0004](adr/0004-operation-log-not-file-snapshots.md) |
+| Write model | Local-first operation log, replayed at sync | [0004](adr/0004-operation-log-not-file-snapshots.md) |
 | Schema | JSON in the repo, loaded at runtime | [0005](adr/0005-schema-as-data.md) |
 | Visibility | Public data, anonymous read-only | [0006](adr/0006-public-data-and-anonymous-reads.md) |
 | Stack | React + TS + Vite + Tailwind, hash routing | [0007](adr/0007-stack-and-hash-routing.md) |
 | Repo layout | One public repo; data location is config | [0008](adr/0008-single-repo-with-configurable-data-location.md) |
 | Offline reads | Last-known-good snapshot on the device | [0026](adr/0026-last-known-good-snapshot-for-offline-reads.md) |
 | Offline install | Hand-written service worker, shell only | [0027](adr/0027-hand-written-service-worker-and-install.md) |
+| When to sync | On its own once there is a connection, debounced; opt-out per device | [0032](adr/0032-sync-automatically-when-there-is-a-connection.md) |
 | Project start date & target | Synced data in `project.json`, edited via the queue | [0028](adr/0028-project-settings-as-a-synced-json-document.md) |
 
 ## What v1 does not do

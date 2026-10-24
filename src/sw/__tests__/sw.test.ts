@@ -15,7 +15,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 const BASE = '/grannydb/'
 const ORIGIN = 'https://anhtr.github.io'
-const PRECACHE = [`${BASE}index.html`, `${BASE}assets/index-abc123.js`, `${BASE}assets/index-def456.css`]
+const PRECACHE = [
+  `${BASE}index.html`,
+  `${BASE}assets/index-abc123.js`,
+  `${BASE}assets/index-def456.css`,
+  `${BASE}icon-192.png`,
+  `${BASE}manifest.webmanifest`,
+]
 
 type Handler = (event: Record<string, unknown>) => void
 
@@ -130,6 +136,11 @@ describe('the service worker', () => {
     expect(await sw.handle(`${ORIGIN}${BASE}assets/index-abc123.js`)).toBe(
       `body:${BASE}assets/index-abc123.js`,
     )
+  })
+
+  it('serves the manifest and icons offline, so an installed app launches with its own face', async () => {
+    expect(await sw.handle(`${ORIGIN}${BASE}manifest.webmanifest`)).toBe(`body:${BASE}manifest.webmanifest`)
+    expect(await sw.handle(`${ORIGIN}${BASE}icon-192.png`)).toBe(`body:${BASE}icon-192.png`)
   })
 
   it('leaves the data bundle to the network, so there is one story about stale data', async () => {

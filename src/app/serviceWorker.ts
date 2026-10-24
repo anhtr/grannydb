@@ -22,6 +22,12 @@ export function registerServiceWorker(): void {
     (registration) => {
       if (registration.waiting && navigator.serviceWorker.controller) appStore.setUpdateReady()
 
+      // The browser checks for a new worker on navigation, and an installed app that lives in the
+      // app switcher for a week never navigates. Coming back to it is the natural moment to ask.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void registration.update().catch(() => {})
+      })
+
       registration.addEventListener('updatefound', () => {
         const installing = registration.installing
         if (!installing) return

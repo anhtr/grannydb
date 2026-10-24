@@ -1,12 +1,17 @@
 {
+  "id": "./",
   "name": "grannydb",
   "short_name": "grannydb",
   "description": "Granny square tracker backed by a GitHub repo.",
+  "lang": "en-GB",
+  "dir": "ltr",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
   "background_color": "#faf7f2",
   "theme_color": "#faf7f2",
+  "categories": ["lifestyle", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
     { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },

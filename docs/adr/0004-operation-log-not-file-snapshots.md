@@ -53,5 +53,7 @@ Syncing re-reads the repo, replays the log, writes the result, and retries on a 
   quietly reintroduce the overwrite bug.
 - Known gap: two devices editing the *same* field, later sync wins with no warning. Detectable by
   storing the base value in the operation; not built, tracked as a follow-up.
-- Rejected auto-sync for v1 — see the sync engine doc. It remains a debounced call to the same
+- Rejected auto-sync for v1 — see the sync engine doc. (Reversed in
+  [ADR 0032](0032-sync-automatically-when-there-is-a-connection.md), as this line predicted: no part
+  of the operation log changed.) It remains a debounced call to the same
   function whenever it is wanted.

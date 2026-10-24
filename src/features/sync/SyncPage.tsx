@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { appStore } from '../../core/store'
+import { appStore, AUTO_SYNC_IDLE_MS } from '../../core/store'
 import type { AppState, Change, SyncResult } from '../../core/store'
 import { findRow } from '../../core/csv'
 import { fieldByKey } from '../../core/schema'
@@ -95,7 +95,11 @@ export function SyncPage() {
       {state.changes.length === 0 ? (
         <EmptyState
           title="Everything is synced"
-          hint="Edits you make are held here until you push them."
+          hint={
+            state.prefs.autoSync && state.token
+              ? 'Edits you make are held here until they sync, which happens on its own whenever there is a connection.'
+              : 'Edits you make are held here until you push them.'
+          }
         />
       ) : (
         <>
@@ -162,6 +166,11 @@ export function SyncPage() {
           </div>
 
           <p className="text-xs text-muted">
+            {state.prefs.autoSync && state.token
+              ? state.online
+                ? `These sync on their own ${AUTO_SYNC_IDLE_MS / 1000} seconds after your last edit, or when you leave the app. `
+                : "These sync on their own when you're back online. "
+              : null}
             All of these go up as one commit. If the repo changed in the meantime — an edit on
             another device, or in the GitHub web editor — your changes are replayed on top of it
             rather than overwriting it.

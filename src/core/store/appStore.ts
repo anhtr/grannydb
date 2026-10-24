@@ -30,6 +30,17 @@ import type { Change } from './queue'
 import { clearSnapshot, loadSnapshot, saveSnapshot } from './snapshotCache'
 import { loadLastSync, saveLastSync, syncChanges } from './sync'
 import type { LastSync, SyncResult } from './sync'
+import { autoSyncBlocker, autoSyncDelay, isWorthReporting } from './autoSync'
+import type { AutoSyncTrigger } from './autoSync'
+import { requestPersistence, storagePersistence } from './persistence'
+import type { StoragePersistence } from './persistence'
+
+/**
+ * Whether the app can be, or already is, installed to the home screen. `manual` is a browser that
+ * offers no install prompt the page can trigger — Safari, where it is Share → Add to Home Screen —
+ * so the app can only describe the steps.
+ */
+export type InstallState = 'installed' | 'available' | 'manual'
 
 export interface AppState {
   phase: 'loading' | 'ready' | 'error'
@@ -53,6 +64,9 @@ export interface AppState {
   online: boolean
   /** A newer build is installed and waiting; the app is running the previously cached one. */
   updateReady: boolean
+  install: InstallState
+  /** Whether the queue is safe from the browser clearing storage. Null until first checked. */
+  storage: StoragePersistence | null
   syncing: boolean
   syncError: string | null
   lastSync: LastSync | null
@@ -71,6 +85,8 @@ const initialState: AppState = {
   error: null,
   online: true,
   updateReady: false,
+  install: 'manual',
+  storage: null,
   syncing: false,
   syncError: null,
   lastSync: null,
@@ -92,6 +108,8 @@ class AppStore {
   private state: AppState = initialState
   private listeners = new Set<Listener>()
   private loadTicket = 0
+  private autoSyncTimer: ReturnType<typeof setTimeout> | undefined
+  private persistenceAsked = false
 
   getState = (): AppState => this.state
 
@@ -121,7 +139,10 @@ class AppStore {
       lastSync: loadLastSync(),
       changes: await loadQueue(),
     })
+    void storagePersistence().then((storage) => this.set({ storage }))
     await this.reload()
+    // Edits left from a session that ended offline go up as soon as the app is open again.
+    this.autoSync('start')
   }
 
   async reload(): Promise<void> {
@@ -154,12 +175,15 @@ class AppStore {
   }
 
   /**
-   * Re-read when the device comes back, and only re-read.
+   * Re-read when the device comes back, and push anything queued.
    *
-   * Syncing stays a button you press — a read happening behind your back is invisible and
-   * reversible, a commit to your repo is neither (see docs/04-sync-engine.md, "Why not auto-sync").
-   * Guarded to the cases that are actually waiting on the network, because `online` fires on any
-   * interface change and a needless reload throws away a perfectly good snapshot mid-scroll.
+   * The re-read is guarded to the cases that are actually waiting on the network, because `online`
+   * fires on any interface change and a needless reload throws away a perfectly good snapshot
+   * mid-scroll. The push is `autoSync`'s decision, and does nothing if you turned it off.
+   *
+   * Visibility is watched as well as connectivity because `online` is not a reliable signal on a
+   * phone: an app frozen in the background misses it, and leaving the app is the last moment a
+   * pending edit can go up before the OS suspends it.
    */
   watchConnectivity(): () => void {
     if (typeof window === 'undefined') return () => {}
@@ -169,20 +193,31 @@ class AppStore {
       if (this.state.snapshot?.source === 'cache' || this.state.phase === 'error') {
         void this.reload()
       }
+      this.autoSync('online')
     }
     const onOffline = (): void => this.set({ online: false })
+    const onVisibility = (): void => {
+      this.autoSync(document.visibilityState === 'hidden' ? 'hidden' : 'visible')
+    }
 
     this.set({ online: navigator.onLine })
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
+      document.removeEventListener('visibilitychange', onVisibility)
+      clearTimeout(this.autoSyncTimer)
     }
   }
 
   setUpdateReady(): void {
     this.set({ updateReady: true })
+  }
+
+  setInstall(install: InstallState): void {
+    this.set({ install })
   }
 
   /** Forget the offline copy and read again, for when you want to be sure of what you are seeing. */
@@ -212,8 +247,10 @@ class AppStore {
   }
 
   setPrefs(prefs: Prefs): void {
+    const enabling = prefs.autoSync && !this.state.prefs.autoSync
     savePrefs(prefs)
     this.set({ prefs })
+    if (enabling) this.autoSync('online')
   }
 
   testConnection(): Promise<ConnectionCheck> {
@@ -297,6 +334,15 @@ class AppStore {
     const changes = appendChange(this.state.changes, change)
     await saveQueue(changes)
     this.set({ changes, queueDurable: isQueueDurable() })
+    this.protectStorage()
+    this.autoSync('edit')
+  }
+
+  /** Once per session, on the first edit: the first moment there is something that exists only here. */
+  private protectStorage(): void {
+    if (this.persistenceAsked || this.state.storage === 'persistent') return
+    this.persistenceAsked = true
+    void requestPersistence().then((storage) => this.set({ storage }))
   }
 
   async discardChange(changeId: string): Promise<void> {
@@ -312,13 +358,39 @@ class AppStore {
 
   // Syncing
 
-  async sync(): Promise<SyncResult | null> {
+  /**
+   * Push the queue without being asked, if `autoSyncBlocker` allows it.
+   *
+   * Every trigger resets one timer, so a run of edits is a run of resets and one push at the end —
+   * a commit per burst rather than per keystroke. A trigger with no delay replaces a pending timer
+   * rather than adding a second push.
+   */
+  private autoSync(trigger: AutoSyncTrigger): void {
+    clearTimeout(this.autoSyncTimer)
+    this.autoSyncTimer = undefined
+    if (autoSyncBlocker(this.state)) return
+
+    const run = (): void => {
+      this.autoSyncTimer = undefined
+      // Re-checked at fire time: the queue may have been synced by hand or emptied meanwhile.
+      if (autoSyncBlocker(this.state)) return
+      void this.sync({ auto: true })
+    }
+    const delay = autoSyncDelay(trigger)
+    if (delay === 0) run()
+    else this.autoSyncTimer = setTimeout(run, delay)
+  }
+
+  async sync(options: { auto?: boolean } = {}): Promise<SyncResult | null> {
     const { token, config, changes } = this.state
     if (!token) {
       this.set({ syncError: 'Add a GitHub token in Settings before syncing.' })
       return null
     }
     if (changes.length === 0 || this.state.syncing) return null
+    // A manual sync supersedes a scheduled one rather than racing it.
+    clearTimeout(this.autoSyncTimer)
+    this.autoSyncTimer = undefined
 
     this.set({ syncing: true, syncError: null })
     try {
@@ -338,13 +410,17 @@ class AppStore {
       }
       saveLastSync(lastSync)
       this.set({ changes: remaining, syncing: false, lastSync })
+      // Edits made while the push was in flight scheduled a timer that found the store busy and
+      // stood down; this is their push.
+      if (remaining.length > 0) this.autoSync('after-sync')
       await this.reload()
       return result
     } catch (error) {
-      this.set({
-        syncing: false,
-        syncError: error instanceof Error ? error.message : 'Sync failed.',
-      })
+      // An automatic push that could not reach GitHub leaves no error behind: the device is offline,
+      // the queue says what is waiting, and the next trigger tries again. See `isWorthReporting`.
+      const report = !options.auto || isWorthReporting(error)
+      const message = error instanceof Error ? error.message : 'Sync failed.'
+      this.set({ syncing: false, syncError: report ? message : this.state.syncError })
       return null
     }
   }
