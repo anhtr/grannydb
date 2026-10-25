@@ -33,6 +33,20 @@ Only the ref lookup is uncached — one request to learn whether anything change
 if nothing did. This is the same idea as a content-addressed store: identity is derived from
 content, so equal keys mean equal bytes, so cache invalidation is not a problem you have.
 
+"Uncached" has to be enforced, not assumed. GitHub sends the ref with `Cache-Control: max-age=60`,
+so a plain `fetch` lets the *browser's* HTTP cache answer it for a minute. Until v0.1.36 that is
+what happened: the reload straight after a sync got the head from before the push, the screen
+rolled back to the old data, and the next new row was numbered from it, reusing the id the push had
+just taken. Since `save` records a new row and an edit identically, syncing that row would have
+written it over the pushed one. The ref request now goes out with `cache: 'no-cache'` — the browser
+must revalidate, and an unchanged head comes back as a 304, which GitHub does not count against the
+rate limit. A mutable pointer in front of an immutable store is exactly the one thing a cache must
+not be trusted with. See [ADR 0035](adr/0035-never-cache-the-branch-head.md).
+
+The reload after a sync skips the lookup entirely: the sync already knows the commit it made, so
+`readFromApi(…, at)` reads that sha directly — **read-your-writes** consistency, guaranteed by the
+writer handing the reader its own version rather than by the reader asking for the newest one.
+
 And it is useless with no signal, which is worth being precise about. The key contains a sha, and
 learning the sha *is* the one request that cannot be served from the cache. So there is a second
 cache, doing the opposite job:

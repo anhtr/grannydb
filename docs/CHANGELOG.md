@@ -4,6 +4,25 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-24 - v0.1.36, no rollback after a sync
+
+**Sync**
+- Fixed: for up to a minute after a sync, the app showed the data from *before* the push, and a
+  record added in that window was given the id the push had just used — so syncing it would have
+  overwritten the pushed record. The cause was the browser's HTTP cache answering the "which
+  commit is newest?" request, which GitHub marks `max-age=60`; the timing matched the Pages deploy,
+  but signed-in reads never touch the deployed copy. See
+  [ADR 0035](adr/0035-never-cache-the-branch-head.md).
+- That request now revalidates every time (`cache: 'no-cache'`; an unchanged answer is a free 304).
+  This also covers Refresh and the fresh read a sync makes before committing.
+- The reload after a sync reads the commit it just made by sha (`readFromApi`'s new `at`, through
+  `readSnapshot` and `appStore.reload(at)`), without asking for the head at all.
+- `RequestOptions` gains `cache`.
+
+**Tests**
+- `sync.test.ts`: the head request is sent with `no-cache`, and a read at a known commit makes no
+  head request.
+
 ## 2026-10-24 - v0.1.35, numeric filters are sliders
 
 **Lists**

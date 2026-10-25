@@ -107,18 +107,30 @@ async function loadWith(read: FileReader, dataDir: string): Promise<{
  * from before and `yarns.csv` from after. Reading everything at one sha is snapshot isolation.
  *
  * It also makes caching trivial. Content at a given sha is immutable, so a cache hit needs no
- * revalidation at all — the sha *is* the version.
+ * revalidation at all — the sha *is* the version. The branch head is the opposite: the one answer
+ * here that changes, and GitHub marks it cacheable for 60 seconds (`max-age=60`). Left to the
+ * browser's HTTP cache, a read straight after a sync gets the head from *before* the push, and the
+ * app draws the old data — then numbers the next new row from it, reusing an id the push just
+ * took. So the head is always revalidated (`no-cache`, not `no-store`: an unchanged head comes back
+ * as a 304, which GitHub does not count against the rate limit).
+ *
+ * `at` skips the head lookup altogether and reads that commit — for the reload after a sync, which
+ * already knows the commit it just made and has no reason to ask which one is newest.
  */
 export async function readFromApi(
   config: RepoConfig,
   token: string,
   signal?: AbortSignal,
+  at?: string,
 ): Promise<Snapshot> {
-  const ref = await apiJson<{ object: { sha: string } }>(
-    `/repos/${config.owner}/${config.repo}/git/ref/heads/${config.branch}`,
-    { token, signal },
-  )
-  const commit = ref.object.sha
+  const commit =
+    at ??
+    (
+      await apiJson<{ object: { sha: string } }>(
+        `/repos/${config.owner}/${config.repo}/git/ref/heads/${config.branch}`,
+        { token, signal, cache: 'no-cache' },
+      )
+    ).object.sha
 
   const read: FileReader = async (path) => {
     const cacheKey = `blob:${config.owner}/${config.repo}/${commit}/${path}`
@@ -182,14 +194,16 @@ export async function readFromRaw(config: RepoConfig, signal?: AbortSignal): Pro
  * Pick a read path: token wins, then the bundle, then raw.
  *
  * The fallback chain is what makes an unauthenticated visitor see a working read-only gallery, and
- * what keeps the app working on a dev server where no bundle has been generated yet.
+ * what keeps the app working on a dev server where no bundle has been generated yet. `at` pins the
+ * API path to a known commit (see `readFromApi`); the anonymous paths cannot be pinned and ignore it.
  */
 export async function readSnapshot(
   config: RepoConfig,
   token: string | null,
   signal?: AbortSignal,
+  at?: string,
 ): Promise<Snapshot> {
-  if (token) return readFromApi(config, token, signal)
+  if (token) return readFromApi(config, token, signal, at)
   try {
     return await readFromBundle(signal)
   } catch {

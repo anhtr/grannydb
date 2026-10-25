@@ -130,6 +130,10 @@ Three details that matter:
 compared. Identical bytes means it is left out of the commit, so a no-op edit produces no commit and
 untouched tables are never reformatted.
 
+**The reload reads the commit just made.** After a successful push, `appStore.sync` reloads at
+`result.sha` instead of asking GitHub for the branch head again, so the screen can never show data
+from before the push (see [storage](03-storage-layer.md#the-cache-is-content-addressed)).
+
 **Only sent changes are dropped.** After a successful commit the queue is filtered by the ids we
 actually sent, not cleared. An edit made while the request was in flight stays queued instead of
 being silently discarded.

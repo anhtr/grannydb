@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { syncChanges } from '../store/sync'
 import { projectChange } from '../store/queue'
 import type { RowChange } from '../store/queue'
+import { readFromApi } from '../github/read'
 import type { RepoConfig } from '../github'
 
 /**
@@ -335,5 +336,39 @@ describe('syncChanges with project.json', () => {
     expect(result.attempts).toBe(2)
     // The laptop's target survives; only the key this device changed is rewritten.
     expect(JSON.parse(gh.files['data/project.json'])).toEqual({ start_date: '2026-07-03', target_squares: 500 })
+  })
+})
+
+describe('readFromApi and the branch head', () => {
+  /** Every request's path and cache mode, in order. */
+  function recordRequests(): { path: string; cache: RequestCache | undefined }[] {
+    const seen: { path: string; cache: RequestCache | undefined }[] = []
+    const inner = globalThis.fetch
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push({ path: new URL(String(input)).pathname, cache: init?.cache })
+      return inner(input, init)
+    })
+    return seen
+  }
+
+  it('revalidates the head instead of trusting the browser cache', async () => {
+    // GitHub sends the head with max-age=60; a cached answer straight after a sync is the commit
+    // from before the push, which draws old data and hands out an id the push already took.
+    const seen = recordRequests()
+
+    const snapshot = await readFromApi(config, 'tok')
+
+    const head = seen.find((r) => r.path.endsWith('/git/ref/heads/main'))
+    expect(head?.cache).toBe('no-cache')
+    expect(snapshot.commit).toBe('commit-aaa')
+  })
+
+  it('reads a known commit without asking for the head at all', async () => {
+    const seen = recordRequests()
+
+    const snapshot = await readFromApi(config, 'tok', undefined, 'commit-just-pushed')
+
+    expect(seen.some((r) => r.path.endsWith('/git/ref/heads/main'))).toBe(false)
+    expect(snapshot.commit).toBe('commit-just-pushed')
   })
 })

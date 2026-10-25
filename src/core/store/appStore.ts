@@ -145,12 +145,13 @@ class AppStore {
     this.autoSync('start')
   }
 
-  async reload(): Promise<void> {
+  /** Re-read the data — at commit `at` when the caller already knows it, else the branch head. */
+  async reload(at?: string): Promise<void> {
     const ticket = ++this.loadTicket
     const config = this.state.config
     this.set({ phase: 'loading', error: null })
     try {
-      const snapshot = await readSnapshot(config, this.state.token)
+      const snapshot = await readSnapshot(config, this.state.token, undefined, at)
       if (ticket !== this.loadTicket) return
       this.set({ snapshot, phase: 'ready', error: null })
       // Fire-and-forget: keeping the offline copy fresh must never be able to fail a load.
@@ -413,7 +414,10 @@ class AppStore {
       // Edits made while the push was in flight scheduled a timer that found the store busy and
       // stood down; this is their push.
       if (remaining.length > 0) this.autoSync('after-sync')
-      await this.reload()
+      // Read the commit the push just made, by sha, rather than asking which commit is newest: the
+      // answer is already in hand, and asking again is how a cached answer once rolled the screen
+      // back to the data from before the push. `sha` is the unchanged head when nothing was written.
+      await this.reload(result.sha || undefined)
       return result
     } catch (error) {
       // An automatic push that could not reach GitHub leaves no error behind: the device is offline,

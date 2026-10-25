@@ -68,6 +68,8 @@ export interface RequestOptions {
   /** Override the Accept header, e.g. to ask for a file's raw bytes. */
   accept?: string
   signal?: AbortSignal
+  /** The browser HTTP cache mode for this request; see `readFromApi` for the one place it matters. */
+  cache?: RequestCache
 }
 
 async function request(path: string, options: RequestOptions = {}): Promise<Response> {
@@ -86,6 +88,7 @@ async function request(path: string, options: RequestOptions = {}): Promise<Resp
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: options.signal,
+      cache: options.cache,
     })
   } catch (error) {
     throw asNetworkError(error, url)
