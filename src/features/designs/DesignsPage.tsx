@@ -4,8 +4,8 @@ import { designSquareCounts, fieldByKey, refDisplayLabel, titleFor } from '../..
 import type { ResolveRef, TableSchema } from '../../core/schema'
 import { useResolveRef, useTable } from '../../app/hooks'
 import { Badge, BadgeStack } from '../../ui/components'
-import type { ComputedSortOption } from '../../ui/RecordList'
-import { RecordList } from '../../ui/RecordList'
+import type { ComputedSortOption, FilterDescriptor } from '../../ui/RecordList'
+import { RecordList, rangeMax } from '../../ui/RecordList'
 
 function DesignRow({
   row,
@@ -48,6 +48,7 @@ function DesignRow({
 
 export function DesignsPage() {
   const squares = useTable('squares')
+  const designs = useTable('designs')
   const resolve = useResolveRef()
 
   const counts = useMemo(() => (squares ? designSquareCounts(squares) : new Map<string, number>()), [squares])
@@ -57,6 +58,12 @@ export function DesignsPage() {
     [counts],
   )
 
+  const extraFilters = useMemo<FilterDescriptor[]>(() => {
+    const count = (row: CsvRow) => counts.get(row.id) ?? 0
+    const max = rangeMax(designs?.rows ?? [], count)
+    return [{ kind: 'range', key: 'square_count', label: 'Squares', max, value: count }]
+  }, [counts, designs])
+
   return (
     <RecordList
       table="designs"
@@ -64,6 +71,7 @@ export function DesignsPage() {
         <DesignRow row={row} schema={schema} count={counts.get(row.id) ?? 0} resolve={resolve} />
       )}
       extraSortOptions={extraSortOptions}
+      extraFilters={extraFilters}
     />
   )
 }

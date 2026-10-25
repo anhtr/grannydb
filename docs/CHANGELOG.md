@@ -13,6 +13,7 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   5", "2–5"). See [ADR 0034](adr/0034-numeric-filters-are-min-max-sliders.md).
 - Yarns gains two slider filters: Squares (main) and Squares (extra), the same computed counts its
   sort already offered.
+- Designs gains a Squares slider filter, on the square count its sort already offered.
 - `FilterDescriptor` is now a union of `PillFilterDescriptor` and `RangeFilterDescriptor`
   (`kind: 'range'`, `max`, `value`). The `multi` flag and the radio-pill rendering it switched on
   are gone; only the threshold filters used them.
