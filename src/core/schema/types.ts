@@ -60,13 +60,6 @@ export interface FieldDef {
   /** Offer this field as a sort option in list views, alongside the built-in id and name sorts. */
   sortable?: boolean
   /**
-   * `number` fields only, and only meaningful alongside `"filter": true`. `'exact'` (the default)
-   * offers a dropdown of the distinct values present. `'min'` instead offers "N or more" thresholds
-   * built from the distinct values present, e.g. yarn `skeins`: "find anything with at least 2 left"
-   * is a range question, not a lookup of one exact count.
-   */
-  filterMode?: 'exact' | 'min'
-  /**
    * When this field's own value is blank, read it instead by hopping through a `ref` field on this
    * row to a field on the row it points at — e.g. a square's blank `construction_type` falling back
    * to its design's. See `effectiveValue` in `core/schema/search.ts`.

@@ -174,10 +174,12 @@ Three components in `ui/` serve every table:
   the table's `searchFields` if it sets any, otherwise every field). Filters are built from fields
   marked `"filter": true` plus the schema's `derivedFilters`, and rendered as toggleable pills: plain
   fields are checkboxes, any number selected at once and OR'd together (an id matches if it equals
-  *any* of the selected options), because "product line A or B" is a meaningful combination. A numeric
-  field with `"filterMode": "min"` ("N or more" thresholds, e.g. skeins left) instead renders as
-  radios, one at a time, because thresholds already nest — "5+ or 3+" would just mean "3+", so offering
-  both as if they combined would be misleading. A filter past `SEARCHABLE_FILTER_THRESHOLD` (8) options —
+  *any* of the selected options), because "product line A or B" is a meaningful combination. A `number`
+  field instead renders as a min–max slider (`RangeFilter`), 0 to the highest value in the data: two
+  native range inputs stacked on one track, styled by `.range-pair` in `styles.css`. Its selection is
+  saved as `[min, max]` with `''` at either end for "unbounded", so a thumb left at the top keeps
+  meaning "or more" as the data grows — see
+  [ADR 0034](adr/0034-numeric-filters-are-min-max-sliders.md). A filter past `SEARCHABLE_FILTER_THRESHOLD` (8) options —
   a square's Design or Main colour filter, easily past a hundred — renders as a search box instead of a
   flat pill row: empty, it shows only what is already selected; typing narrows to matches, the same
   "type to narrow, tap to toggle" pattern `RefListInput`'s multi-select `ref` picker already uses for a
@@ -193,7 +195,8 @@ Three components in `ui/` serve every table:
   (`core/prefs`) and restored next time — device-local, not synced.
   A page can also pass `extraSortOptions`/`extraFilters` — the same shapes `sortableFields`/
   `filterFields` build from the schema, but supplied by the caller for a value that has no field to
-  scan, e.g. a cross-table count. `YarnsPage` and `DesignsPage` both use this for counts computed by
+  scan, e.g. a cross-table count; an extra filter is either pills or a `kind: 'range'` slider (Yarns'
+  squares-as-main and squares-as-extra counts). `YarnsPage` and `DesignsPage` both use this for counts computed by
   [`core/schema/relations.ts`](../src/core/schema/relations.ts); see
   [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md). The same module's
   `squareConstructionInsights` (construction-type tallies, colour imbalance, and squares missing a

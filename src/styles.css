@@ -122,3 +122,69 @@
 @utility pt-safe {
   padding-top: max(0.5rem, env(safe-area-inset-top));
 }
+
+/*
+  The min–max slider (`RangeFilter` in ui/RecordList.tsx): two native range inputs stacked on one
+  drawn track. Each input's own track is transparent and ignores the pointer; only the thumbs take
+  it, so a tap on either thumb reaches its input through the one lying on top. The thumb size must
+  match `RANGE_THUMB_PX`, which positions the drawn fill.
+*/
+@layer components {
+  .range-pair input[type='range'] {
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    width: 100%;
+    height: 24px;
+    margin: 0;
+    transform: translateY(-50%);
+    background: transparent;
+    appearance: none;
+    pointer-events: none;
+  }
+
+  .range-pair input[type='range']::-webkit-slider-runnable-track {
+    height: 24px;
+    background: transparent;
+  }
+
+  .range-pair input[type='range']::-moz-range-track {
+    background: transparent;
+  }
+
+  .range-pair input[type='range']::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-accent);
+    border-radius: 9999px;
+    background: var(--color-card);
+    appearance: none;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .range-pair input[type='range']::-moz-range-thumb {
+    box-sizing: border-box;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-accent);
+    border-radius: 9999px;
+    background: var(--color-card);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .range-pair input[type='range']:focus-visible {
+    outline: none;
+  }
+
+  .range-pair input[type='range']:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .range-pair input[type='range']:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}

@@ -33,9 +33,6 @@ function parseField(raw: unknown, where: string): FieldDef {
   if ((type === 'ref' || type === 'reflist') && typeof o.refTable !== 'string') {
     throw new SchemaError(`${where}.${key}: ${type} fields need a "refTable"`)
   }
-  if (o.filterMode !== undefined && o.filterMode !== 'exact' && o.filterMode !== 'min') {
-    throw new SchemaError(`${where}.${key}: "filterMode" must be "exact" or "min"`)
-  }
   const inheritFrom =
     o.inheritFrom !== undefined ? parseInheritFrom(o.inheritFrom, `${where}.${key}.inheritFrom`) : undefined
   return {
@@ -54,7 +51,6 @@ function parseField(raw: unknown, where: string): FieldDef {
     quickCreate: o.quickCreate === true,
     searchFields: Array.isArray(o.searchFields) ? (o.searchFields as string[]) : undefined,
     sortable: o.sortable === true,
-    filterMode: o.filterMode === 'min' ? 'min' : undefined,
     inheritFrom,
   }
 }

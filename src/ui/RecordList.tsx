@@ -25,16 +25,60 @@ interface FilterOption {
   label: string
 }
 
-export interface FilterDescriptor {
+/** A categorical filter: toggleable pills, any number selected at once and OR'd together. */
+export interface PillFilterDescriptor {
+  kind?: 'pills'
   key: string
   label: string
   options: FilterOption[]
   matches: (row: CsvRow, value: string) => boolean
-  /** Whether more than one option can be selected at once (checkboxes, OR'd together) rather than
-   * just one (radio buttons). Defaults to `true` when omitted. A "min" threshold filter (e.g. "skeins
-   * left") sets this `false` — "3+ or 5+ at once" isn't a meaningful combination the way "product line
-   * A or B" is, since each threshold already includes every value the one above it would match. */
-  multi?: boolean
+}
+
+/**
+ * A numeric filter: a min–max slider from 0 to `max`, the highest value currently in the data. Every
+ * number is filtered this way rather than as pills of its distinct values — "at least 2 skeins" or
+ * "used in 1 to 3 squares" are range questions, and a pill per count could only answer them one exact
+ * count at a time.
+ */
+export interface RangeFilterDescriptor {
+  kind: 'range'
+  key: string
+  label: string
+  max: number
+  value: (row: CsvRow) => number
+}
+
+export type FilterDescriptor = PillFilterDescriptor | RangeFilterDescriptor
+
+/**
+ * A range filter's selection, saved in the same `string[]` slot a pill filter uses: `[min, max]`, with
+ * `''` at either end meaning unbounded. The top end is saved as unbounded whenever the thumb sits at
+ * the data's maximum, so "4 or more" keeps meaning that after a yarn with more skeins than anything
+ * before it is added, rather than silently capping at whatever the maximum was on the day. A one-item
+ * `['3']` — the old "3+" threshold pills' saved shape — therefore still reads as "3 or more".
+ */
+export function rangeMatches(n: number, values: string[]): boolean {
+  const [lo = '', hi = ''] = values
+  return (lo === '' || n >= Number(lo)) && (hi === '' || n <= Number(hi))
+}
+
+/** The thumbs' positions for a saved selection, clamped into 0..`max` as the data stands now. */
+export function readRange(values: string[], max: number): { lo: number; hi: number } {
+  const [lo = '', hi = ''] = values
+  const from = Math.min(Math.max(Number(lo) || 0, 0), max)
+  const to = hi === '' ? max : Math.min(Math.max(Number(hi) || 0, from), max)
+  return { lo: from, hi: to }
+}
+
+/** The selection to save for thumbs at `lo`/`hi` — empty, meaning "no filter", when they span it all. */
+export function rangeSelection(lo: number, hi: number, max: number): string[] {
+  if (lo <= 0 && hi >= max) return []
+  return [lo > 0 ? String(lo) : '', hi < max ? String(hi) : '']
+}
+
+/** The highest of `value` across `rows`, rounded up so a slider in whole steps can reach it. */
+export function rangeMax(rows: CsvRow[], value: (row: CsvRow) => number): number {
+  return Math.ceil(rows.reduce((m, r) => Math.max(m, value(r)), 0))
 }
 
 /**
@@ -47,21 +91,6 @@ export interface ComputedSortOption {
   key: string
   label: string
   value: (row: CsvRow) => number
-}
-
-/**
- * `"min"` thresholds for a numeric field: "N or more", built from whatever counts are actually
- * present in the data rather than a fixed range, so the dropdown never offers a threshold nothing
- * could match. Starts at 1 — "0 or more" is already what the dropdown's own blank "any" option means,
- * so a `0` entry would just be a second, confusingly-worded way to clear the filter.
- */
-function minThresholdOptions(field: FieldDef, data: CsvTable): FilterOption[] {
-  const max = data.rows.reduce((m, r) => Math.max(m, Math.floor(Number(r[field.key]) || 0)), 0)
-  const options: FilterOption[] = []
-  for (let n = 1; n <= max; n++) {
-    options.push({ value: String(n), label: `${n}+` })
-  }
-  return options
 }
 
 /** Build the filter dropdowns: fields marked `"filter": true`, plus the schema's `derivedFilters`. */
@@ -77,14 +106,9 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
       const fieldValue = (row: CsvRow): string =>
         field.inheritFrom ? effectiveValue(schema, field, row, resolve).value : row[field.key] ?? ''
 
-      if (field.filterMode === 'min') {
-        return {
-          key: field.key,
-          label: field.label,
-          multi: false,
-          options: minThresholdOptions(field, data),
-          matches: (row, value) => (Number(row[field.key]) || 0) >= Number(value),
-        }
+      if (field.type === 'number') {
+        const value = (row: CsvRow) => Number(fieldValue(row)) || 0
+        return { kind: 'range', key: field.key, label: field.label, max: rangeMax(data.rows, value), value }
       }
       const values = [...new Set(data.rows.map((r) => fieldValue(r)).filter((v) => v !== ''))]
       const options =
@@ -309,7 +333,8 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
       if (!matchesSearch(searchText(schema, row, resolve, schema.searchFields), query)) return false
       return filterDescriptors.every((d) => {
         const values = filters[d.key]
-        return !values || values.length === 0 || values.some((value) => d.matches(row, value))
+        if (!values || values.length === 0) return true
+        return d.kind === 'range' ? rangeMatches(d.value(row), values) : values.some((v) => d.matches(row, v))
       })
     })
     return sortRows(filtered, schema, sorts.map(specFor), resolve)
@@ -611,11 +636,10 @@ function SearchableFilterPills({
   selected,
   onChange,
 }: {
-  descriptor: FilterDescriptor
+  descriptor: PillFilterDescriptor
   selected: string[]
   onChange: (values: string[]) => void
 }) {
-  const multi = descriptor.multi !== false
   const [query, setQuery] = useState('')
   const searching = query.trim() !== ''
   const visible = descriptor.options.filter(
@@ -623,10 +647,6 @@ function SearchableFilterPills({
   )
 
   const toggle = (value: string) => {
-    if (!multi) {
-      onChange(selected[0] === value ? [] : [value])
-      return
-    }
     onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value])
   }
 
@@ -640,23 +660,9 @@ function SearchableFilterPills({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <div
-        className="flex flex-wrap gap-1.5"
-        role={multi ? 'group' : 'radiogroup'}
-        aria-label={`Filter by ${descriptor.label}`}
-      >
-        {!multi ? (
-          <button
-            type="button"
-            aria-pressed={selected.length === 0}
-            className={pillClass(selected.length === 0)}
-            onClick={() => onChange([])}
-          >
-            Any
-          </button>
-        ) : null}
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Filter by ${descriptor.label}`}>
         {visible.map((option) => {
-          const active = multi ? selected.includes(option.value) : selected[0] === option.value
+          const active = selected.includes(option.value)
           return (
             <button
               key={option.value}
@@ -678,9 +684,7 @@ function SearchableFilterPills({
   )
 }
 
-/** One filter's options as a row of toggleable pills — checkboxes (any number at once, OR'd
- * together) for a plain categorical field, radios (one at a time, "Any" clears it) for a "min"
- * threshold field where combining values would not mean anything. Past
+/** One filter's options as a row of toggleable pills, any number at once and OR'd together. Past
  * `SEARCHABLE_FILTER_THRESHOLD` options, delegates to `SearchableFilterPills` instead of laying
  * every one out flat. */
 function FilterOptionPills({
@@ -688,63 +692,102 @@ function FilterOptionPills({
   selected,
   onChange,
 }: {
-  descriptor: FilterDescriptor
+  descriptor: PillFilterDescriptor
   selected: string[]
   onChange: (values: string[]) => void
 }) {
-  const multi = descriptor.multi !== false
-
   if (descriptor.options.length > SEARCHABLE_FILTER_THRESHOLD) {
     return <SearchableFilterPills descriptor={descriptor} selected={selected} onChange={onChange} />
   }
 
-  if (multi) {
-    return (
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Filter by ${descriptor.label}`}>
-        {descriptor.options.map((option) => {
-          const active = selected.includes(option.value)
-          return (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={active}
-              className={pillClass(active)}
-              onClick={() =>
-                onChange(active ? selected.filter((v) => v !== option.value) : [...selected, option.value])
-              }
-            >
-              {option.label}
-            </button>
-          )
-        })}
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={`Filter by ${descriptor.label}`}>
-      <button
-        type="button"
-        aria-pressed={selected.length === 0}
-        className={pillClass(selected.length === 0)}
-        onClick={() => onChange([])}
-      >
-        Any
-      </button>
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Filter by ${descriptor.label}`}>
       {descriptor.options.map((option) => {
-        const active = selected[0] === option.value
+        const active = selected.includes(option.value)
         return (
           <button
             key={option.value}
             type="button"
             aria-pressed={active}
             className={pillClass(active)}
-            onClick={() => onChange([option.value])}
+            onClick={() =>
+              onChange(active ? selected.filter((v) => v !== option.value) : [...selected, option.value])
+            }
           >
             {option.label}
           </button>
         )
       })}
+    </div>
+  )
+}
+
+/** What a range filter's selection reads as, next to its label: "Any", "2+", "up to 5" or "2–5". */
+function rangeSummary(lo: number, hi: number, max: number): string {
+  if (lo <= 0 && hi >= max) return 'Any'
+  if (lo === hi) return String(lo)
+  if (hi >= max) return `${lo}+`
+  if (lo <= 0) return `up to ${hi}`
+  return `${lo}–${hi}`
+}
+
+/** Native thumbs travel inset by half their own width; the drawn fill has to match. See `.range-pair`. */
+const RANGE_THUMB_PX = 24
+
+function thumbOffset(n: number, max: number): string {
+  return `calc(${RANGE_THUMB_PX / 2}px + (100% - ${RANGE_THUMB_PX}px) * ${n / max})`
+}
+
+/**
+ * A min–max slider: two native `<input type="range">` stacked on one track rather than a custom
+ * pointer-dragging widget, so keyboard steps, touch, and screen-reader announcements all come from
+ * the browser for free. The cost is styling — see `.range-pair` in `styles.css` for how only the
+ * thumbs are made to take pointer events, so each stays reachable through the other input.
+ */
+function RangeFilter({
+  descriptor,
+  selected,
+  onChange,
+}: {
+  descriptor: RangeFilterDescriptor
+  selected: string[]
+  onChange: (values: string[]) => void
+}) {
+  const { max, label } = descriptor
+  const { lo, hi } = readRange(selected, max)
+  if (max <= 0) return <p className="text-xs text-muted">Every one is 0 so far.</p>
+
+  return (
+    <div className="range-pair relative h-11">
+      <div
+        className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-line"
+        style={{ left: thumbOffset(0, max), right: `${RANGE_THUMB_PX / 2}px` }}
+      />
+      <div
+        className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-accent"
+        style={{ left: thumbOffset(lo, max), width: `calc((100% - ${RANGE_THUMB_PX}px) * ${(hi - lo) / max})` }}
+      />
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={1}
+        value={lo}
+        aria-label={`Minimum ${label.toLowerCase()}`}
+        // Both thumbs parked at the top end would leave only the upper one grabbable, and it can only
+        // move down to where the lower one already is — so the lower input rises above it there.
+        className={lo > max / 2 ? 'z-[1]' : undefined}
+        onChange={(e) => onChange(rangeSelection(Math.min(Number(e.target.value), hi), hi, max))}
+      />
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={1}
+        value={hi}
+        aria-label={`Maximum ${label.toLowerCase()}`}
+        onChange={(e) => onChange(rangeSelection(lo, Math.max(Number(e.target.value), lo), max))}
+      />
     </div>
   )
 }
@@ -774,16 +817,30 @@ function FilterPanel({
           ) : null}
         </div>
         <div className="space-y-3">
-          {descriptors.map((d) => (
-            <div key={d.key}>
-              <label className="mb-1 block text-xs text-muted">{d.label}</label>
-              <FilterOptionPills
-                descriptor={d}
-                selected={filters[d.key] ?? []}
-                onChange={(values) => onChange({ ...filters, [d.key]: values })}
-              />
-            </div>
-          ))}
+          {descriptors.map((d) => {
+            const selected = filters[d.key] ?? []
+            const set = (values: string[]) => onChange({ ...filters, [d.key]: values })
+            if (d.kind === 'range') {
+              const { lo, hi } = readRange(selected, d.max)
+              return (
+                <div key={d.key}>
+                  <div className="flex items-baseline justify-between text-xs text-muted">
+                    <span>{d.label}</span>
+                    <span className={selected.length > 0 ? 'text-accent' : undefined}>
+                      {rangeSummary(lo, hi, d.max)}
+                    </span>
+                  </div>
+                  <RangeFilter descriptor={d} selected={selected} onChange={set} />
+                </div>
+              )
+            }
+            return (
+              <div key={d.key}>
+                <label className="mb-1 block text-xs text-muted">{d.label}</label>
+                <FilterOptionPills descriptor={d} selected={selected} onChange={set} />
+              </div>
+            )
+          })}
         </div>
         <div className="mt-3 flex justify-end">
           <button type="button" className="tap-target text-xs text-muted" onClick={onClose}>

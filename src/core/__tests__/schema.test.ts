@@ -114,23 +114,6 @@ describe('buildSchemaSet', () => {
     expect(field?.sortable).toBe(true)
   })
 
-  it('parses filterMode on a field', () => {
-    const withExtras = {
-      ...yarns,
-      fields: [...yarns.fields, { key: 'x', label: 'X', type: 'number', filter: true, filterMode: 'min' }],
-    }
-    const set = buildSchemaSet({ tables: ['yarns'] }, { yarns: withExtras })
-    expect(set.tables.yarns.fields.find((f) => f.key === 'x')?.filterMode).toBe('min')
-  })
-
-  it('rejects an invalid filterMode', () => {
-    const bad = {
-      ...yarns,
-      fields: [...yarns.fields, { key: 'x', label: 'X', type: 'number', filterMode: 'nope' }],
-    }
-    expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: bad })).toThrow(/filterMode/)
-  })
-
   it('accepts a defaultSort naming a sortable field', () => {
     const withSort = {
       ...yarns,

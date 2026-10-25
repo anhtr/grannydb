@@ -336,10 +336,11 @@ falling back to whatever order the rows already happened to be in. Sorting on a 
 sortable and inheriting at once), for the same reason: sorting on the raw cell would strand every
 square that inherits its construction at whichever end of the order an empty string lands on.
 
-A `"filter": true` field on a `number` type can also set `"filterMode": "min"`, which turns the filter
-dropdown from "equals one of these values" into "at least N" thresholds built from whatever counts are
-actually in the data. `yarns.skeins` uses it: "how many colours do I have at least 2 skeins of" is a
-range question, an exact-match dropdown of every distinct skein count on file could not answer.
+A `"filter": true` field of `number` type filters as a min–max slider running from 0 to the highest
+value currently in the data, rather than as pills of the distinct values present. `yarns.skeins` uses
+it: "how many colours do I have at least 2 skeins of" and "which am I nearly out of" are both range
+questions, which a pill per exact skein count could not answer. There is no per-field setting for this
+— the type decides. See [ADR 0034](adr/0034-numeric-filters-are-min-max-sliders.md).
 
 And a table can set `"derivedFilters"` — filters computed by hopping through a `ref` field to a field
 on the table it points at, for filtering by something the table does not store directly.

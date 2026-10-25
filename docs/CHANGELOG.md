@@ -4,6 +4,28 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-24 - v0.1.35, numeric filters are sliders
+
+**Lists**
+- Every `number` field marked `"filter": true` now filters with a min–max slider, 0 to the highest
+  value in the data, instead of "N+" threshold pills. Yarns' Skeins left can now answer "up to 1" and
+  "2–4", not just "2 or more". The panel shows the selection beside the label ("Any", "2+", "up to
+  5", "2–5"). See [ADR 0034](adr/0034-numeric-filters-are-min-max-sliders.md).
+- Yarns gains two slider filters: Squares (main) and Squares (extra), the same computed counts its
+  sort already offered.
+- `FilterDescriptor` is now a union of `PillFilterDescriptor` and `RangeFilterDescriptor`
+  (`kind: 'range'`, `max`, `value`). The `multi` flag and the radio-pill rendering it switched on
+  are gone; only the threshold filters used them.
+- A range is saved in `ListPrefs.filters` as `[min, max]`, `''` meaning unbounded. A filter saved
+  by the old "3+" pills (`["3"]`) still reads as "3 or more".
+
+**Schema**
+- `FieldDef.filterMode` is removed, along with its loader check and its use in `yarns.json`; the
+  field type alone decides. A schema still setting it loads and the key is ignored.
+
+**Tests**
+- New `src/ui/__tests__/RecordList.range.test.ts` for saving, reading and matching a range.
+
 ## 2026-10-24 - v0.1.34, install alongside other apps on the same github.io origin
 
 **Install**

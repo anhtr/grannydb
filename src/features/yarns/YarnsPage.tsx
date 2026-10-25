@@ -6,7 +6,7 @@ import type { TableSchema } from '../../core/schema'
 import { useTable } from '../../app/hooks'
 import { Badge, BadgeStack, Swatch } from '../../ui/components'
 import type { ComputedSortOption, FilterDescriptor } from '../../ui/RecordList'
-import { RecordList } from '../../ui/RecordList'
+import { RecordList, rangeMax } from '../../ui/RecordList'
 
 function YarnRow({ row, schema, usage }: { row: CsvRow; schema: TableSchema; usage: YarnUsage | undefined }) {
   const title = titleFor(schema, row) || '(untitled)'
@@ -60,6 +60,7 @@ function YarnRow({ row, schema, usage }: { row: CsvRow; schema: TableSchema; usa
 
 export function YarnsPage() {
   const squares = useTable('squares')
+  const yarns = useTable('yarns')
 
   const usageByYarn = useMemo(() => (squares ? yarnUsageCounts(squares) : new Map<string, YarnUsage>()), [squares])
 
@@ -71,8 +72,13 @@ export function YarnsPage() {
     [usageByYarn],
   )
 
-  const extraFilters = useMemo<FilterDescriptor[]>(
-    () => [
+  const extraFilters = useMemo<FilterDescriptor[]>(() => {
+    const main = (row: CsvRow) => usageByYarn.get(row.id)?.main ?? 0
+    const extra = (row: CsvRow) => usageByYarn.get(row.id)?.extra ?? 0
+    const rows = yarns?.rows ?? []
+    return [
+      { kind: 'range', key: 'usage_main', label: 'Squares (main)', max: rangeMax(rows, main), value: main },
+      { kind: 'range', key: 'usage_extra', label: 'Squares (extra)', max: rangeMax(rows, extra), value: extra },
       {
         key: 'active',
         label: 'Active',
@@ -85,9 +91,8 @@ export function YarnsPage() {
           return value === 'yes' ? active : !active
         },
       },
-    ],
-    [usageByYarn],
-  )
+    ]
+  }, [usageByYarn, yarns])
 
   return (
     <RecordList
