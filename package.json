@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "validate-data": "tsx scripts/build-data.ts --check",
-    "build-icons": "tsx scripts/build-icons.ts"
+    "build-icons": "tsx scripts/build-icons.ts",
+    "plot-yarns": "tsx scripts/plot-yarn-colours.ts"
   },
   "dependencies": {
     "idb-keyval": "^6.2.1",

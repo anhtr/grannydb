@@ -4,6 +4,15 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-24 - v0.1.38, a yarn stash colour plot
+
+**Scripts**
+- New `npm run plot-yarns` ([`scripts/plot-yarn-colours.ts`](../scripts/plot-yarn-colours.ts))
+  writes `out/yarn-colours.pdf`: current single-colour yarns placed by HSV hue and CIE L*
+  lightness, labelled by name. Multi-colour and non-current yarns are skipped and listed on stdout.
+- New dependency-free PDF writer in `scripts/lib/pdf.ts`, so the script adds no packages.
+- `out/` is gitignored.
+
 ## 2026-10-24 - v0.1.37, a new record never overwrites one with the same id
 
 **Sync**
