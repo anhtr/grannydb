@@ -203,3 +203,4 @@ S199,done,,,2026-10-22,,D172,"Two colors only. Change the last two rounds to hdc
 S200,done,,,2026-10-23,,D173,"Add 2 border rounds (sc, sc with hdc-dc corners).",Y78,Y87,,,
 S201,done,,,2026-10-23,,D174,Two colors only. Adjust stitch count.,Y57,Y56,,,
 S202,done,,,2026-10-24,,D175,"Add additional rounds (bp/fpdc, dc, sc).",Y56,Y04,,,
+S203,done,,,2026-10-24,,D176,Single color only. Add a border rounds (sc). Adjust stitch count.,Y111,,,,
