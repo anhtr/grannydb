@@ -8,6 +8,8 @@ import { projectPath, serializeProject, validateProject } from '../project'
 import { applyChanges, applyProjectChanges } from './merge'
 import { commitMessage } from './message'
 import type { Change } from './queue'
+import { resolveIdClashes } from './renumber'
+import type { Renumbering } from './renumber'
 
 export interface SyncResult {
   status: 'committed' | 'nothing-to-do'
@@ -18,6 +20,8 @@ export interface SyncResult {
   attempts: number
   /** Validation problems in the merged data. Non-blocking; surfaced for review. */
   issues: Issue[]
+  /** New records that took a different id because the repo already held theirs. */
+  renumbered: Renumbering[]
 }
 
 export interface LastSync {
@@ -25,6 +29,8 @@ export interface LastSync {
   sha: string
   paths: string[]
   changeCount: number
+  /** Kept with the last sync, not just shown once, so an automatic push's renumbering is not missed. */
+  renumbered?: Renumbering[]
 }
 
 const LAST_SYNC_KEY = 'grannydb.last-sync'
@@ -75,7 +81,7 @@ export async function syncChanges(
   options: { maxAttempts?: number; signal?: AbortSignal } = {},
 ): Promise<SyncResult> {
   if (changes.length === 0) {
-    return { status: 'nothing-to-do', sha: '', paths: [], changeCount: 0, attempts: 0, issues: [] }
+    return { status: 'nothing-to-do', sha: '', paths: [], changeCount: 0, attempts: 0, issues: [], renumbered: [] }
   }
 
   const maxAttempts = options.maxAttempts ?? 3
@@ -91,7 +97,10 @@ export async function syncChanges(
     }
     if (!snapshot.commit) throw new Error('Cannot sync: the read did not report a commit sha.')
 
-    const merged = applyChanges(snapshot.tables, snapshot.schemas, changes)
+    // Against this attempt's fresh read, so a retry after the branch moved checks the newer data.
+    const resolved = resolveIdClashes(snapshot.tables, snapshot.schemas, changes)
+    const renumbered = resolved.renumbered
+    const merged = applyChanges(snapshot.tables, snapshot.schemas, resolved.changes)
 
     // Only write tables whose serialised form actually differs. This keeps a no-op edit from
     // producing an empty commit, and stops untouched tables from being reformatted.
@@ -128,6 +137,7 @@ export async function syncChanges(
         changeCount: changes.length,
         attempts: attempt,
         issues,
+        renumbered,
       }
     }
 
@@ -136,7 +146,7 @@ export async function syncChanges(
         config,
         token,
         files,
-        commitMessage(changes, snapshot.schemas),
+        commitMessage(resolved.changes, snapshot.schemas),
         snapshot.commit,
         options.signal,
       )
@@ -147,6 +157,7 @@ export async function syncChanges(
         changeCount: changes.length,
         attempts: attempt,
         issues,
+        renumbered,
       }
     } catch (error) {
       lastError = error

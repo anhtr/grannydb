@@ -28,6 +28,7 @@ import {
 } from './queue'
 import type { Change } from './queue'
 import { clearSnapshot, loadSnapshot, saveSnapshot } from './snapshotCache'
+import { renumberChanges } from './renumber'
 import { loadLastSync, saveLastSync, syncChanges } from './sync'
 import type { LastSync, SyncResult } from './sync'
 import { autoSyncBlocker, autoSyncDelay, isWorthReporting } from './autoSync'
@@ -310,7 +311,7 @@ class AppStore {
     if (current && Object.keys(diff).length === 0) return
 
     diff[schema.idField] = id
-    await this.enqueue(upsertChange(table, id, diff))
+    await this.enqueue(upsertChange(table, id, diff, current === null))
   }
 
   /**
@@ -400,7 +401,11 @@ class AppStore {
       // Only drop the changes we actually sent. Anything queued while the request was in flight
       // stays put rather than being silently thrown away.
       const sent = new Set(changes.map((c) => c.id))
-      const remaining = this.state.changes.filter((c) => !sent.has(c.id))
+      // An edit made in flight to a record the push just renumbered was made to that record, not to
+      // whichever one holds its old id in the repo, so it follows the record.
+      const schemas = this.state.snapshot?.schemas
+      const unsent = this.state.changes.filter((c) => !sent.has(c.id))
+      const remaining = schemas ? renumberChanges(unsent, schemas, result.renumbered) : unsent
       await saveQueue(remaining)
 
       const lastSync: LastSync = {
@@ -408,6 +413,7 @@ class AppStore {
         sha: result.sha,
         paths: result.paths,
         changeCount: result.changeCount,
+        ...(result.renumbered.length > 0 ? { renumbered: result.renumbered } : {}),
       }
       saveLastSync(lastSync)
       this.set({ changes: remaining, syncing: false, lastSync })

@@ -138,6 +138,25 @@ from before the push (see [storage](03-storage-layer.md#the-cache-is-content-add
 actually sent, not cleared. An edit made while the request was in flight stays queued instead of
 being silently discarded.
 
+**A new record whose id is taken is renumbered, not merged.** A new record and an edit are both
+field-level upserts, so on their own they cannot be told apart at replay: a new `S120` from this
+device would be written over an `S120` another device pushed first, field by field, and one square
+would silently become the other. So `AppStore.save` marks the change for a record that does not
+exist yet with `create: true` (later edits collapse into it and keep the flag), and before each
+attempt's replay `resolveIdClashes` ([`renumber.ts`](../src/core/store/renumber.ts)) checks every
+flagged change against the fresh read. An id the repo already holds moves to the next id free in
+both the repo and the queue, and every queued `ref`/`reflist` value pointing at it moves too — a
+square queued with a quick-created design follows the design. Edits made while the push was in
+flight are rewritten the same way afterwards (`renumberChanges`). The result lists what moved
+(`SyncResult.renumbered`, kept in `LastSync`), and the Sync screen says so until the next sync.
+
+Two things keep this from misfiring. Only a flagged change is ever renumbered: an edit is *meant*
+to land on the row that holds its id. And a flagged change whose every field already reads the same
+in the repo is taken to be this device's own record, pushed by a sync that was killed before it
+could trim the queue — so replaying it commits nothing, as replaying anything already committed
+must. This is a **compare-and-set on identity**, the same move as the fast-forward check on the
+branch: the device proposes an id, the repo's current state decides whether it stands.
+
 **Validation is advisory here.** `validateDataset` runs against the merged result and any issues are
 reported on the sync screen, but they do not block the commit. Refusing to save your work because a
 `design_id` points somewhere odd would be the wrong trade in an app whose whole point is capturing
@@ -193,6 +212,7 @@ Pinned by tests in [`queue.test.ts`](../src/core/__tests__/queue.test.ts).
 | Edited in the GitHub web UI meanwhile | Preserved: we replay onto the version that includes it |
 | Same square edited on two devices | Both survive if different fields; same field is last-writer-wins |
 | Same square, same field, two devices | Later sync wins. Not detected. See below. |
+| Two devices add a record with the same new id | The later sync renumbers its record to the next free id, with its queued references, and the Sync screen lists the move |
 | Schema drops a table with queued edits | Those operations are skipped, stay queued, and are listed on the sync screen |
 | Browser storage unavailable | Queue works in memory only; a banner warns that edits will not survive a refresh |
 

@@ -25,6 +25,13 @@ export interface RowChange {
   op: 'upsert' | 'delete'
   rowId: string
   values?: CsvRow
+  /**
+   * This upsert brings a new record into being, rather than editing one. The only place it matters
+   * is the sync, which renumbers the record if the repo already holds its id (see
+   * `resolveIdClashes`) — an edit is meant to land on the row that has the id, a new record is not.
+   * Later edits to a record still unsynced collapse into this change and keep the flag.
+   */
+  create?: true
 }
 
 /**
@@ -143,8 +150,8 @@ export function appendChange(changes: readonly Change[], change: Change): Change
   return next
 }
 
-export function upsertChange(table: string, rowId: string, values: CsvRow): RowChange {
-  return { id: newChangeId(), ts: Date.now(), table, op: 'upsert', rowId, values }
+export function upsertChange(table: string, rowId: string, values: CsvRow, create = false): RowChange {
+  return { id: newChangeId(), ts: Date.now(), table, op: 'upsert', rowId, values, ...(create ? { create: true } : {}) }
 }
 
 export function deleteChange(table: string, rowId: string): RowChange {

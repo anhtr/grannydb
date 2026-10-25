@@ -16,7 +16,8 @@ function describe(change: Change, state: AppState): { record: string; fields: st
   if (change.op === 'delete') return { record: `Delete ${change.rowId}`, fields: '' }
   const schema = state.snapshot?.schemas.tables[change.table]
   const base = state.snapshot?.tables[change.table]
-  const isNew = schema && base ? !findRow(base, schema.idField, change.rowId) : false
+  // The flag where there is one; a change queued before it existed falls back to asking the base.
+  const isNew = change.create ?? (schema && base ? !findRow(base, schema.idField, change.rowId) : false)
   const fields = Object.keys(change.values ?? {})
     .filter((k) => k !== (schema?.idField ?? 'id'))
     .map((k) => (schema ? fieldByKey(schema, k)?.label : undefined) ?? k)
@@ -57,6 +58,28 @@ export function SyncPage() {
       ) : null}
 
       {state.syncError ? <ErrorNote>{state.syncError}</ErrorNote> : null}
+
+      {state.lastSync?.renumbered?.length ? (
+        <Card className="p-4 text-sm">
+          <p>The last sync found some ids already taken in the repo, so these new records were saved under the next free id:</p>
+          <ul className="mt-2 space-y-1">
+            {state.lastSync.renumbered.map((r) => {
+              const noun = (state.snapshot?.schemas.tables[r.table]?.labelSingular ?? r.table).toLowerCase()
+              return (
+                <li key={`${r.table}/${r.from}`}>
+                  New {noun} {r.from} is now{' '}
+                  <Link to={`/${r.table}/${r.to}`} className="font-mono underline underline-offset-2">
+                    {r.to}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+          <p className="mt-2 text-muted">
+            If you wrote any of the old ids down anywhere outside the app, they now refer to a different record.
+          </p>
+        </Card>
+      ) : null}
 
       {result ? (
         <Card className="p-4 text-sm">

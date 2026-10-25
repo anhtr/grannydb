@@ -23,6 +23,8 @@ export {
 } from './snapshotCache'
 export { applyChanges, applyProjectChanges, unapplicableChanges } from './merge'
 export { commitMessage } from './message'
+export type { Renumbering } from './renumber'
+export { resolveIdClashes, renumberChanges } from './renumber'
 export type { SyncResult, LastSync } from './sync'
 export { syncChanges, loadLastSync, saveLastSync } from './sync'
 export type { AutoSyncBlocker, AutoSyncTrigger } from './autoSync'

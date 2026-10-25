@@ -225,6 +225,14 @@ the Yarns and Designs lists via `RecordList`'s `extraSortOptions`/`extraFilters`
 next square is `S006`, not `S003`. Ids appear in notes, in commit history, and eventually on
 physical sticky notes; reuse would silently repoint old references at a different square.
 
+`nextId` runs on the device, against whatever the device last read, so it cannot by itself promise
+an id is free in the repo: two devices offline at once, or one reading a stale copy, can both hand
+out `S120`. The sync closes that gap. A new record's queued change carries `create: true`, and the
+sync checks it against the fresh read before committing: if the repo already holds the id, the
+record takes the next free one and every queued reference to it follows. The id is final the moment
+it is pushed, never before. See [sync engine](04-sync-engine.md#syncing) and
+[ADR 0036](adr/0036-renumber-a-clashing-new-record-at-sync-time.md).
+
 ## The schema is data
 
 The single most important structural decision. Each table has a JSON file in

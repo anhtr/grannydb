@@ -301,6 +301,58 @@ describe('syncChanges', () => {
   })
 })
 
+describe('syncChanges with a new record whose id is already taken', () => {
+  it('renumbers it to the next free id instead of writing over the existing row', async () => {
+    // Another device (or a stale read on this one) already pushed S003.
+    gh.setSquares('id,notes,position\nS001,first,\nS002,second,\nS003,from laptop,\n')
+
+    const result = await syncChanges(config, 'tok', [
+      change({ table: 'squares', rowId: 'S003', op: 'upsert', create: true, values: { id: 'S003', notes: 'from phone' } }),
+    ])
+
+    expect(result.renumbered).toEqual([{ table: 'squares', from: 'S003', to: 'S004' }])
+    expect(gh.squares()).toBe('id,notes,position\nS001,first,\nS002,second,\nS003,from laptop,\nS004,from phone,\n')
+    expect(gh.commits[0].message).toContain('squares/S004')
+  })
+
+  it('checks again after the branch moves, against the newer data', async () => {
+    gh.onBeforeRefUpdate = () => {
+      gh.setSquares('id,notes,position\nS001,first,\nS002,second,\nS003,from laptop,\n')
+      gh.head = 'commit-bbb'
+      gh.onBeforeRefUpdate = null
+    }
+
+    const result = await syncChanges(config, 'tok', [
+      change({ table: 'squares', rowId: 'S003', op: 'upsert', create: true, values: { id: 'S003', notes: 'from phone' } }),
+    ])
+
+    expect(result.attempts).toBe(2)
+    expect(result.renumbered).toEqual([{ table: 'squares', from: 'S003', to: 'S004' }])
+    expect(gh.squares()).toContain('S003,from laptop,')
+    expect(gh.squares()).toContain('S004,from phone,')
+  })
+
+  it('commits nothing when the record is its own, already pushed by a sync that never trimmed the queue', async () => {
+    gh.setSquares('id,notes,position\nS001,first,\nS002,second,\nS003,from phone,\n')
+
+    const result = await syncChanges(config, 'tok', [
+      change({ table: 'squares', rowId: 'S003', op: 'upsert', create: true, values: { id: 'S003', notes: 'from phone' } }),
+    ])
+
+    expect(result.status).toBe('nothing-to-do')
+    expect(result.renumbered).toEqual([])
+  })
+
+  it('still lands an edit without the flag on the row that holds the id', async () => {
+    const result = await syncChanges(config, 'tok', [
+      change({ table: 'squares', rowId: 'S002', op: 'upsert', values: { notes: 'edited' } }),
+    ])
+
+    expect(result.renumbered).toEqual([])
+    expect(gh.squares()).toBe('id,notes,position\nS001,first,\nS002,edited,\n')
+  })
+})
+
 describe('syncChanges with project.json', () => {
   it('creates project.json on the first edit when the branch has none', async () => {
     const result = await syncChanges(config, 'tok', [projectChange({ start_date: '2026-07-03', target_squares: 400 })])

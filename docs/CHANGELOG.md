@@ -4,6 +4,29 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-24 - v0.1.37, a new record never overwrites one with the same id
+
+**Sync**
+- A new record's queued change is now marked `create: true` (`RowChange.create`, set by
+  `AppStore.save` when the record does not exist yet). Before writing, the sync checks each marked
+  record against the fresh read; if the repo already has that id, the record takes the next free id
+  instead of being written over the existing one. Every queued reference to it (`ref` and
+  `reflist` fields) is moved to the new id too, as are edits made while the push was in flight.
+  New `src/core/store/renumber.ts` (`resolveIdClashes`, `renumberChanges`). See
+  [ADR 0036](adr/0036-renumber-a-clashing-new-record-at-sync-time.md).
+- A record that this device already pushed, whose queue was never trimmed, is recognised by its
+  content and not renumbered, so replaying it still commits nothing.
+- `SyncResult.renumbered` and `LastSync.renumbered` list what moved. The Sync screen shows them
+  until the next sync, with a link to each record's new id.
+- The Sync screen's "New S120" label now comes from the flag, falling back to the old check for
+  changes queued before this version (which carry no flag and sync exactly as before).
+
+**Tests**
+- New `renumber.test.ts`: renumbering, references and lists following, ids already queued being
+  skipped, in-flight edits, and the flag surviving a collapsed edit.
+- `sync.test.ts`: a clash renumbers instead of overwriting, is re-checked after the branch moves,
+  is not triggered by this device's own already-pushed record, and never applies to a plain edit.
+
 ## 2026-10-24 - v0.1.36, no rollback after a sync
 
 **Sync**
