@@ -553,6 +553,27 @@ function render(
 // CLI
 // ---------------------------------------------------------------------------------------------
 
+/** Mulberry32: a tiny seeded PRNG, so `--seed 3` draws the same layout on every run and machine. */
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function shuffle<T>(items: T[], random: () => number): T[] {
+  const out = [...items]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
 function csvCell(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
 }
@@ -569,10 +590,23 @@ function main(): void {
   }
   const size = Number(flag('--size') ?? 20)
   if (!Number.isInteger(size) || size < 2) throw new Error('--size must be a whole number of at least 2')
-  const outPath = flag('--out') ?? join(repoRoot, 'out', 'blanket-layout.pdf')
+  const seedArg = flag('--seed')
+  const seed = seedArg === undefined ? undefined : Number(seedArg)
+  if (seed !== undefined && !Number.isInteger(seed)) throw new Error('--seed must be a whole number')
+  // How far, in cells, a seed may nudge each target. Half a cell keeps every square in the colour
+  // neighbourhood it belongs to while still letting near-equal arrangements trade places.
+  const jitter = Number(flag('--jitter') ?? 0.5)
+  if (!(jitter >= 0)) throw new Error('--jitter must be a number of cells, 0 or more')
+  const defaultName = seed === undefined ? 'blanket-layout.pdf' : `blanket-layout-seed${seed}.pdf`
+  const outPath = flag('--out') ?? join(repoRoot, 'out', defaultName)
   const csvPath = outPath.replace(/\.pdf$/i, '') + '.csv'
 
-  const { squares, constructions, skipped } = loadSquares()
+  const loaded = loadSquares()
+  const { constructions, skipped } = loaded
+  // A seed reorders the squares too, so exact ties between interchangeable squares (same yarn,
+  // same construction) break differently — which square id lands in which of their cells.
+  const random = seed === undefined ? undefined : seededRandom(seed)
+  const squares = random ? shuffle(loaded.squares, random) : loaded.squares
   if (squares.length === 0) throw new Error('no squares with both a main colour and a construction type')
 
   const allCandidates = squares.flatMap((s) => s.candidates)
@@ -596,11 +630,33 @@ function main(): void {
     )
   }
 
+  // Without a seed the matching sees the true targets and returns the single best layout. With
+  // one, every target is nudged a little first: many layouts are within a hair of the best (a print
+  // yarn could sit by either of its colours, two blocks could trade a column), and the nudge is
+  // what lets one of those win instead. The layout is still scored against the true targets below.
+  const matchTargets = random
+    ? new Map(
+        [...targets].map(([s, ts]) => [
+          s,
+          ts.map((t) => ({ ...t, x: t.x + (random() * 2 - 1) * jitter, y: t.y + (random() * 2 - 1) * jitter })),
+        ]),
+      )
+    : targets
+
   // Either corner of the checkerboard could start with either construction; keep whichever lets
   // the squares sit closer to their colours. Ties keep the schema's first option in the corner.
   const [a, b] = constructions
-  const layouts = [a, b].map((even) => layOut(squares, targets, constructions, size, even))
-  const layout = layouts[1].totalCost < layouts[0].totalCost ? layouts[1] : layouts[0]
+  const layouts = [a, b].map((even) => layOut(squares, matchTargets, constructions, size, even))
+  const chosen = layouts[1].totalCost < layouts[0].totalCost ? layouts[1] : layouts[0]
+  const rescored = chosen.placements.map((p) => {
+    const { cost, target } = cellCost(targets.get(p.square)!, p.row, p.col)
+    return { placement: { ...p, nearest: target.candidate }, cost }
+  })
+  const layout: Layout = {
+    ...chosen,
+    placements: rescored.map((r) => r.placement),
+    totalCost: rescored.reduce((sum, r) => sum + r.cost, 0),
+  }
 
   const holey = constructions.includes('holey') ? 'holey' : constructions[1]
   const counts = constructions.map((c) => `${squares.filter((s) => s.construction === c).length} ${c}`)
@@ -609,6 +665,7 @@ function main(): void {
     `${layout.placements.length} of ${size * size} squares placed (${counts.join(', ')})`,
     'construction checkered',
     'main colour: hue across, lightness down',
+    seed === undefined ? 'best fit' : `seed ${seed}`,
     generatedAt,
   ]
   const printNote = 'A print yarn sits near whichever of its colours is closest.'
@@ -637,7 +694,10 @@ function main(): void {
   console.log(`placed ${layout.placements.length} squares on a ${size}x${size} grid (${counts.join(', ')})`)
   console.log(`${prints} on print yarns (placed near any of their colours), ${neutrals} near-neutral`)
   console.log(`hue axis starts at ${Math.round(cut)}°; ${layout.evenConstruction} in the top-left corner`)
-  console.log(`average distance from target colour: ${rms.toFixed(2)} cells (root mean square)`)
+  console.log(
+    `average distance from target colour: ${rms.toFixed(2)} cells (root mean square)` +
+      (seed === undefined ? '' : `, seed ${seed} with targets nudged up to ${jitter} cell`),
+  )
   console.log(
     `skipped: ${skipped.noMainYarn.length} no main colour, ${skipped.noColour.length} main yarn has no colour, ` +
       `${skipped.noConstruction.length} no construction type`,

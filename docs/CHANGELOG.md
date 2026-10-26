@@ -12,6 +12,8 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   construction type checkered, main colour ranked by hue across and CIE L* lightness down. Squares
   are matched to cells by minimum-cost assignment; a print yarn may sit near any of its colours, a
   speckled one near its base colour. Read-only — `position` is not written.
+- `--seed N` draws one of the many near-best alternative layouts instead of the single best one,
+  reproducibly, by shuffling tie order and nudging colour targets by up to `--jitter` cells.
 - Colour maths moved out of `plot-yarn-colours.ts` into `scripts/lib/colour.ts`, shared by both plots.
 
 ## 2026-10-24 - v0.1.38, a yarn stash colour plot

@@ -38,6 +38,14 @@ both. A print yarn may sit near any of its colours. It reads the *effective* con
 through `effectiveValue`, so a square that inherits its design's type lands where the Squares page
 says it should. The colour maths both plots share lives in `scripts/lib/colour.ts`.
 
+Many layouts tie or nearly tie: interchangeable squares (same yarn and construction) can swap
+cells, and a print yarn could sit by more than one of its colours. Without flags the script returns
+one best layout, deterministically. `--seed N` shows a different, near-best one, written to
+`out/blanket-layout-seedN.pdf`. It shuffles the square order (so exact ties break differently) and
+nudges every colour target by up to `--jitter` cells (default 0.5), then scores the result against
+the un-nudged targets, so you can see how far from the best each seed is. A seed is reproducible:
+the same seed and data give the same layout.
+
 ### Data commits deploy too
 
 The original plan had `paths-ignore: data/**` so that syncing squares would not trigger a rebuild.
