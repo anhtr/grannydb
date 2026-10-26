@@ -20,6 +20,10 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 - `--extra-colours` breaks ties between squares of the same main yarn and construction by their
   extra colours, as a second assignment stage, and draws the extras as a band along each square's
   top edge. Seed nudges are now per yarn colour, so those ties survive a seed.
+- `--separate-identical [weight]` keeps squares with the same main yarn and set of extra yarns
+  from sharing a side (diagonals allowed). It runs in the same local-search pass as
+  `--separate-prints`, now generalised as `refine`, which runs after the extras tie-break and keeps
+  extras a strict tie-breaker.
 - Colour maths moved out of `plot-yarn-colours.ts` into `scripts/lib/colour.ts`, shared by both plots.
 
 ## 2026-10-24 - v0.1.38, a yarn stash colour plot

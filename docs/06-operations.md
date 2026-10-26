@@ -68,6 +68,16 @@ tiny weight added to one combined cost: a weight has to be small enough never to
 main-colour difference, and floating-point sums make "small enough" a guess, where two stages make
 it exact. The cost is that extras only reorder within a block of one yarn; they never move a block.
 
+`--separate-identical [weight]` keeps squares with the same colour combination off each other's
+sides. The combination is the main yarn plus the *set* of extra yarns, so no extras is a
+combination too; diagonal neighbours are allowed. Construction is not part of the combination: on
+a checkerboard, side neighbours are always of opposite construction, so including it would make the
+rule unable to fire. It shares the local-search pass with `--separate-prints` as a second penalty
+term (default weight 10, firmer than prints' 4). The run order per corner is: assignment, then
+extras break ties, then the neighbour pass, last, so nothing after it can undo the separation. Inside
+that pass extras stay a strict tie-breaker: a move is judged on extras only when it ties on distance
+plus penalties.
+
 ### Data commits deploy too
 
 The original plan had `paths-ignore: data/**` so that syncing squares would not trigger a rebuild.

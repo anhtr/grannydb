@@ -71,6 +71,13 @@ interface Square {
    * outranks another. Speckled extras offer their base only, same rule as the main yarn.
    */
   extraCandidates: Candidate[]
+  /**
+   * The colour combination: main yarn plus the *set* of extra yarns, so "Y75 with Y60" and two
+   * squares in plain Y75 each match their own kind. Construction is left out on purpose — squares
+   * sharing a side are always of opposite construction on a checkerboard, so including it would
+   * make every side neighbour count as different.
+   */
+  combo: string
 }
 
 interface Loaded {
@@ -161,6 +168,7 @@ function loadSquares(): Loaded {
       // Same default the app's swatches use: several colours and no `speckled` means stripes.
       print: offered.length > 1,
       extras,
+      combo: [yarnId, ...[...new Set(splitList(row.extra_yarns ?? ''))].sort()].join(';'),
       extraCandidates: extras
         .flatMap((extra) => (extra.pattern === 'speckled' ? extra.colours.slice(0, 1) : extra.colours))
         .map((rgb) => ({ rgb, hue: hue(rgb), lstar: lstar(rgb) })),
@@ -408,35 +416,75 @@ const NEIGHBOURS: ReadonlyArray<readonly [number, number]> = [
   [1, 1],
 ]
 
-/** Pairs of print squares that share a side or a corner. */
-function touchingPrintPairs(placements: Placement[]): number {
-  const prints = new Set(placements.filter((p) => p.square.print).map((p) => `${p.row},${p.col}`))
-  let pairs = 0
-  for (const key of prints) {
-    const [row, col] = key.split(',').map(Number)
-    for (const [dr, dc] of NEIGHBOURS) if (prints.has(`${row + dr},${col + dc}`)) pairs++
+/** The four cells sharing a side with a given cell. */
+const SIDES: ReadonlyArray<readonly [number, number]> = [
+  [-1, 0],
+  [0, -1],
+  [0, 1],
+  [1, 0],
+]
+
+/** Pairs of placed squares, among the given neighbour offsets, that `pairs` says belong together. */
+function countPairs(
+  placements: Placement[],
+  offsets: ReadonlyArray<readonly [number, number]>,
+  pairs: (a: Square, b: Square) => boolean,
+): number {
+  const at = new Map(placements.map((p) => [`${p.row},${p.col}`, p.square]))
+  let n = 0
+  for (const p of placements) {
+    for (const [dr, dc] of offsets) {
+      const other = at.get(`${p.row + dr},${p.col + dc}`)
+      if (other && pairs(p.square, other)) n++
+    }
   }
-  return pairs / 2
+  return n / 2
 }
 
+/** Pairs of print squares that share a side or a corner. */
+function touchingPrintPairs(placements: Placement[]): number {
+  return countPairs(placements, NEIGHBOURS, (a, b) => a.print && b.print)
+}
+
+/** Pairs of squares with the same colour combination that share a side. Diagonals are fine. */
+function identicalSidePairs(placements: Placement[]): number {
+  return countPairs(placements, SIDES, (a, b) => a.combo === b.combo)
+}
+
+interface Penalties {
+  /** Per pair of print squares touching at a side or corner. */
+  prints: number
+  /** Per pair of same-colour-combination squares sharing a side. */
+  identical: number
+}
+
+/** Tolerance for "the same cost" — float sums of equal terms in another order can differ by ulps. */
+const EPS = 1e-9
+
 /**
- * Pushes print squares apart, after the assignment has put everything near its colour. "Two prints
- * touch" depends on where *both* squares go, which a one-square-one-cell cost matrix cannot express
- * — so this is local search on top of the optimal assignment: move a square to an empty cell of its
- * construction, or swap it with the square there, whenever that lowers
+ * Rules about neighbours, applied after the assignment has put everything near its colour. "Two
+ * prints touch" or "two identical squares share a side" depends on where *both* squares go, which a
+ * one-square-one-cell cost matrix cannot express — so this is local search on top of the optimal
+ * assignment: move a square to an empty cell of its construction, or swap it with the square there,
+ * whenever that lowers
  *
- *     sum of squared distances to target  +  weight x (pairs of touching prints)
+ *     sum of squared distances to target  +  prints x (touching print pairs)
+ *                                         +  identical x (identical pairs sharing a side)
  *
  * and stop when no single move helps. Hill-climbing finds a good layout, not provably the best, but
- * it starts from the best colour-only layout and only ever improves on it, so the weight reads
- * directly as "how many squared cells of colour accuracy one touching pair is worth".
+ * it starts from the best colour-only layout and only ever improves on it, so each weight reads
+ * directly as "how many squared cells of colour accuracy one offending pair is worth".
+ *
+ * Extra colours, when given, stay a strict tie-breaker here too: a move is only judged on its extras
+ * when it leaves the cost above unchanged, so no amount of extra-colour gain buys a worse main layout.
  */
-function separatePrints(
+function refine(
   layout: Layout,
   targets: Map<Square, Target[]>,
+  extraTargets: Map<Square, Target[]> | undefined,
   constructions: [string, string],
   size: number,
-  weight: number,
+  weights: Penalties,
   random: (() => number) | undefined,
 ): Layout {
   const cellsOf = new Map<string, number[]>()
@@ -458,45 +506,73 @@ function separatePrints(
 
   const distance = (s: Square | undefined, cell: number): number =>
     s ? cellCost(targets.get(s)!, Math.floor(cell / size), cell % size).cost : 0
-  const printsAround = (cell: number): number => {
+  const extraDistance = (s: Square | undefined, cell: number): number => {
+    const ts = s && extraTargets?.get(s)
+    return ts && ts.length > 0 ? cellCost(ts, Math.floor(cell / size), cell % size).cost : 0
+  }
+  const around = (
+    cell: number,
+    offsets: ReadonlyArray<readonly [number, number]>,
+    match: (other: Square) => boolean,
+  ): number => {
     const row = Math.floor(cell / size)
     const col = cell % size
     let n = 0
-    for (const [dr, dc] of NEIGHBOURS) {
+    for (const [dr, dc] of offsets) {
       const r = row + dr
       const c = col + dc
-      if (r >= 0 && r < size && c >= 0 && c < size && occupant[r * size + c]?.print) n++
+      if (r < 0 || r >= size || c < 0 || c >= size) continue
+      const other = occupant[r * size + c]
+      if (other && match(other)) n++
     }
     return n
   }
-  const adjacent = (a: number, b: number): boolean =>
-    Math.abs(Math.floor(a / size) - Math.floor(b / size)) <= 1 && Math.abs((a % size) - (b % size)) <= 1
-  // Cost of everything touching cells a and b, with s at a and t at b. The pair (s, t) is seen from
-  // both sides when they are adjacent prints, so it is taken off once.
-  const local = (s: Square, a: number, t: Square | undefined, b: number): number => {
-    let touching = (s.print ? printsAround(a) : 0) + (t?.print ? printsAround(b) : 0)
-    if (s.print && t?.print && adjacent(a, b)) touching--
-    return distance(s, a) + distance(t, b) + weight * touching
+  const offence = (s: Square | undefined, cell: number): number => {
+    if (!s) return 0
+    const prints = weights.prints > 0 && s.print ? around(cell, NEIGHBOURS, (o) => o.print) : 0
+    const identical = weights.identical > 0 ? around(cell, SIDES, (o) => o.combo === s.combo) : 0
+    return weights.prints * prints + weights.identical * identical
   }
+  const rowGap = (a: number, b: number): number => Math.abs(Math.floor(a / size) - Math.floor(b / size))
+  const colGap = (a: number, b: number): number => Math.abs((a % size) - (b % size))
+  // Cost of everything touching cells a and b, with s at a and t at b. A pair (s, t) is seen from
+  // both sides when they offend each other, so it is taken off once.
+  const primary = (s: Square, a: number, t: Square | undefined, b: number): number => {
+    let cost = distance(s, a) + distance(t, b) + offence(s, a) + offence(t, b)
+    if (t && rowGap(a, b) <= 1 && colGap(a, b) <= 1) {
+      if (s.print && t.print) cost -= weights.prints
+      if (s.combo === t.combo && rowGap(a, b) + colGap(a, b) === 1) cost -= weights.identical
+    }
+    return cost
+  }
+  const secondary = (s: Square, a: number, t: Square | undefined, b: number): number =>
+    extraDistance(s, a) + extraDistance(t, b)
 
   const squares = layout.placements.map((p) => p.square)
   for (let sweep = 0; sweep < 100; sweep++) {
     let improved = false
     for (const s of random ? shuffle(squares, random) : squares) {
       const a = cellOf.get(s)!
-      let best = { delta: -1e-9, cell: -1 }
+      let best: { main: number; extra: number; cell: number } | undefined
       for (const b of cellsOf.get(s.construction)!) {
         if (b === a) continue
         const t = occupant[b]
-        const before = local(s, a, t, b)
+        const before = primary(s, a, t, b)
+        const extraBefore = secondary(s, a, t, b)
         occupant[a] = t
         occupant[b] = s
-        const after = local(s, b, t, a)
+        const main = primary(s, b, t, a) - before
+        const extra = secondary(s, b, t, a) - extraBefore
         occupant[a] = s
         occupant[b] = t
-        if (after - before < best.delta) best = { delta: after - before, cell: b }
+        // Lexicographic: main cost first; extras only between moves that tie on it.
+        const improves = main < -EPS || (Math.abs(main) <= EPS && extra < -EPS)
+        if (!improves) continue
+        if (!best || main < best.main - EPS || (Math.abs(main - best.main) <= EPS && extra < best.extra)) {
+          best = { main, extra, cell: b }
+        }
       }
-      if (best.cell < 0) continue
+      if (!best) continue
       const t = occupant[best.cell]
       occupant[a] = t
       occupant[best.cell] = s
@@ -514,7 +590,14 @@ function separatePrints(
     return { square, row, col, nearest: cellCost(targets.get(square)!, row, col).target.candidate }
   })
   const distanceCost = placements.reduce((sum, p) => sum + cellCost(targets.get(p.square)!, p.row, p.col).cost, 0)
-  return { ...layout, placements, totalCost: distanceCost + weight * touchingPrintPairs(placements) }
+  return {
+    ...layout,
+    placements,
+    totalCost:
+      distanceCost +
+      weights.prints * touchingPrintPairs(placements) +
+      weights.identical * identicalSidePairs(placements),
+  }
 }
 
 /**
@@ -524,7 +607,7 @@ function separatePrints(
  * a guess; two stages make "extras only decide among equals" exact by construction.
  *
  * The equals are squares with the same main yarn and construction. Any shuffle of them over the
- * cells they already hold leaves every main-colour cost — distance, the checker, touching prints —
+ * cells they already hold leaves the main colour's distance, the checker and touching prints
  * unchanged, so within each such group the cells are re-matched to the squares by the same
  * assignment as stage one, now against the extras' targets. A square without extras costs nothing
  * anywhere and takes whichever cell is left.
@@ -837,19 +920,28 @@ function main(): void {
   if (!(jitter >= 0)) throw new Error('--jitter must be a number of cells, 0 or more')
   const spread = args.includes('--spread-prints')
   const extrasOn = args.includes('--extra-colours')
-  // `--separate-prints` on its own uses a weight of 4: one touching pair is worth moving a square
-  // two cells from its colour. A number after it sets the weight.
-  const separateIndex = args.indexOf('--separate-prints')
-  const separateArg = separateIndex >= 0 ? args[separateIndex + 1] : undefined
-  const separateWeight =
-    separateIndex < 0 ? 0 : separateArg === undefined || separateArg.startsWith('--') ? 4 : Number(separateArg)
-  if (!(separateWeight >= 0)) throw new Error('--separate-prints takes a weight of 0 or more')
+  // A penalty flag on its own takes its default weight; a number after it sets the weight. 0 when
+  // the flag is absent, which turns that rule off.
+  const weightFlag = (name: string, fallback: number): number => {
+    const i = args.indexOf(name)
+    if (i < 0) return 0
+    const next = args[i + 1]
+    const weight = next === undefined || next.startsWith('--') ? fallback : Number(next)
+    if (!(weight >= 0)) throw new Error(`${name} takes a weight of 0 or more`)
+    return weight
+  }
+  // 4: one touching pair of prints is worth moving a square two cells from its colour.
+  const separateWeight = weightFlag('--separate-prints', 4)
+  // 10: identical squares side by side read as one big patch, which is worse than two busy prints
+  // meeting at a corner — so the default is firmer, about three cells' worth.
+  const identicalWeight = weightFlag('--separate-identical', 10)
   // One file per combination of options, so comparing two runs never overwrites either.
   const nameParts = [
     'blanket-layout',
     ...(seed === undefined ? [] : [`seed${seed}`]),
     ...(spread ? ['spread'] : []),
     ...(separateWeight > 0 ? [`apart${separateWeight}`] : []),
+    ...(identicalWeight > 0 ? [`identical${identicalWeight}`] : []),
     ...(extrasOn ? ['extras'] : []),
   ]
   const defaultName = `${nameParts.join('-')}.pdf`
@@ -911,16 +1003,31 @@ function main(): void {
   // Either corner of the checkerboard could start with either construction; keep whichever lets
   // the squares sit closer to their colours. Ties keep the schema's first option in the corner.
   const [a, b] = constructions
+  // Per corner: the assignment, then extras break its ties, then the neighbour rules — last, so
+  // that nothing after them can put two prints or two identical squares back side by side. The
+  // neighbour pass keeps extras as a strict tie-breaker, so the order costs extras nothing.
+  const penalties: Penalties = { prints: separateWeight, identical: identicalWeight }
   const layouts = [a, b].map((even) => {
     const assigned = layOut(squares, placementTargets, constructions, size, even)
-    return separateWeight > 0
-      ? separatePrints(assigned, placementTargets, constructions, size, separateWeight, random)
-      : assigned
+    const ordered = extrasOn
+      ? orderByExtras(assigned, placementTargets, extraTargets)
+      : { layout: assigned, mainTargets: placementTargets }
+    const refined =
+      penalties.prints > 0 || penalties.identical > 0
+        ? refine(
+            ordered.layout,
+            ordered.mainTargets,
+            extrasOn ? extraTargets : undefined,
+            constructions,
+            size,
+            penalties,
+            random,
+          )
+        : ordered.layout
+    return { layout: refined, mainTargets: ordered.mainTargets }
   })
-  const best = layouts[1].totalCost < layouts[0].totalCost ? layouts[1] : layouts[0]
-  const { layout: chosen, mainTargets: finalTargets } = extrasOn
-    ? orderByExtras(best, placementTargets, extraTargets)
-    : { layout: best, mainTargets: placementTargets }
+  const { layout: chosen, mainTargets: finalTargets } =
+    layouts[1].layout.totalCost < layouts[0].layout.totalCost ? layouts[1] : layouts[0]
   // Scored against the un-nudged targets — and, when spreading, against the colour each print was
   // dealt, since "near any of its colours" is exactly what spreading turns off.
   const dealt = (s: Square): Target[] => {
@@ -951,6 +1058,12 @@ function main(): void {
     ...(spread ? ['prints dealt evenly across their colours'] : []),
     ...(separateWeight > 0
       ? [`prints kept apart (weight ${separateWeight}, ${touchingPrintPairs(layout.placements)} touching)`]
+      : []),
+    ...(identicalWeight > 0
+      ? [
+          `identical combinations kept off each other's sides (weight ${identicalWeight}, ` +
+            `${identicalSidePairs(layout.placements)} sharing a side)`,
+        ]
       : []),
     ...(extrasOn ? ['ties broken by extra colours (band along the top)'] : []),
     generatedAt,
@@ -999,6 +1112,10 @@ function main(): void {
   console.log(
     `print squares touching another print: ${touchingPrintPairs(layout.placements)} pairs` +
       (separateWeight > 0 ? ` (kept apart at weight ${separateWeight})` : ''),
+  )
+  console.log(
+    `identical colour combinations sharing a side: ${identicalSidePairs(layout.placements)} pairs` +
+      (identicalWeight > 0 ? ` (kept apart at weight ${identicalWeight})` : ''),
   )
   console.log(`hue axis starts at ${Math.round(cut)}°; ${layout.evenConstruction} in the top-left corner`)
   console.log(
