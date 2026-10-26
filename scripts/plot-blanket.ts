@@ -62,6 +62,8 @@ interface Square {
   /** The colours this square may be placed near: all of a print's, a speckled yarn's base only. */
   candidates: Candidate[]
   neutral: boolean
+  /** A print yarn: several colours drawn as equal bands. Speckled yarns read as their base, so are not. */
+  print: boolean
 }
 
 interface Loaded {
@@ -139,6 +141,8 @@ function loadSquares(): Loaded {
       pattern,
       candidates: offered.map((rgb) => ({ rgb, hue: hue(rgb), lstar: lstar(rgb) })),
       neutral: offered.every((rgb) => saturation(rgb) < 0.08),
+      // Same default the app's swatches use: several colours and no `speckled` means stripes.
+      print: offered.length > 1,
     })
   }
 
@@ -344,6 +348,152 @@ function layOut(
   }
 
   return { placements, overflow, evenConstruction, totalCost }
+}
+
+/**
+ * Deals each print yarn's squares out across its colours in turn, so a five-colour print with ten
+ * squares targets each colour twice instead of all ten crowding round whichever colour has the most
+ * room. Each square keeps only the colour it was dealt. The deal runs construction by construction
+ * without restarting, so the holey and solid squares of a yarn are each spread too, not just the
+ * yarn as a whole.
+ */
+function spreadPrints(squares: Square[], targets: Map<Square, Target[]>): Map<Square, Target[]> {
+  const spread = new Map(targets)
+  const byYarn = new Map<string, Square[]>()
+  for (const s of squares) {
+    if (!s.print) continue
+    byYarn.set(s.yarnId, [...(byYarn.get(s.yarnId) ?? []), s])
+  }
+  for (const group of byYarn.values()) {
+    // Stable sort, so within a construction the order (and therefore a seed's shuffle) still counts.
+    const ordered = [...group].sort((a, b) => a.construction.localeCompare(b.construction))
+    ordered.forEach((s, i) => {
+      const options = targets.get(s)!
+      spread.set(s, [options[i % options.length]])
+    })
+  }
+  return spread
+}
+
+/** The eight cells sharing a side or a corner with a given cell. */
+const NEIGHBOURS: ReadonlyArray<readonly [number, number]> = [
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, -1],
+  [0, 1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+]
+
+/** Pairs of print squares that share a side or a corner. */
+function touchingPrintPairs(placements: Placement[]): number {
+  const prints = new Set(placements.filter((p) => p.square.print).map((p) => `${p.row},${p.col}`))
+  let pairs = 0
+  for (const key of prints) {
+    const [row, col] = key.split(',').map(Number)
+    for (const [dr, dc] of NEIGHBOURS) if (prints.has(`${row + dr},${col + dc}`)) pairs++
+  }
+  return pairs / 2
+}
+
+/**
+ * Pushes print squares apart, after the assignment has put everything near its colour. "Two prints
+ * touch" depends on where *both* squares go, which a one-square-one-cell cost matrix cannot express
+ * — so this is local search on top of the optimal assignment: move a square to an empty cell of its
+ * construction, or swap it with the square there, whenever that lowers
+ *
+ *     sum of squared distances to target  +  weight x (pairs of touching prints)
+ *
+ * and stop when no single move helps. Hill-climbing finds a good layout, not provably the best, but
+ * it starts from the best colour-only layout and only ever improves on it, so the weight reads
+ * directly as "how many squared cells of colour accuracy one touching pair is worth".
+ */
+function separatePrints(
+  layout: Layout,
+  targets: Map<Square, Target[]>,
+  constructions: [string, string],
+  size: number,
+  weight: number,
+  random: (() => number) | undefined,
+): Layout {
+  const cellsOf = new Map<string, number[]>()
+  for (const construction of constructions) {
+    const parity = construction === layout.evenConstruction ? 0 : 1
+    const cells: number[] = []
+    for (let i = 0; i < size * size; i++) {
+      if ((Math.floor(i / size) + (i % size)) % 2 === parity) cells.push(i)
+    }
+    cellsOf.set(construction, cells)
+  }
+
+  const occupant: (Square | undefined)[] = new Array<Square | undefined>(size * size).fill(undefined)
+  const cellOf = new Map<Square, number>()
+  for (const p of layout.placements) {
+    occupant[p.row * size + p.col] = p.square
+    cellOf.set(p.square, p.row * size + p.col)
+  }
+
+  const distance = (s: Square | undefined, cell: number): number =>
+    s ? cellCost(targets.get(s)!, Math.floor(cell / size), cell % size).cost : 0
+  const printsAround = (cell: number): number => {
+    const row = Math.floor(cell / size)
+    const col = cell % size
+    let n = 0
+    for (const [dr, dc] of NEIGHBOURS) {
+      const r = row + dr
+      const c = col + dc
+      if (r >= 0 && r < size && c >= 0 && c < size && occupant[r * size + c]?.print) n++
+    }
+    return n
+  }
+  const adjacent = (a: number, b: number): boolean =>
+    Math.abs(Math.floor(a / size) - Math.floor(b / size)) <= 1 && Math.abs((a % size) - (b % size)) <= 1
+  // Cost of everything touching cells a and b, with s at a and t at b. The pair (s, t) is seen from
+  // both sides when they are adjacent prints, so it is taken off once.
+  const local = (s: Square, a: number, t: Square | undefined, b: number): number => {
+    let touching = (s.print ? printsAround(a) : 0) + (t?.print ? printsAround(b) : 0)
+    if (s.print && t?.print && adjacent(a, b)) touching--
+    return distance(s, a) + distance(t, b) + weight * touching
+  }
+
+  const squares = layout.placements.map((p) => p.square)
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let improved = false
+    for (const s of random ? shuffle(squares, random) : squares) {
+      const a = cellOf.get(s)!
+      let best = { delta: -1e-9, cell: -1 }
+      for (const b of cellsOf.get(s.construction)!) {
+        if (b === a) continue
+        const t = occupant[b]
+        const before = local(s, a, t, b)
+        occupant[a] = t
+        occupant[b] = s
+        const after = local(s, b, t, a)
+        occupant[a] = s
+        occupant[b] = t
+        if (after - before < best.delta) best = { delta: after - before, cell: b }
+      }
+      if (best.cell < 0) continue
+      const t = occupant[best.cell]
+      occupant[a] = t
+      occupant[best.cell] = s
+      cellOf.set(s, best.cell)
+      if (t) cellOf.set(t, a)
+      improved = true
+    }
+    if (!improved) break
+  }
+
+  const placements = squares.map((square) => {
+    const cell = cellOf.get(square)!
+    const row = Math.floor(cell / size)
+    const col = cell % size
+    return { square, row, col, nearest: cellCost(targets.get(square)!, row, col).target.candidate }
+  })
+  const distanceCost = placements.reduce((sum, p) => sum + cellCost(targets.get(p.square)!, p.row, p.col).cost, 0)
+  return { ...layout, placements, totalCost: distanceCost + weight * touchingPrintPairs(placements) }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -597,7 +747,22 @@ function main(): void {
   // neighbourhood it belongs to while still letting near-equal arrangements trade places.
   const jitter = Number(flag('--jitter') ?? 0.5)
   if (!(jitter >= 0)) throw new Error('--jitter must be a number of cells, 0 or more')
-  const defaultName = seed === undefined ? 'blanket-layout.pdf' : `blanket-layout-seed${seed}.pdf`
+  const spread = args.includes('--spread-prints')
+  // `--separate-prints` on its own uses a weight of 4: one touching pair is worth moving a square
+  // two cells from its colour. A number after it sets the weight.
+  const separateIndex = args.indexOf('--separate-prints')
+  const separateArg = separateIndex >= 0 ? args[separateIndex + 1] : undefined
+  const separateWeight =
+    separateIndex < 0 ? 0 : separateArg === undefined || separateArg.startsWith('--') ? 4 : Number(separateArg)
+  if (!(separateWeight >= 0)) throw new Error('--separate-prints takes a weight of 0 or more')
+  // One file per combination of options, so comparing two runs never overwrites either.
+  const nameParts = [
+    'blanket-layout',
+    ...(seed === undefined ? [] : [`seed${seed}`]),
+    ...(spread ? ['spread'] : []),
+    ...(separateWeight > 0 ? [`apart${separateWeight}`] : []),
+  ]
+  const defaultName = `${nameParts.join('-')}.pdf`
   const outPath = flag('--out') ?? join(repoRoot, 'out', defaultName)
   const csvPath = outPath.replace(/\.pdf$/i, '') + '.csv'
 
@@ -642,14 +807,27 @@ function main(): void {
         ]),
       )
     : targets
+  const placementTargets = spread ? spreadPrints(squares, matchTargets) : matchTargets
 
   // Either corner of the checkerboard could start with either construction; keep whichever lets
   // the squares sit closer to their colours. Ties keep the schema's first option in the corner.
   const [a, b] = constructions
-  const layouts = [a, b].map((even) => layOut(squares, matchTargets, constructions, size, even))
+  const layouts = [a, b].map((even) => {
+    const assigned = layOut(squares, placementTargets, constructions, size, even)
+    return separateWeight > 0
+      ? separatePrints(assigned, placementTargets, constructions, size, separateWeight, random)
+      : assigned
+  })
   const chosen = layouts[1].totalCost < layouts[0].totalCost ? layouts[1] : layouts[0]
+  // Scored against the un-nudged targets — and, when spreading, against the colour each print was
+  // dealt, since "near any of its colours" is exactly what spreading turns off.
+  const dealt = (s: Square): Target[] => {
+    if (!spread || !s.print) return targets.get(s)!
+    const colour = placementTargets.get(s)![0].candidate
+    return targets.get(s)!.filter((t) => t.candidate === colour)
+  }
   const rescored = chosen.placements.map((p) => {
-    const { cost, target } = cellCost(targets.get(p.square)!, p.row, p.col)
+    const { cost, target } = cellCost(dealt(p.square), p.row, p.col)
     return { placement: { ...p, nearest: target.candidate }, cost }
   })
   const layout: Layout = {
@@ -666,9 +844,15 @@ function main(): void {
     'construction checkered',
     'main colour: hue across, lightness down',
     seed === undefined ? 'best fit' : `seed ${seed}`,
+    ...(spread ? ['prints dealt evenly across their colours'] : []),
+    ...(separateWeight > 0
+      ? [`prints kept apart (weight ${separateWeight}, ${touchingPrintPairs(layout.placements)} touching)`]
+      : []),
     generatedAt,
   ]
-  const printNote = 'A print yarn sits near whichever of its colours is closest.'
+  const printNote = spread
+    ? "Each print yarn's squares are dealt out evenly across its colours."
+    : 'A print yarn sits near whichever of its colours is closest.'
 
   const doc = render(layout, size, hueScale, cut, lightScale, constructions, holey, subtitle, printNote)
   mkdirSync(dirname(outPath), { recursive: true })
@@ -692,7 +876,14 @@ function main(): void {
   const neutrals = squares.filter((s) => s.neutral).length
   const rms = Math.sqrt(layout.totalCost / Math.max(1, layout.placements.length))
   console.log(`placed ${layout.placements.length} squares on a ${size}x${size} grid (${counts.join(', ')})`)
-  console.log(`${prints} on print yarns (placed near any of their colours), ${neutrals} near-neutral`)
+  console.log(
+    `${prints} on print yarns (${spread ? 'dealt evenly across their colours' : 'placed near any of their colours'}), ` +
+      `${neutrals} near-neutral`,
+  )
+  console.log(
+    `print squares touching another print: ${touchingPrintPairs(layout.placements)} pairs` +
+      (separateWeight > 0 ? ` (kept apart at weight ${separateWeight})` : ''),
+  )
   console.log(`hue axis starts at ${Math.round(cut)}°; ${layout.evenConstruction} in the top-left corner`)
   console.log(
     `average distance from target colour: ${rms.toFixed(2)} cells (root mean square)` +

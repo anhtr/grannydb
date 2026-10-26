@@ -14,6 +14,9 @@ Update this in the same commit as the change, not afterwards. See [README](READM
   speckled one near its base colour. Read-only — `position` is not written.
 - `--seed N` draws one of the many near-best alternative layouts instead of the single best one,
   reproducibly, by shuffling tie order and nudging colour targets by up to `--jitter` cells.
+- `--spread-prints` deals each print yarn's squares evenly across its colours.
+- `--separate-prints [weight]` keeps print squares from touching at sides or corners, by
+  hill-climbing on top of the assignment. Output file names now include the options used.
 - Colour maths moved out of `plot-yarn-colours.ts` into `scripts/lib/colour.ts`, shared by both plots.
 
 ## 2026-10-24 - v0.1.38, a yarn stash colour plot

@@ -46,6 +46,16 @@ nudges every colour target by up to `--jitter` cells (default 0.5), then scores 
 the un-nudged targets, so you can see how far from the best each seed is. A seed is reproducible:
 the same seed and data give the same layout.
 
+Two options trade a little colour accuracy for how the prints are handled. `--spread-prints` deals
+each print yarn's squares out across its colours in turn, so they are not all placed by whichever
+colour happens to have room. `--separate-prints [weight]` keeps print squares from touching, at a
+side or a corner. That rule depends on where two squares go, not one, so the assignment cannot
+express it. Instead a local-search pass (hill-climbing: move or swap a square while that lowers
+distance + weight x touching pairs) runs on top of the best colour-only layout. The weight, 4 by
+default, is how many squared cells of colour distance one touching pair is worth; a higher weight
+keeps prints further apart at more cost to colour accuracy. The stdout summary reports the
+touching pairs left, so the trade is measured, not guessed.
+
 ### Data commits deploy too
 
 The original plan had `paths-ignore: data/**` so that syncing squares would not trigger a rebuild.
