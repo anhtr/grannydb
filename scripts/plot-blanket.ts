@@ -64,6 +64,13 @@ interface Square {
   neutral: boolean
   /** A print yarn: several colours drawn as equal bands. Speckled yarns read as their base, so are not. */
   print: boolean
+  /** Each extra yarn's colours, for drawing. */
+  extras: { colours: Rgb[]; pattern: string }[]
+  /**
+   * Every colour the extras offer, pooled: order in `extra_yarns` carries no meaning, so no extra
+   * outranks another. Speckled extras offer their base only, same rule as the main yarn.
+   */
+  extraCandidates: Candidate[]
 }
 
 interface Loaded {
@@ -132,6 +139,16 @@ function loadSquares(): Loaded {
     }
     const pattern = (yarn.pattern ?? '').trim()
     const offered = pattern === 'speckled' ? colours.slice(0, 1) : colours
+    const extras = splitList(row.extra_yarns ?? '')
+      .map((extraId) => yarnLookup.rows.get(extraId))
+      .filter((extra): extra is CsvRow => extra !== undefined)
+      .map((extra) => ({
+        colours: splitList(extra.hex ?? '')
+          .filter((h) => HEX_RE.test(h))
+          .map(hexToRgb),
+        pattern: (extra.pattern ?? '').trim(),
+      }))
+      .filter((extra) => extra.colours.length > 0)
     squares.push({
       id,
       construction,
@@ -143,6 +160,10 @@ function loadSquares(): Loaded {
       neutral: offered.every((rgb) => saturation(rgb) < 0.08),
       // Same default the app's swatches use: several colours and no `speckled` means stripes.
       print: offered.length > 1,
+      extras,
+      extraCandidates: extras
+        .flatMap((extra) => (extra.pattern === 'speckled' ? extra.colours.slice(0, 1) : extra.colours))
+        .map((rgb) => ({ rgb, hue: hue(rgb), lstar: lstar(rgb) })),
     })
   }
 
@@ -496,6 +517,55 @@ function separatePrints(
   return { ...layout, placements, totalCost: distanceCost + weight * touchingPrintPairs(placements) }
 }
 
+/**
+ * Breaks the main colour's ties by the extra colours: a lexicographic order, main first, applied as
+ * a second stage rather than as a small weight on one combined cost. A weight would have to be tiny
+ * enough never to outvote a real main-colour difference, and floating-point sums make "tiny enough"
+ * a guess; two stages make "extras only decide among equals" exact by construction.
+ *
+ * The equals are squares with the same main yarn and construction. Any shuffle of them over the
+ * cells they already hold leaves every main-colour cost — distance, the checker, touching prints —
+ * unchanged, so within each such group the cells are re-matched to the squares by the same
+ * assignment as stage one, now against the extras' targets. A square without extras costs nothing
+ * anywhere and takes whichever cell is left.
+ *
+ * With spread prints, the colour a print was dealt belongs to its cell rather than to the square:
+ * re-matching moves squares, not the deal, so the yarn stays evenly spread. The returned map says
+ * which colour each square now stands for.
+ */
+function orderByExtras(
+  layout: Layout,
+  mainTargets: Map<Square, Target[]>,
+  extraTargets: Map<Square, Target[]>,
+): { layout: Layout; mainTargets: Map<Square, Target[]> } {
+  const groups = new Map<string, Placement[]>()
+  for (const p of layout.placements) {
+    const key = `${p.square.yarnId}\u0000${p.square.construction}`
+    groups.set(key, [...(groups.get(key) ?? []), p])
+  }
+
+  const placements: Placement[] = []
+  const remapped = new Map(mainTargets)
+  for (const group of groups.values()) {
+    if (group.length < 2 || group.every((p) => p.square.extraCandidates.length === 0)) {
+      placements.push(...group)
+      continue
+    }
+    const extraCost = (s: Square, row: number, col: number): number => {
+      const targets = extraTargets.get(s)!
+      return targets.length === 0 ? 0 : cellCost(targets, row, col).cost
+    }
+    const cost = group.map((p) => group.map((q) => extraCost(p.square, q.row, q.col)))
+    hungarian(cost).forEach((j, i) => {
+      const square = group[i].square
+      const cell = group[j]
+      remapped.set(square, mainTargets.get(cell.square)!)
+      placements.push({ ...cell, square })
+    })
+  }
+  return { layout: { ...layout, placements }, mainTargets: remapped }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Drawing
 // ---------------------------------------------------------------------------------------------
@@ -554,6 +624,7 @@ function render(
   holeyConstruction: string,
   subtitle: string[],
   printNote: string,
+  showExtras: boolean,
 ): PdfDoc {
   // US Letter portrait, 72pt to the inch: a square blanket fits the page's width.
   const width = 612
@@ -647,6 +718,23 @@ function render(
       doc.setStroke(HAIRLINE)
       doc.setLineWidth(0.3)
       doc.circle(x + cell / 2, y + cell / 2, holeR, 'both')
+    }
+    // Extras as a band along the top edge, one equal section per extra yarn, each striped in its own
+    // colours — enough to check the tie-breaking by eye without hiding the main colour.
+    if (showExtras && p.square.extras.length > 0) {
+      const bandH = cell * 0.2
+      const inner = cell - gutter
+      const sectionW = inner / p.square.extras.length
+      p.square.extras.forEach((extra, i) => {
+        const stripeW = sectionW / extra.colours.length
+        extra.colours.forEach((rgb, k) => {
+          doc.setFill(rgb)
+          doc.rect(x + gutter / 2 + i * sectionW + k * stripeW, y + cell - gutter / 2 - bandH, stripeW + 0.2, bandH)
+        })
+      })
+      doc.setStroke(WHITE)
+      doc.setLineWidth(0.5)
+      doc.line(x + gutter / 2, y + cell - gutter / 2 - bandH, x + cell - gutter / 2, y + cell - gutter / 2 - bandH)
     }
     const lightness = p.square.colours.reduce((sum, rgb) => sum + lstar(rgb), 0) / p.square.colours.length
     const label = p.square.id
@@ -748,6 +836,7 @@ function main(): void {
   const jitter = Number(flag('--jitter') ?? 0.5)
   if (!(jitter >= 0)) throw new Error('--jitter must be a number of cells, 0 or more')
   const spread = args.includes('--spread-prints')
+  const extrasOn = args.includes('--extra-colours')
   // `--separate-prints` on its own uses a weight of 4: one touching pair is worth moving a square
   // two cells from its colour. A number after it sets the weight.
   const separateIndex = args.indexOf('--separate-prints')
@@ -761,6 +850,7 @@ function main(): void {
     ...(seed === undefined ? [] : [`seed${seed}`]),
     ...(spread ? ['spread'] : []),
     ...(separateWeight > 0 ? [`apart${separateWeight}`] : []),
+    ...(extrasOn ? ['extras'] : []),
   ]
   const defaultName = `${nameParts.join('-')}.pdf`
   const outPath = flag('--out') ?? join(repoRoot, 'out', defaultName)
@@ -782,28 +872,37 @@ function main(): void {
   const hueScale = new RankScale(weighted((c) => shifted(c.hue)))
   const lightScale = new RankScale(weighted((c) => c.lstar))
 
-  const targets = new Map<Square, Target[]>()
-  for (const s of squares) {
-    targets.set(
-      s,
-      s.candidates.map((candidate) => ({
-        x: hueScale.rank(shifted(candidate.hue)) * size,
-        // Lightest at the top.
-        y: (1 - lightScale.rank(candidate.lstar)) * size,
-        candidate,
-      })),
-    )
-  }
+  // Extras are placed on the same axes as the main colours: a column means the same hue whichever
+  // role the yarn plays, so the scales and the hue cut stay defined by main colours alone.
+  const toTarget = (candidate: Candidate): Target => ({
+    x: hueScale.rank(shifted(candidate.hue)) * size,
+    // Lightest at the top.
+    y: (1 - lightScale.rank(candidate.lstar)) * size,
+    candidate,
+  })
+  const targets = new Map(squares.map((s) => [s, s.candidates.map(toTarget)]))
+  const extraTargets = new Map(squares.map((s) => [s, s.extraCandidates.map(toTarget)]))
 
   // Without a seed the matching sees the true targets and returns the single best layout. With
   // one, every target is nudged a little first: many layouts are within a hair of the best (a print
   // yarn could sit by either of its colours, two blocks could trade a column), and the nudge is
   // what lets one of those win instead. The layout is still scored against the true targets below.
+  // The nudge is per yarn colour, not per square, so squares of one yarn stay exactly tied — that
+  // tie is what `--extra-colours` gets to break.
+  const nudges = new Map<string, [number, number]>()
+  const nudge = (s: Square, i: number): [number, number] => {
+    const key = `${s.yarnId}\u0000${i}`
+    if (!nudges.has(key)) nudges.set(key, [(random!() * 2 - 1) * jitter, (random!() * 2 - 1) * jitter])
+    return nudges.get(key)!
+  }
   const matchTargets = random
     ? new Map(
         [...targets].map(([s, ts]) => [
           s,
-          ts.map((t) => ({ ...t, x: t.x + (random() * 2 - 1) * jitter, y: t.y + (random() * 2 - 1) * jitter })),
+          ts.map((t, i) => {
+            const [dx, dy] = nudge(s, i)
+            return { ...t, x: t.x + dx, y: t.y + dy }
+          }),
         ]),
       )
     : targets
@@ -818,13 +917,18 @@ function main(): void {
       ? separatePrints(assigned, placementTargets, constructions, size, separateWeight, random)
       : assigned
   })
-  const chosen = layouts[1].totalCost < layouts[0].totalCost ? layouts[1] : layouts[0]
+  const best = layouts[1].totalCost < layouts[0].totalCost ? layouts[1] : layouts[0]
+  const { layout: chosen, mainTargets: finalTargets } = extrasOn
+    ? orderByExtras(best, placementTargets, extraTargets)
+    : { layout: best, mainTargets: placementTargets }
   // Scored against the un-nudged targets — and, when spreading, against the colour each print was
   // dealt, since "near any of its colours" is exactly what spreading turns off.
   const dealt = (s: Square): Target[] => {
     if (!spread || !s.print) return targets.get(s)!
-    const colour = placementTargets.get(s)![0].candidate
-    return targets.get(s)!.filter((t) => t.candidate === colour)
+    // By value: after `orderByExtras` the deal may have come from another square of the same yarn,
+    // whose candidates are equal colours but not the same objects.
+    const colour = rgbHex(finalTargets.get(s)![0].candidate.rgb)
+    return targets.get(s)!.filter((t) => rgbHex(t.candidate.rgb) === colour)
   }
   const rescored = chosen.placements.map((p) => {
     const { cost, target } = cellCost(dealt(p.square), p.row, p.col)
@@ -848,13 +952,14 @@ function main(): void {
     ...(separateWeight > 0
       ? [`prints kept apart (weight ${separateWeight}, ${touchingPrintPairs(layout.placements)} touching)`]
       : []),
+    ...(extrasOn ? ['ties broken by extra colours (band along the top)'] : []),
     generatedAt,
   ]
   const printNote = spread
     ? "Each print yarn's squares are dealt out evenly across its colours."
     : 'A print yarn sits near whichever of its colours is closest.'
 
-  const doc = render(layout, size, hueScale, cut, lightScale, constructions, holey, subtitle, printNote)
+  const doc = render(layout, size, hueScale, cut, lightScale, constructions, holey, subtitle, printNote, extrasOn)
   mkdirSync(dirname(outPath), { recursive: true })
   writeFileSync(outPath, doc.toBuffer())
 
@@ -876,6 +981,17 @@ function main(): void {
   const neutrals = squares.filter((s) => s.neutral).length
   const rms = Math.sqrt(layout.totalCost / Math.max(1, layout.placements.length))
   console.log(`placed ${layout.placements.length} squares on a ${size}x${size} grid (${counts.join(', ')})`)
+  // How close each square with extras sits to the nearest of them — measured with the option off as
+  // well, so the two runs can be compared like for like.
+  const withExtras = layout.placements.filter((p) => p.square.extraCandidates.length > 0)
+  const extraRms = Math.sqrt(
+    withExtras.reduce((sum, p) => sum + cellCost(extraTargets.get(p.square)!, p.row, p.col).cost, 0) /
+      Math.max(1, withExtras.length),
+  )
+  console.log(
+    `${withExtras.length} squares with extra colours, ${extraRms.toFixed(2)} cells from the nearest one` +
+      ` (root mean square)${extrasOn ? ', ties broken by extras' : ''}`,
+  )
   console.log(
     `${prints} on print yarns (${spread ? 'dealt evenly across their colours' : 'placed near any of their colours'}), ` +
       `${neutrals} near-neutral`,

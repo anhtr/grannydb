@@ -42,7 +42,8 @@ Many layouts tie or nearly tie: interchangeable squares (same yarn and construct
 cells, and a print yarn could sit by more than one of its colours. Without flags the script returns
 one best layout, deterministically. `--seed N` shows a different, near-best one, written to
 `out/blanket-layout-seedN.pdf`. It shuffles the square order (so exact ties break differently) and
-nudges every colour target by up to `--jitter` cells (default 0.5), then scores the result against
+nudges each yarn colour's target by up to `--jitter` cells (default 0.5) — per yarn colour, not
+per square, so squares of one yarn stay exactly tied — then scores the result against
 the un-nudged targets, so you can see how far from the best each seed is. A seed is reproducible:
 the same seed and data give the same layout.
 
@@ -55,6 +56,17 @@ distance + weight x touching pairs) runs on top of the best colour-only layout. 
 default, is how many squared cells of colour distance one touching pair is worth; a higher weight
 keeps prints further apart at more cost to colour accuracy. The stdout summary reports the
 touching pairs left, so the trade is measured, not guessed.
+
+`--extra-colours` breaks the main colour's ties by the extras, drawn as a band along the top of each
+square. It is a lexicographic order: main colour first, extras only among equals. The equals are
+squares with the same main yarn and construction, since swapping two of them changes nothing the
+main colour cares about. So once the main layout is fixed, each such group is re-matched over the
+cells it already holds, by the same assignment, against its extras' targets. All of a square's
+extra colours are pooled as equal candidates (order in `extra_yarns` means nothing) and placed on
+the same hue and lightness axes as the main colours. It is done as a second stage rather than a
+tiny weight added to one combined cost: a weight has to be small enough never to outvote a real
+main-colour difference, and floating-point sums make "small enough" a guess, where two stages make
+it exact. The cost is that extras only reorder within a block of one yarn; they never move a block.
 
 ### Data commits deploy too
 

@@ -17,6 +17,9 @@ Update this in the same commit as the change, not afterwards. See [README](READM
 - `--spread-prints` deals each print yarn's squares evenly across its colours.
 - `--separate-prints [weight]` keeps print squares from touching at sides or corners, by
   hill-climbing on top of the assignment. Output file names now include the options used.
+- `--extra-colours` breaks ties between squares of the same main yarn and construction by their
+  extra colours, as a second assignment stage, and draws the extras as a band along each square's
+  top edge. Seed nudges are now per yarn colour, so those ties survive a seed.
 - Colour maths moved out of `plot-yarn-colours.ts` into `scripts/lib/colour.ts`, shared by both plots.
 
 ## 2026-10-24 - v0.1.38, a yarn stash colour plot
