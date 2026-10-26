@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "validate-data": "tsx scripts/build-data.ts --check",
     "build-icons": "tsx scripts/build-icons.ts",
-    "plot-yarns": "tsx scripts/plot-yarn-colours.ts"
+    "plot-yarns": "tsx scripts/plot-yarn-colours.ts",
+    "plot-blanket": "tsx scripts/plot-blanket.ts"
   },
   "dependencies": {
     "idb-keyval": "^6.2.1",

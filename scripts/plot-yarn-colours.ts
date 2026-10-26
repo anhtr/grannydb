@@ -24,72 +24,10 @@ import { buildSchemaSet, isYarnActive, splitList, titleFor, yarnUsageCounts } fr
 import type { TableSchema } from '../src/core/schema'
 import { measureText, PdfDoc, textAscent, textDescent, textHeight } from './lib/pdf'
 import type { Rgb } from './lib/pdf'
+import { HEX_RE, hexToRgb, hue, hueToRgb, lstar, saturation } from './lib/colour'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DATA_DIR = 'data'
-
-// Mirrors the (module-private) regex in src/core/schema/validate.ts. A yarn's `hex` is a colorlist,
-// so "single colour" means exactly one valid entry once split — there is no separate flag for it.
-const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
-
-// ---------------------------------------------------------------------------------------------
-// Colour maths
-// ---------------------------------------------------------------------------------------------
-
-function hexToRgb(hex: string): Rgb {
-  const h = hex.slice(1)
-  const full = h.length === 3 ? h[0] + h[0] + h[1] + h[1] + h[2] + h[2] : h
-  const v = parseInt(full, 16)
-  return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255]
-}
-
-/** HSV hue in degrees. Undefined for greys, where max === min; reported as 0. */
-function hue(rgb: Rgb): number {
-  const [r, g, b] = rgb
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  const d = max - min
-  if (d === 0) return 0
-  let h: number
-  if (max === r) h = ((g - b) / d) % 6
-  else if (max === g) h = (b - r) / d + 2
-  else h = (r - g) / d + 4
-  return (((h * 60) % 360) + 360) % 360
-}
-
-/** HSV saturation, 0..1 — reported in the summary so the neutral caveat above is quantified. */
-function saturation(rgb: Rgb): number {
-  const max = Math.max(...rgb)
-  return max === 0 ? 0 : (max - Math.min(...rgb)) / max
-}
-
-/** sRGB inverse companding: gamma-encoded channel to linear light. */
-function linearise(c: number): number {
-  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-}
-
-/** CIE L*, 0..100. Perceptual lightness under D65 — the y axis. */
-function lstar(rgb: Rgb): number {
-  // Y of CIE XYZ; chromaticity does not enter into lightness.
-  const y = 0.2126 * linearise(rgb[0]) + 0.7152 * linearise(rgb[1]) + 0.0722 * linearise(rgb[2])
-  const f = y > 216 / 24389 ? Math.cbrt(y) : ((24389 / 27) * y) / 116 + 16 / 116
-  return 116 * f - 16
-}
-
-/** Fully saturated colour at a given hue, for the legend strip under the x axis. */
-function hueToRgb(deg: number): Rgb {
-  const h = (deg % 360) / 60
-  const x = 1 - Math.abs((h % 2) - 1)
-  const table: Rgb[] = [
-    [1, x, 0],
-    [x, 1, 0],
-    [0, 1, x],
-    [0, x, 1],
-    [x, 0, 1],
-    [1, 0, x],
-  ]
-  return table[Math.floor(h) % 6]
-}
 
 // ---------------------------------------------------------------------------------------------
 // Data

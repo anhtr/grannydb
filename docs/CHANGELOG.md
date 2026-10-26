@@ -4,6 +4,16 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-10-26 - v0.1.39, a blanket layout preview
+
+**Scripts**
+- New `npm run plot-blanket` ([`scripts/plot-blanket.ts`](../scripts/plot-blanket.ts)) writes
+  `out/blanket-layout.pdf` and `out/blanket-layout.csv`: the squares on file on a 20 x 20 grid,
+  construction type checkered, main colour ranked by hue across and CIE L* lightness down. Squares
+  are matched to cells by minimum-cost assignment; a print yarn may sit near any of its colours, a
+  speckled one near its base colour. Read-only — `position` is not written.
+- Colour maths moved out of `plot-yarn-colours.ts` into `scripts/lib/colour.ts`, shared by both plots.
+
 ## 2026-10-24 - v0.1.38, a yarn stash colour plot
 
 **Scripts**

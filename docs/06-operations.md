@@ -29,6 +29,15 @@ single-colour yarns by hue and CIE L* lightness into `out/yarn-colours.pdf` (git
 the same `src/core` functions the Yarns page uses so "which yarns are current" cannot drift. Rerun
 it after yarn colours change; the PDF is a printout, not a tracked artefact.
 
+`npm run plot-blanket` is the same kind of script. It lays every square with a main colour out on
+a 20 x 20 blanket (`--size` changes it) in `out/blanket-layout.pdf`, with a matching
+`out/blanket-layout.csv` of row and column per square. Construction type is checkered; main colour
+runs by hue across and lightness down. Placement is a minimum-cost assignment (the Hungarian
+algorithm) rather than a sort, because a sort can satisfy the colour order or the checker but not
+both. A print yarn may sit near any of its colours. It reads the *effective* construction type
+through `effectiveValue`, so a square that inherits its design's type lands where the Squares page
+says it should. The colour maths both plots share lives in `scripts/lib/colour.ts`.
+
 ### Data commits deploy too
 
 The original plan had `paths-ignore: data/**` so that syncing squares would not trigger a rebuild.
