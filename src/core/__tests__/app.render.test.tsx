@@ -112,6 +112,13 @@ describe('App renders against the real data', () => {
     expect(text).toMatch(/\d+ \/ 10/)
   })
 
+  it('links the progress screen colours to their yarn pages', async () => {
+    await render('#/stats')
+    // Collapsed by default, so these are the colour chips rather than the expanded rows.
+    expect(container.querySelector('a[href="#/yarns/FY1"]')).not.toBeNull()
+    expect(container.querySelector('a[href="#/yarns/FY2"]')).not.toBeNull()
+  })
+
   it('renders the yarns list from the generic components', async () => {
     await render('#/yarns')
     expect(container.textContent).toContain('Fixture Rose')

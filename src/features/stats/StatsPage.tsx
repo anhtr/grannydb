@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CsvRow } from '../../core/csv'
 import { dayNumber, dayString, today } from '../../core/date'
@@ -23,6 +23,8 @@ interface Tally {
   label: string
   count: number
   hex?: string
+  /** The record this row counts, when there is one to open — the row becomes a link to it. */
+  to?: string
   /** Bar fill for this row. Defaults to the accent; set where the row belongs to a scale whose
    * colours the reader has already met somewhere else on the card (see `StatusStackCard`). */
   color?: string
@@ -39,6 +41,24 @@ function Bar({ value, max, color }: { value: number; max: number; color?: string
   )
 }
 
+/** A link to `to` when there is one, and otherwise the same box as a plain element, so a row reads
+ * identically whether or not it has a record behind it — the link adds behaviour, never a style. */
+function MaybeLink({ to, className, children }: { to?: string; className?: string; children: ReactNode }) {
+  return to ? (
+    <Link to={to} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <span className={className}>{children}</span>
+  )
+}
+
+/** The detail route for `id` in `table`, but only for a row that exists — a dangling reference has
+ * nothing to open, so it stays plain text rather than linking to a not-found page. */
+function recordPath(table: string, lookup: Map<string, CsvRow>, id: string | undefined): string | undefined {
+  return id && lookup.has(id) ? `/${table}/${id}` : undefined
+}
+
 function TallyCard({ title, items, note }: { title: string; items: Tally[]; note?: string }) {
   const max = items.reduce((m, i) => Math.max(m, i.count), 0)
   return (
@@ -51,11 +71,11 @@ function TallyCard({ title, items, note }: { title: string; items: Tally[]; note
         <ul className="mt-2 space-y-2">
           {items.map((item) => (
             <li key={item.key}>
-              <div className="flex items-center gap-2 text-sm">
+              <MaybeLink to={item.to} className="flex items-center gap-2 text-sm">
                 {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 <span className="tabular-nums text-muted">{item.count}</span>
-              </div>
+              </MaybeLink>
               <div className="mt-1">
                 <Bar value={item.count} max={max} color={item.color} />
               </div>
@@ -105,11 +125,11 @@ function CollapsibleTallyCard({
         <ul className="mt-2 space-y-2">
           {items.map((item) => (
             <li key={item.key}>
-              <div className="flex items-center gap-2 text-sm">
+              <MaybeLink to={item.to} className="flex items-center gap-2 text-sm">
                 {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 <span className="tabular-nums text-muted">{item.count}</span>
-              </div>
+              </MaybeLink>
               <div className="mt-1">
                 <Bar value={item.count} max={max} />
               </div>
@@ -127,10 +147,10 @@ function collapsedColourChips(items: Tally[]): ReactNode {
   return (
     <div className="mt-2 flex flex-wrap gap-2">
       {items.map((item) => (
-        <span key={item.key} className="flex items-center gap-1.5 text-sm">
+        <MaybeLink key={item.key} to={item.to} className="flex items-center gap-1.5 text-sm">
           <Swatch hex={item.hex} size={14} />
           <span className="tabular-nums text-muted">{item.count}</span>
-        </span>
+        </MaybeLink>
       ))}
     </div>
   )
@@ -142,7 +162,16 @@ function collapsedDesignSummary(items: Tally[]): ReactNode {
   const notable = items.filter((i) => i.count > 1)
   return (
     <p className="mt-2 text-sm text-muted">
-      {notable.length > 0 ? notable.map((i) => `${i.label} (${i.count})`).join(', ') : 'None with more than one square yet.'}
+      {notable.length > 0
+        ? notable.map((i, n) => (
+            <Fragment key={i.key}>
+              {n > 0 ? ', ' : null}
+              <MaybeLink to={i.to}>
+                {i.label} ({i.count})
+              </MaybeLink>
+            </Fragment>
+          ))
+        : 'None with more than one square yet.'}
     </p>
   )
 }
@@ -312,6 +341,7 @@ interface SourceTally {
   label: string
   squares: number
   designs: number
+  to?: string
 }
 
 /** The categorical chart palette's five fixed slots (`styles.css`), in order. A source past the cap
@@ -389,23 +419,25 @@ function SourceStatsCard({
           ) : null}
           <ul className="mt-2 space-y-1.5">
             {items.map((item, i) => (
-              <li key={item.key} className="flex items-center gap-2 text-sm">
-                {collapsed ? null : (
-                  <span
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ background: sourceChartColor(i) }}
-                    aria-hidden
-                  />
-                )}
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {collapsed ? null : (
-                  <span className="shrink-0 text-xs tabular-nums text-muted">
-                    {totalSquares > 0 ? Math.round((item.squares / totalSquares) * 100) : 0}%
+              <li key={item.key}>
+                <MaybeLink to={item.to} className="flex items-center gap-2 text-sm">
+                  {collapsed ? null : (
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ background: sourceChartColor(i) }}
+                      aria-hidden
+                    />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  {collapsed ? null : (
+                    <span className="shrink-0 text-xs tabular-nums text-muted">
+                      {totalSquares > 0 ? Math.round((item.squares / totalSquares) * 100) : 0}%
+                    </span>
+                  )}
+                  <span className="shrink-0 tabular-nums text-muted">
+                    {item.squares} / {item.designs}
                   </span>
-                )}
-                <span className="shrink-0 tabular-nums text-muted">
-                  {item.squares} / {item.designs}
-                </span>
+                </MaybeLink>
               </li>
             ))}
           </ul>
@@ -419,6 +451,7 @@ interface ColourImbalance {
   key: string
   label: string
   hex?: string
+  to?: string
   /** How many more squares of this colour would be needed in each short construction, to match the fullest one. */
   deficits: { construction: string; count: number }[]
 }
@@ -432,12 +465,14 @@ function ImbalanceCard({ title, note, items }: { title: string; note?: string; i
       {note ? <p className="mt-0.5 text-xs text-muted">{note}</p> : null}
       <ul className="mt-2 space-y-2">
         {items.map((item) => (
-          <li key={item.key} className="flex items-center gap-2 text-sm">
-            {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
-            <span className="min-w-0 flex-1 truncate">{item.label}</span>
-            <span className="shrink-0 text-xs text-muted">
-              {item.deficits.map((d) => `${d.count} short in ${d.construction}`).join(', ')}
-            </span>
+          <li key={item.key}>
+            <MaybeLink to={item.to} className="flex items-center gap-2 text-sm">
+              {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <span className="shrink-0 text-xs text-muted">
+                {item.deficits.map((d) => `${d.count} short in ${d.construction}`).join(', ')}
+              </span>
+            </MaybeLink>
           </li>
         ))}
       </ul>
@@ -461,6 +496,7 @@ function IdenticalSquaresCard({ groups }: { groups: IdenticalSquares[] }) {
   const designs = useLookup('designs')
   const squareSchema = useTableSchema('squares')
   const name = (id: string) => yarnLabel(yarnSchema, yarns.get(id), id)
+  const yarnLink = (id: string) => <MaybeLink to={recordPath('yarns', yarns, id)}>{name(id)}</MaybeLink>
   const dateOf = (row: CsvRow) => (squareSchema ? statusDate(squareSchema, row) : '')
 
   return (
@@ -484,10 +520,20 @@ function IdenticalSquaresCard({ groups }: { groups: IdenticalSquares[] }) {
                 className="shrink-0"
               />
               <div className="min-w-0 flex-1 text-sm">
-                <p className="font-medium">{designs.get(group.designId)?.name ?? group.designId}</p>
+                <p className="font-medium">
+                  <MaybeLink to={recordPath('designs', designs, group.designId)}>
+                    {designs.get(group.designId)?.name ?? group.designId}
+                  </MaybeLink>
+                </p>
                 <p className="text-xs text-muted">
-                  {name(group.main)} main
-                  {group.extras.length > 0 ? `, with ${group.extras.map(name).join(' + ')}` : ''}
+                  {yarnLink(group.main)} main
+                  {group.extras.length > 0 ? ', with ' : null}
+                  {group.extras.map((id, n) => (
+                    <Fragment key={`${n}:${id}`}>
+                      {n > 0 ? ' + ' : null}
+                      {yarnLink(id)}
+                    </Fragment>
+                  ))}
                 </p>
                 <ul className="mt-1 space-y-0.5">
                   {group.squares.map((row) => (
@@ -617,6 +663,7 @@ export function StatsPage() {
       .map(([sourceId, squareCount]) => ({
         key: sourceId,
         label: sources.get(sourceId)?.name ?? sourceId,
+        to: recordPath('sources', sources, sourceId),
         squares: squareCount,
         designs: designsBySource.get(sourceId)?.size ?? 0,
       }))
@@ -630,6 +677,7 @@ export function StatsPage() {
         key: yarnId,
         label: yarnLabel(yarnSchema, yarns.get(yarnId), yarnId),
         hex: yarns.get(yarnId)?.hex ?? '',
+        to: recordPath('yarns', yarns, yarnId),
         deficits,
       }))
       .sort(
@@ -778,6 +826,7 @@ export function StatsPage() {
           key,
           label: yarnLabel(yarnSchema, yarns.get(key), key),
           hex: yarns.get(key)?.hex ?? '',
+          to: recordPath('yarns', yarns, key),
           count,
         }))}
         collapsed={collapsed.byMainColour}
@@ -792,6 +841,7 @@ export function StatsPage() {
           key,
           label: yarnLabel(yarnSchema, yarns.get(key), key),
           hex: yarns.get(key)?.hex ?? '',
+          to: recordPath('yarns', yarns, key),
           count,
         }))}
         collapsed={collapsed.byColour}
@@ -811,6 +861,7 @@ export function StatsPage() {
         items={stats.byDesign.map(([key, count]) => ({
           key: key || '(none)',
           label: designs.get(key)?.name ?? '(no design)',
+          to: recordPath('designs', designs, key),
           count,
         }))}
         collapsed={collapsed.byDesign}
