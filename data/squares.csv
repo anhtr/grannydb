@@ -207,3 +207,5 @@ S203,done,,,2026-10-24,,D176,Single color only. Add a border rounds (sc). Adjust
 S204,done,,,2026-10-25,,D177,Omit last border round. Adjust stitch count.,Y93,Y113,,,
 S205,done,,,2026-10-25,,D178,Two colors only. Last round is sc instead of hdc. Adjust stitch count.,Y93,Y111,,,
 S206,done,,,2026-10-26,,D179,"23+3 starting chain. Add 2 border rounds (sc, sc).",Y85,,,,
+S207,done,,,2026-10-26,,D180,22+2 beginning chain. Add 1 border round (sc).,Y92,,,,
+S208,done,,,2026-10-27,,D181,"20 + 3 + 1 beginning chain. Add border rounds (sc, sc). May be slightly small (1/8 inch short).",Y80,,,,
