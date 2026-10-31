@@ -215,3 +215,5 @@ S211,done,,2026-10-28,2026-10-29,,D184,"22 + 1 starting chain. Add 2 border roun
 S212,done,,,2026-10-29,,D185,"20 + 2 + 1 beginning chain. Add 2 border rounds (hdc, hdc).",Y135,,,,
 S213,done,,,2026-10-29,,D186,"Add 2 border rounds (sc, sc)",Y135,,,,
 S214,done,,,2026-10-31,,D187,"21 + 1 beginning chain. Add 2 border rounds (dc, dc). ",Y92,,,,
+S215,done,,2026-10-31,2026-10-31,,D188,"Two colors. Add two border rounds (hdc, hdc).",Y135,Y02,,,
+S216,done,,,2026-10-31,,D189,"22 + 1 + 1 chain. Two colors. Add 2 border rounds (dc, dc).",Y80,Y02,,,
