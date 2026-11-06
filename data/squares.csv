@@ -225,3 +225,4 @@ S221,done,,,2026-11-03,,D194,"Add border rounds (sc, dc, sc). Adjust stitch coun
 S222,done,,,2026-11-04,,D195,"Add 3 border rounds (bldc, bpsc, hdc). Two colors.",Y85,Y82,,,
 S223,done,,,2026-11-05,,D196,"Add 3 border rounds (blsc, dc, sc). Two colors.",Y82,Y92,,,
 S224,done,,,2026-11-05,,D197,Two colors only. Add 1 border round (dc). Second to last round is dc+ch instead of solid dc.,Y56,Y135,,,
+S225,done,,,2026-11-05,,D198,"Two colors only. Add 2 border rounds (dc, fpdc).",Y85,Y02,,,
