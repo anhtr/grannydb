@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { CsvRow } from '../../core/csv'
 import { dayNumber, dayString, today } from '../../core/date'
 import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, statusDate, titleFor } from '../../core/schema'
-import type { IdenticalSquares, TableSchema } from '../../core/schema'
+import type { ColourCountByConstruction, IdenticalSquares, TableSchema } from '../../core/schema'
 import { PACE_WINDOW_DAYS, paceOf, squaresOverTime } from '../../core/timeline'
 import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
@@ -480,6 +480,47 @@ function ImbalanceCard({ title, note, items }: { title: string; note?: string; i
   )
 }
 
+/**
+ * A plain table rather than bars: the point is reading across a row (do two-colour squares lean
+ * solid?) and down a column, which a grid does better than one bar per cell would.
+ */
+function ColourCountCard({ title, note, data }: { title: string; note?: string; data: ColourCountByConstruction }) {
+  return (
+    <Card className="p-3">
+      <h2 className="font-medium">{title}</h2>
+      {note ? <p className="mt-0.5 text-xs text-muted">{note}</p> : null}
+      {data.rows.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
+      ) : (
+        <table className="mt-2 w-full text-sm tabular-nums">
+          <thead>
+            <tr className="text-xs text-muted">
+              <th className="py-1 text-left font-normal">Colours</th>
+              {data.constructions.map((c) => (
+                <th key={c} className="py-1 text-right font-normal">
+                  {c || '(none)'}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((row) => (
+              <tr key={row.colours} className="border-t border-line">
+                <td className="py-1">{row.colours}</td>
+                {row.counts.map((count, i) => (
+                  <td key={data.constructions[i]} className={`py-1 text-right ${count === 0 ? 'text-muted' : ''}`}>
+                    {count}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  )
+}
+
 interface Gap {
   id: string
   date: string
@@ -734,6 +775,7 @@ export function StatsPage() {
       bySource,
       byConstructionFinished: insights.byConstructionFinished,
       colourImbalances,
+      colourCountByConstruction: insights.colourCountByConstruction,
       missingMainYarn: insights.missingMainYarn.map((r): Gap => ({ id: r.id ?? '', date: statusDate(schema, r) })),
       missingDesign: insights.missingDesign.map((r): Gap => ({ id: r.id ?? '', date: statusDate(schema, r) })),
       identical: identicalSquares(squares),
@@ -847,6 +889,12 @@ export function StatsPage() {
         collapsed={collapsed.byColour}
         onToggle={() => toggle('byColour')}
         renderCollapsed={collapsedColourChips}
+      />
+
+      <ColourCountCard
+        title="Colour count × construction"
+        note="Every square, by how many colours it uses (main plus extras) and its construction — its design's when it has none of its own."
+        data={stats.colourCountByConstruction}
       />
 
       <SourceStatsCard

@@ -202,8 +202,8 @@ Three components in `ui/` serve every table:
   squares-as-main and squares-as-extra counts, Designs' square count). `YarnsPage` and `DesignsPage` both use this for counts computed by
   [`core/schema/relations.ts`](../src/core/schema/relations.ts); see
   [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md). The same module's
-  `squareConstructionInsights` (construction-type tallies, colour imbalance, and squares missing a
-  main colour or design) backs the Progress screen's matching cards — the Squares list itself carries
+  `squareConstructionInsights` (construction-type tallies, colour imbalance, the colour count ×
+  construction grid, and squares missing a main colour or design) backs the Progress screen's matching cards — the Squares list itself carries
   no summary header, on the reasoning that anyone wanting those numbers already has a dedicated screen
   for them.
   `identicalSquares` backs the Progress screen's "Identical squares" card: squares of any status that

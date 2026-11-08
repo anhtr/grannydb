@@ -184,11 +184,25 @@ export interface ColourConstructionImbalance {
   deficits: ConstructionCount[]
 }
 
+/**
+ * Squares by number of distinct colours (main plus extras) and construction type. `constructions` is
+ * the column order: the schema's options, then any other value a hand edit left in the data, then
+ * `''` (no construction at all) — the last two only when some square has one. `rows` runs from one
+ * colour to the most any square uses, with no gaps, so a missing count reads as a 0 rather than a
+ * skipped row; `counts` lines up with `constructions`.
+ */
+export interface ColourCountByConstruction {
+  constructions: string[]
+  rows: { colours: number; counts: number[] }[]
+}
+
 export interface SquareConstructionInsights {
   /** Finished squares (done or blocked), tallied by effective construction type, busiest first. */
   byConstructionFinished: ConstructionCount[]
   /** Colours where finished squares favour one construction over another. */
   imbalancedColours: ColourConstructionImbalance[]
+  /** Every-status squares, tallied by how many colours they use against effective construction type. */
+  colourCountByConstruction: ColourCountByConstruction
   /** Every-status squares missing a main colour, or a design. */
   missingMainYarn: CsvRow[]
   missingDesign: CsvRow[]
@@ -219,7 +233,23 @@ export function squareConstructionInsights(
   const missingMainYarn: CsvRow[] = []
   const missingDesign: CsvRow[] = []
 
+  // Keyed "colours|construction". Every status, like the "By colour" card it sits beside: it
+  // describes the blanket as planned, not only the finished pile. A square with no colours on file
+  // is left out — it has no row to go in, and the missing-colour gap already lists it.
+  const byColourCount = new Map<string, number>()
+  let maxColours = 0
+  const seenConstructions = new Set<string>()
+
   for (const row of squares.rows) {
+    const colours = new Set([row.main_yarn ?? '', ...splitList(row.extra_yarns ?? '')])
+    colours.delete('')
+    if (colours.size > 0) {
+      const construction = constructionOf(row)
+      const key = `${colours.size}|${construction}`
+      byColourCount.set(key, (byColourCount.get(key) ?? 0) + 1)
+      maxColours = Math.max(maxColours, colours.size)
+      seenConstructions.add(construction)
+    }
     if (!row.main_yarn) missingMainYarn.push(row)
     if (!row.design_id) missingDesign.push(row)
     if (row.status !== 'done' && row.status !== 'blocked') continue
@@ -247,11 +277,22 @@ export function squareConstructionInsights(
     if (deficits.length > 0) imbalancedColours.push({ yarnId, deficits })
   }
 
+  const unlisted = [...seenConstructions].filter((c) => c !== '' && !constructionTypes.includes(c)).sort()
+  const constructions = [...constructionTypes, ...unlisted, ...(seenConstructions.has('') ? [''] : [])]
+  const colourCountByConstruction: ColourCountByConstruction = {
+    constructions,
+    rows: Array.from({ length: maxColours }, (_, i) => ({
+      colours: i + 1,
+      counts: constructions.map((c) => byColourCount.get(`${i + 1}|${c}`) ?? 0),
+    })),
+  }
+
   return {
     byConstructionFinished: [...byConstructionFinished.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([construction, count]) => ({ construction, count })),
     imbalancedColours,
+    colourCountByConstruction,
     missingMainYarn,
     missingDesign,
   }

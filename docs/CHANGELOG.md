@@ -4,6 +4,17 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-07 - v0.1.41, colour count × construction
+
+**App**
+- New **Colour count × construction** card on the Progress screen, under "By colour": a table of
+  how many squares use 1, 2, 3… distinct colours (main plus extras), split into solid and holey
+  columns. Counts every status, like "By colour", and reads each square's effective construction,
+  so a blank cell takes the design's. Rows run without gaps up to the most colours any square uses;
+  a square with no colours is left out. Extra columns appear only if some square has a construction
+  outside the schema's options, or none at all. Computed in the same pass as the other construction
+  tallies (`colourCountByConstruction` on `squareConstructionInsights`) — no new data.
+
 ## 2026-11-07 - v0.1.40, squares split by construction on each yarn
 
 **App**
