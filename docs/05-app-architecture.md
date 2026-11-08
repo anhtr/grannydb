@@ -84,7 +84,10 @@ usage counts, so it is a view over `squares`, not data anyone has to keep up to 
 uses it for [`DesignCombinations`](../src/features/designs/DesignCombinations.tsx): every square made
 from the design, grouped by colour combination (`designCombinations`). Both render through one
 [`ColourCombinationCard`](../src/ui/ColourCombinationCard.tsx) and group through one helper, so "what
-counts as the same combination" (same main, same *set* of extras) is decided in a single place.
+counts as the same combination" (same main, same *set* of extras) is decided in a single place. The
+yarn view also passes the card a `squareGroups` lookup, so each combination's square links are split
+by the square's *effective* construction type (inherited from its design when the cell is blank);
+the design view leaves it out, since a design's squares almost always share one construction.
 
 `App.tsx` mounts the generic `<RecordList>` with `key={table}`, so switching tables (Designs → Yarns
 in the bottom nav) always gets a fresh component instance instead of one React reuses in place —

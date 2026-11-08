@@ -4,6 +4,15 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-07 - v0.1.40, squares split by construction on each yarn
+
+**App**
+- On a yarn's detail view, the square links under **Used as main** and **Used as extra** are now
+  split by construction type (solid, then holey, labelled), so it is easy to see whether a colour
+  is balanced across both. Reads each square's effective construction, so a blank cell takes the
+  design's. A value outside the schema's options still shows, after the known ones; a square with
+  no construction at all goes last, unlabelled. No new data.
+
 ## 2026-10-26 - v0.1.39, a blanket layout preview
 
 **Scripts**
