@@ -1,9 +1,12 @@
+import { useMemo } from 'react'
 import type { CsvRow } from '../../core/csv'
-import { effectiveValue, fieldByKey, splitList, statusDate, titleFor } from '../../core/schema'
+import { compareIds } from '../../core/csv'
+import { effectiveValue, fieldByKey, splitList, squareYarnIds, statusDate, titleFor } from '../../core/schema'
 import type { TableSchema } from '../../core/schema'
-import { useLookup, useResolveRef, useTableSchema } from '../../app/hooks'
+import { useLookup, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, BadgeStack, ColourGlyph } from '../../ui/components'
 import { RecordList } from '../../ui/RecordList'
+import type { FilterDescriptor } from '../../ui/RecordList'
 import { statusTone } from '../../ui/status'
 
 function SquareRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
@@ -80,5 +83,37 @@ function SquareRow({ row, schema }: { row: CsvRow; schema: TableSchema }) {
 }
 
 export function SquaresPage() {
-  return <RecordList table="squares" renderRow={(row, schema) => <SquareRow row={row} schema={schema} />} />
+  const squares = useTable('squares')
+  const yarns = useLookup('yarns')
+  const yarnSchema = useTableSchema('yarns')
+
+  // "Which squares have this colour in them at all?" spans two columns, `main_yarn` and
+  // `extra_yarns`, so no single field's `"filter": true` can answer it. Passed in through the same
+  // escape hatch the Yarns list uses for its cross-table counts (ADR 0022). The schema's own Main
+  // colour filter stays, for when it matters which role the colour plays.
+  const extraFilters = useMemo<FilterDescriptor[]>(() => {
+    const used = new Set((squares?.rows ?? []).flatMap(squareYarnIds))
+    const options = [...used]
+      .map((id) => {
+        const yarn = yarns.get(id)
+        return { value: id, label: yarn && yarnSchema ? titleFor(yarnSchema, yarn) : id }
+      })
+      .sort((a, b) => compareIds(a.label, b.label))
+    return [
+      {
+        key: 'any_yarn',
+        label: 'Any colour (main or extra)',
+        options,
+        matches: (row, value) => squareYarnIds(row).includes(value),
+      },
+    ]
+  }, [squares, yarns, yarnSchema])
+
+  return (
+    <RecordList
+      table="squares"
+      renderRow={(row, schema) => <SquareRow row={row} schema={schema} />}
+      extraFilters={extraFilters}
+    />
+  )
 }

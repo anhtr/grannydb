@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { designCombinations, designSquareCounts, identicalSquares, isYarnActive, referencesTo, yarnCombinations, yarnUsageCounts } from '../schema/relations'
+import { designCombinations, designSquareCounts, identicalSquares, isYarnActive, referencesTo, squareYarnIds, yarnCombinations, yarnUsageCounts } from '../schema/relations'
 import type { CsvTable } from '../csv'
 import type { SchemaSet } from '../schema'
 
@@ -12,6 +12,20 @@ const squares: CsvTable = {
     { id: 'S004', design_id: '', main_yarn: '', extra_yarns: '' },
   ],
 }
+
+describe('squareYarnIds', () => {
+  it('lists the main colour first, then the extras', () => {
+    expect(squareYarnIds(squares.rows[0])).toEqual(['Y1', 'Y2', 'Y3'])
+  })
+
+  it('names a yarn once even when it is both main and extra', () => {
+    expect(squareYarnIds({ id: 'S9', main_yarn: 'Y1', extra_yarns: 'Y2;Y1' })).toEqual(['Y1', 'Y2'])
+  })
+
+  it('is empty for a square with no colours', () => {
+    expect(squareYarnIds(squares.rows[3])).toEqual([])
+  })
+})
 
 describe('yarnUsageCounts', () => {
   it('counts a yarn once per square it is the main colour of', () => {

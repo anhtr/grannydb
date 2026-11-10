@@ -4,6 +4,15 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.47, filter squares by any colour they use
+
+**App**
+- The Squares filter panel gains **Any colour (main or extra)**: pick one or more yarns and the
+  list keeps every square that uses any of them, whichever role the colour plays. The existing
+  Main colour filter only looked at `main_yarn`, and `extra_yarns` could not be filtered at all, so
+  "everything with Sunflower in it" had no answer. Supplied by `SquaresPage` through `RecordList`'s
+  `extraFilters`, over a new `squareYarnIds` in `core/schema/relations.ts`; no schema change.
+
 ## 2026-11-09 - v0.1.46, pending changes show what they change
 
 **App**

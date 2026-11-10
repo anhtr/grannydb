@@ -36,6 +36,15 @@ export function yarnUsageCounts(squares: CsvTable): Map<string, YarnUsage> {
 }
 
 /**
+ * Every yarn a square uses, main colour first, each once. The answer to "is this colour in this
+ * square anywhere?", which neither the `main_yarn` cell nor the `extra_yarns` cell can give alone.
+ */
+export function squareYarnIds(square: CsvRow): string[] {
+  const ids = [square.main_yarn ?? '', ...splitList(square.extra_yarns ?? '')].filter((id) => id !== '')
+  return [...new Set(ids)]
+}
+
+/**
  * A yarn is "active" once it is still in play here: some skein of it (partial or not) is on hand, or
  * some square already uses it. Not a schema field — whether a yarn counts depends on both its own row
  * and every square's, so it can only be answered at read time. The point is to let old stash that has

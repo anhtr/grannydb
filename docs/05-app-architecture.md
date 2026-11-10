@@ -212,7 +212,9 @@ Three components in `ui/` serve every table:
   A page can also pass `extraSortOptions`/`extraFilters` — the same shapes `sortableFields`/
   `filterFields` build from the schema, but supplied by the caller for a value that has no field to
   scan, e.g. a cross-table count; an extra filter is either pills or a `kind: 'range'` slider (Yarns'
-  squares-as-main and squares-as-extra counts, Designs' square count). `YarnsPage` and `DesignsPage` both use this for counts computed by
+  squares-as-main and squares-as-extra counts, Designs' square count). `SquaresPage` uses it for
+  **Any colour (main or extra)**, a filter over two columns at once (`squareYarnIds`), which no
+  single field's flag could express. `YarnsPage` and `DesignsPage` both use this for counts computed by
   [`core/schema/relations.ts`](../src/core/schema/relations.ts); see
   [ADR 0022](adr/0022-computed-counts-and-a-recordlist-escape-hatch.md). The same module's
   `squareConstructionInsights` (construction-type tallies, colour imbalance, the colour count ×
