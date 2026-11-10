@@ -3,8 +3,9 @@ import type { Issue } from '../schema'
 
 /**
  * `project.json` — facts about the project as a whole rather than about any one row: when it
- * started, how many squares it is aiming at, and which time zone its days are counted in. Data, not a device preference, so every device
- * agrees on them and changing one is a synced, reviewable commit like any other edit.
+ * started, how many squares it is aiming at and by when, and which time zone its days are counted
+ * in. Data, not a device preference, so every device agrees on them and changing one is a synced,
+ * reviewable commit like any other edit.
  *
  * Kept as the raw parsed object rather than a typed record so that a key added by hand survives a
  * write from the app — the JSON counterpart of the CSV writer preserving unknown columns.
@@ -20,16 +21,24 @@ export interface ProjectInfo {
   startDate: string
   /** Target number of squares, or 0 for no target. */
   targetSquares: number
+  /** `YYYY-MM-DD` the last square should be finished by, or empty for no deadline. */
+  targetDate: string
   /** IANA time zone "today" is counted in, or empty for the device's own. */
   timeZone: string
 }
 
-export const PROJECT_KEYS = { startDate: 'start_date', targetSquares: 'target_squares', timeZone: 'time_zone' } as const
+export const PROJECT_KEYS = {
+  startDate: 'start_date',
+  targetSquares: 'target_squares',
+  targetDate: 'target_date',
+  timeZone: 'time_zone',
+} as const
 
 /** The keys by the names Settings gives them, for anywhere a queued edit is shown to a person. */
 const PROJECT_LABELS: Record<string, string> = {
   [PROJECT_KEYS.startDate]: 'Start date',
   [PROJECT_KEYS.targetSquares]: 'Target squares',
+  [PROJECT_KEYS.targetDate]: 'Target date',
   [PROJECT_KEYS.timeZone]: 'Time zone',
 }
 
@@ -61,10 +70,12 @@ export function serializeProject(doc: ProjectDoc): string {
 export function projectInfo(doc: ProjectDoc): ProjectInfo {
   const start = doc[PROJECT_KEYS.startDate]
   const target = doc[PROJECT_KEYS.targetSquares]
+  const due = doc[PROJECT_KEYS.targetDate]
   const zone = doc[PROJECT_KEYS.timeZone]
   return {
     startDate: typeof start === 'string' && DATE_RE.test(start) ? start : '',
     targetSquares: typeof target === 'number' && Number.isInteger(target) && target > 0 ? target : 0,
+    targetDate: typeof due === 'string' && DATE_RE.test(due) ? due : '',
     timeZone: typeof zone === 'string' && isValidTimeZone(zone) ? zone : '',
   }
 }
@@ -80,6 +91,16 @@ export function validateProject(doc: ProjectDoc): Issue[] {
   const target = doc[PROJECT_KEYS.targetSquares]
   if (target !== undefined && !(typeof target === 'number' && Number.isInteger(target) && target >= 0)) {
     at(PROJECT_KEYS.targetSquares, `expected a whole number, got ${JSON.stringify(target)}`)
+  }
+  const due = doc[PROJECT_KEYS.targetDate]
+  if (due !== undefined && due !== '') {
+    if (!(typeof due === 'string' && DATE_RE.test(due))) {
+      at(PROJECT_KEYS.targetDate, `expected a YYYY-MM-DD date, got ${JSON.stringify(due)}`)
+    } else if (typeof start === 'string' && DATE_RE.test(start) && due < start) {
+      // ISO dates sort as text. A deadline before the first day is a typo in one of the two, and
+      // the pace it implies would be nonsense, so it is caught here rather than drawn.
+      at(PROJECT_KEYS.targetDate, `is before the start date (${start})`)
+    }
   }
   const zone = doc[PROJECT_KEYS.timeZone]
   if (zone !== undefined && zone !== '' && !(typeof zone === 'string' && isValidTimeZone(zone))) {

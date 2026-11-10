@@ -113,6 +113,10 @@ describe('App renders against the real data', () => {
     expect(text).toContain('By colour')
     // The target comes from the fixture's project.json, via the bundle.
     expect(text).toMatch(/\d+ \/ 10/)
+    // So does the target date - long past, so what the tile says does not depend on the day the
+    // test is run.
+    expect(text).toContain('Was due 1 February 2026')
+    expect(text).toMatch(/\d+ days over/)
   })
 
   it('links the progress screen colours to their yarn pages', async () => {

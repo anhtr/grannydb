@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dayNumber, dayString, today, weekStart, weekdayIndex } from '../date'
-import { paceOf, squaresOverTime } from '../timeline'
+import { paceOf, requiredPace, squaresOverTime } from '../timeline'
 
 describe('calendar days', () => {
   it('round-trips dates and rejects ones that are not real days', () => {
@@ -103,5 +103,40 @@ describe('paceOf', () => {
   it('shrinks the window to a younger project', () => {
     expect(paceOf(squaresOverTime(['2026-10-08', '2026-10-14'], '2026-10-14'))).toMatchObject({ perWeek: 2, windowDays: 7 })
     expect(paceOf(null)).toEqual({ perWeek: null, windowDays: 0, overallPerWeek: null })
+  })
+})
+
+describe('requiredPace', () => {
+  it('spreads what is left over the days to the target, today and the target day included', () => {
+    // 10 to 23 November is fourteen days to work in.
+    expect(requiredPace(20, '2026-11-10', '2026-11-23', 12)).toEqual({
+      daysLeft: 14,
+      daysOver: 0,
+      perWeek: 10,
+      state: 'on-track',
+    })
+    expect(requiredPace(3, '2026-11-10', '2026-11-10', null)).toMatchObject({ daysLeft: 1, perWeek: 21 })
+  })
+
+  it('compares with the current pace, when there is one', () => {
+    expect(requiredPace(20, '2026-11-10', '2026-11-23', 10)?.state).toBe('on-track')
+    expect(requiredPace(20, '2026-11-10', '2026-11-23', 9.9)?.state).toBe('behind')
+    expect(requiredPace(20, '2026-11-10', '2026-11-23', null)?.state).toBe('unknown')
+  })
+
+  it('is overdue once the date has passed with squares to go, and done with none', () => {
+    expect(requiredPace(5, '2026-11-10', '2026-11-07', 3)).toEqual({
+      daysLeft: 0,
+      daysOver: 3,
+      perWeek: null,
+      state: 'overdue',
+    })
+    expect(requiredPace(0, '2026-11-10', '2026-11-07', 3)).toMatchObject({ perWeek: 0, state: 'done' })
+    expect(requiredPace(0, '2026-11-10', '2026-12-24', null)).toMatchObject({ daysLeft: 45, state: 'done' })
+  })
+
+  it('gives nothing without a real target date', () => {
+    expect(requiredPace(5, '2026-11-10', '', 3)).toBeNull()
+    expect(requiredPace(5, '2026-11-10', '2026-02-31', 3)).toBeNull()
   })
 })

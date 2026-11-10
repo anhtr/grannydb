@@ -4,18 +4,29 @@ import { applyProjectChanges } from '../store/merge'
 import { projectChange } from '../store/queue'
 
 describe('project.json', () => {
-  it('reads start date, target and time zone, treating malformed values as unset', () => {
-    expect(projectInfo({ start_date: '2026-07-03', target_squares: 400, time_zone: 'America/Chicago' })).toEqual({
+  it('reads start date, targets and time zone, treating malformed values as unset', () => {
+    expect(
+      projectInfo({
+        start_date: '2026-07-03',
+        target_squares: 400,
+        target_date: '2027-06-30',
+        time_zone: 'America/Chicago',
+      }),
+    ).toEqual({
       startDate: '2026-07-03',
       targetSquares: 400,
+      targetDate: '2027-06-30',
       timeZone: 'America/Chicago',
     })
-    expect(projectInfo({ start_date: '3 July', target_squares: '400', time_zone: 'Central' })).toEqual({
+    expect(
+      projectInfo({ start_date: '3 July', target_squares: '400', target_date: 'June', time_zone: 'Central' }),
+    ).toEqual({
       startDate: '',
       targetSquares: 0,
+      targetDate: '',
       timeZone: '',
     })
-    expect(projectInfo({})).toEqual({ startDate: '', targetSquares: 0, timeZone: '' })
+    expect(projectInfo({})).toEqual({ startDate: '', targetSquares: 0, targetDate: '', timeZone: '' })
   })
 
   it('flags malformed values for the build-time data check', () => {
@@ -23,6 +34,15 @@ describe('project.json', () => {
     expect(
       validateProject({ start_date: '07/03/2026', target_squares: 1.5, time_zone: 'Mars/Olympus' }).map((i) => i.field),
     ).toEqual(['start_date', 'target_squares', 'time_zone'])
+  })
+
+  it('flags a target date that is malformed or falls before the start date', () => {
+    expect(validateProject({ start_date: '2026-07-03', target_date: '2027-06-30' })).toEqual([])
+    expect(validateProject({ target_date: '2027-06-30' })).toEqual([])
+    expect(validateProject({ target_date: '30/06/2027' }).map((i) => i.field)).toEqual(['target_date'])
+    expect(validateProject({ start_date: '2026-07-03', target_date: '2026-07-02' })).toEqual([
+      { table: 'project', rowId: '', field: 'target_date', message: 'is before the start date (2026-07-03)' },
+    ])
   })
 
   it('rejects a file that is not a JSON object', () => {

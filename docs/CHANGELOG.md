@@ -4,6 +4,27 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.59, a target date and the pace it takes
+
+**App**
+- **Settings → Project → Target date.** Set the day the last square should be finished and, with a
+  target number of squares as well, Progress gains a full-width tile: "Finish by 30 June 2027",
+  the squares a week that takes, how many squares that is over how many days, and how that compares
+  with the current pace ("On track", or how many more a week are needed).
+- Once the date has passed with squares still to go, the tile says how many days over it is and how
+  many squares are left, rather than a pace that can no longer be met. With every square finished it
+  says so.
+- The existing "At this rate" tile is unchanged. It answers the opposite question - where the
+  current pace lands - and still works with no target date.
+
+**Data**
+- `project.json` gains an optional `target_date` (`YYYY-MM-DD`). The data check fails a value that is
+  not a date, or one before `start_date`; Settings will not save that pair either. The live
+  `data/project.json` is untouched - the key is absent until a date is chosen in Settings.
+- The sum is `requiredPace` in `core/timeline.ts`, pure and unit-tested. Today counts as a day to
+  work in, the same choice the Pace tile makes, so the two rates are over the same kind of day; the
+  target day counts too, since a square finished on it is on time.
+
 ## 2026-11-10 - v0.1.58, pickers and panels a keyboard or screen reader can follow
 
 **App**

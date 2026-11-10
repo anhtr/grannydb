@@ -158,7 +158,8 @@ Facts about the project as a whole rather than about any one row:
 ```json
 {
   "start_date": "2026-07-03",
-  "target_squares": 400
+  "target_squares": 400,
+  "target_date": "2027-06-30"
 }
 ```
 
@@ -166,6 +167,7 @@ Facts about the project as a whole rather than about any one row:
 |---|---|---|
 | `start_date` | `YYYY-MM-DD` | Where the Progress screen's pace and Over time charts begin, so empty weeks after it count and weeks before it don't (if a square is dated earlier, they begin there instead) |
 | `target_squares` | whole number | The "X / 400" on Progress, and the length of the status bar |
+| `target_date` | `YYYY-MM-DD` | When the last square should be finished. With `target_squares` set too, Progress shows the pace that takes: the squares left, spread over the days left. Must not be before `start_date` |
 | `time_zone` | IANA name, e.g. `America/Chicago` | Which zone decides what day it is: a new square's default date, and where today begins on Progress. Unset means each device's own zone |
 
 JSON rather than a one-row CSV because there is exactly one of it: a table with a header row, an id

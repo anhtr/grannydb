@@ -8,7 +8,7 @@ src/
     csv/           parse, serialize, row operations
     schema/        types, loader, validation, search/filter/sort resolution, cross-table counts
     github/        config, HTTP client, snapshot reads, commits, auth
-    project/       project.json: parse, validate, read start date, target and time zone, apply key edits
+    project/       project.json: parse, validate, read start date, targets and time zone, apply key edits
     prefs/         device-local app preferences (per-table list filters/sort)
     date.ts        today in the project's time zone, calendar days as integers, and the one
                    definition of a week (Monday first)
@@ -255,6 +255,11 @@ Three components in `ui/` serve every table:
   each morning and recovers as the day's squares come in — wanted on a tile, where it reads as
   "where today leaves me", and not on a trend chart. The tile and the chart's last average point can
   therefore differ slightly.
+  With a `target_date` and a `target_squares` in `project.json`, a full-width "Finish by" tile sits
+  under those two. It is `requiredPace` from the same module: the squares left divided by the days
+  left, today and the target day both counted, as a weekly rate, set against the Pace tile's figure.
+  "At this rate" projects the current pace forward to a date; this one works back from a date to a
+  pace, and past the date it reports how far over rather than a rate that can no longer be met.
   Pace and the Over time card count a finished square by its `done_date` (falling back to
   `blocked_date` if a hand edit left it blank); lists and the Progress cards that show a square's
   date show the date of its *current* status (`statusDate`).

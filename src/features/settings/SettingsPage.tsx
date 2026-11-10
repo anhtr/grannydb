@@ -99,7 +99,7 @@ function TimeZoneField({ value, onChange, disabled }: { value: string; onChange:
 }
 
 /**
- * Start date, target and time zone, edited in place but stored in `project.json`: Save queues a `set`
+ * Start date, targets and time zone, edited in place but stored in `project.json`: Save queues a `set`
  * operation like any record edit, so the change shows up everywhere straight away and reaches the
  * repo — and every other device — on the next sync. Remounted (via `key`) whenever the stored values
  * change, so the inputs pick up a fresh load or a synced edit instead of holding stale text.
@@ -108,10 +108,16 @@ function ProjectSection({ project }: { project: ProjectInfo }) {
   const canEdit = useCanEdit()
   const [startDate, setStartDate] = useState(project.startDate)
   const [targetInput, setTargetInput] = useState(project.targetSquares > 0 ? String(project.targetSquares) : '')
+  const [targetDate, setTargetDate] = useState(project.targetDate)
   const [timeZone, setTimeZone] = useState(project.timeZone)
   const target = parseTarget(targetInput)
   const dirty =
-    startDate !== project.startDate || (target ?? 0) !== project.targetSquares || timeZone !== project.timeZone
+    startDate !== project.startDate ||
+    (target ?? 0) !== project.targetSquares ||
+    targetDate !== project.targetDate ||
+    timeZone !== project.timeZone
+  // The build's data check refuses this pair (`validateProject`), so the form does not queue it.
+  const endsBeforeItStarts = startDate !== '' && targetDate !== '' && targetDate < startDate
 
   return (
     <Section title="Project">
@@ -131,17 +137,31 @@ function ProjectSection({ project }: { project: ProjectInfo }) {
         disabled={!canEdit}
         hint={`How many squares finish the blanket, shown as "X / target" on Progress. Leave blank for no target.`}
       />
+      <Field
+        label="Target date"
+        type="date"
+        value={targetDate}
+        onChange={setTargetDate}
+        disabled={!canEdit}
+        hint="When you want the last square finished. With a target number of squares too, Progress shows the pace that takes. Leave blank for no deadline."
+      />
       <TimeZoneField value={timeZone} onChange={setTimeZone} disabled={!canEdit} />
       <div className="space-y-2 px-4 py-3">
+        {endsBeforeItStarts ? (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            The target date is before the start date.
+          </p>
+        ) : null}
         {canEdit ? (
           <Button
             variant="primary"
-            disabled={!dirty || target === undefined}
+            disabled={!dirty || target === undefined || endsBeforeItStarts}
             onClick={() =>
               void appStore
                 .saveProject({
                   [PROJECT_KEYS.startDate]: startDate === '' ? null : startDate,
                   [PROJECT_KEYS.targetSquares]: target ?? null,
+                  [PROJECT_KEYS.targetDate]: targetDate === '' ? null : targetDate,
                   [PROJECT_KEYS.timeZone]: timeZone === '' ? null : timeZone,
                 })
                 .then(() => notify('Saved project settings'))
@@ -296,7 +316,7 @@ export function SettingsPage() {
         ) : null}
       </Section>
 
-      <ProjectSection key={`${project.startDate}|${project.targetSquares}|${project.timeZone}`} project={project} />
+      <ProjectSection key={`${project.startDate}|${project.targetSquares}|${project.targetDate}|${project.timeZone}`} project={project} />
 
       <Section title="Data location">
         <Field label="Owner" value={config.owner} onChange={(v) => setConfig({ ...config, owner: v })} />

@@ -152,3 +152,45 @@ export function paceOf(overTime: SquaresOverTime | null): Pace {
     overallPerWeek: (days[days.length - 1].cumulative / days.length) * 7,
   }
 }
+
+export interface RequiredPace {
+  /** Days there are to work in, today and the target day both counted; 0 once the date has passed. */
+  daysLeft: number
+  /** Days past the target date; 0 until it has passed. */
+  daysOver: number
+  /** Squares per week that finishes on the target date; 0 with nothing left, null once it has passed. */
+  perWeek: number | null
+  /**
+   * `done`: nothing left to make. `overdue`: the date has passed with squares still to go.
+   * `on-track` / `behind`: the current pace does, or does not, reach `perWeek`. `unknown`: there is
+   * no current pace to compare with (nothing finished yet).
+   */
+  state: 'done' | 'overdue' | 'on-track' | 'behind' | 'unknown'
+}
+
+/**
+ * The pace a deadline asks for: the squares still to make, spread over the days left. The Pace tile
+ * answers "how fast am I going"; this answers "how fast do I need to go", and comparing the two is
+ * the point of setting a date.
+ *
+ * Today counts as a day to work in, as it does for the Pace tile, so the two rates are over the same
+ * kind of day and can be compared; the target day counts too, since a square finished on it is on
+ * time. `null` when there is no usable target date, so a caller draws nothing rather than a guess.
+ */
+export function requiredPace(
+  remaining: number,
+  todayDate: string,
+  targetDate: string,
+  currentPerWeek: number | null,
+): RequiredPace | null {
+  const from = dayNumber(todayDate)
+  const to = dayNumber(targetDate)
+  if (Number.isNaN(from) || Number.isNaN(to)) return null
+  const daysLeft = Math.max(0, to - from + 1)
+  const daysOver = Math.max(0, from - to)
+  if (remaining <= 0) return { daysLeft, daysOver, perWeek: 0, state: 'done' }
+  if (daysLeft === 0) return { daysLeft, daysOver, perWeek: null, state: 'overdue' }
+  const perWeek = (remaining / daysLeft) * 7
+  const state = currentPerWeek === null ? 'unknown' : currentPerWeek >= perWeek ? 'on-track' : 'behind'
+  return { daysLeft, daysOver, perWeek, state }
+}

@@ -4,7 +4,7 @@ import type { CsvRow } from '../../core/csv'
 import { dayNumber, dayString, today } from '../../core/date'
 import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, statusDate, titleFor } from '../../core/schema'
 import type { ColourCountByConstruction, IdenticalSquares, TableSchema } from '../../core/schema'
-import { PACE_WINDOW_DAYS, paceOf, squaresOverTime } from '../../core/timeline'
+import { PACE_WINDOW_DAYS, paceOf, requiredPace, squaresOverTime } from '../../core/timeline'
 import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
 import type { DonutSlice } from '../../ui/components'
@@ -720,6 +720,7 @@ function Stat({
   sub,
   extra,
   squares,
+  wide,
 }: {
   label: string
   value: string
@@ -727,9 +728,11 @@ function Stat({
   extra?: ReactNode
   /** The squares the headline figure counts; the tile then opens them. */
   squares?: SquareFilters
+  /** Spans both columns of the tile grid, for a tile with a sentence to say rather than a figure. */
+  wide?: boolean
 }) {
   return (
-    <SquaresLink filters={squares} className="block">
+    <SquaresLink filters={squares} className={wide ? 'col-span-2 block' : 'block'}>
       <Card className={`h-full p-3 ${squares ? 'transition hover:border-accent' : ''}`}>
         <p className="text-sm text-muted">{label}</p>
         {/* Scales down a touch on the narrowest phones so "194 / 400" stays one figure, not two lines. */}
@@ -915,6 +918,14 @@ export function StatsPage() {
   // days later than the pace implies.
   const completionDate =
     exactWeeksLeft === null ? null : new Date(`${dayString(dayNumber(today(project.timeZone)) + Math.ceil(exactWeeksLeft * 7))}T12:00`)
+  // Only with both halves of the goal: a date with no number of squares has nothing to spread.
+  const needed = goal > 0 ? requiredPace(remaining, today(project.timeZone), project.targetDate, perWeek) : null
+  const targetDay = new Date(`${project.targetDate}T12:00`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
   return (
     <div className="space-y-2 px-4 pb-24">
@@ -957,6 +968,32 @@ export function StatsPage() {
             ) : null
           }
         />
+        {needed === null ? null : needed.state === 'done' ? (
+          <Stat wide label={`Finish by ${targetDay}`} value="Done" sub={`all ${goal} squares finished`} />
+        ) : needed.perWeek === null ? (
+          <Stat
+            wide
+            label={`Was due ${targetDay}`}
+            value={`${plural(needed.daysOver, 'day')} over`}
+            sub={`${plural(remaining, 'square')} still to go`}
+          />
+        ) : (
+          <Stat
+            wide
+            label={`Finish by ${targetDay}`}
+            value={`${needed.perWeek.toFixed(1)} / week`}
+            sub={`${plural(remaining, 'square')} in ${plural(needed.daysLeft, 'day')}, today included`}
+            extra={
+              perWeek === null || needed.state === 'unknown' ? null : (
+                <p className="text-[11px] text-muted">
+                  {needed.state === 'on-track'
+                    ? `On track: the current pace is ${perWeek.toFixed(1)} a week`
+                    : `${(needed.perWeek - perWeek).toFixed(1)} a week more than the current pace of ${perWeek.toFixed(1)}`}
+                </p>
+              )
+            }
+          />
+        )}
       </div>
 
       <StatusStackCard
