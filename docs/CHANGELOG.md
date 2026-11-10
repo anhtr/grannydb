@@ -4,6 +4,29 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.54, select rows in a list and change them together
+
+**App**
+- Every list has a **Select** button next to its count (when a token is saved). It turns the rows
+  into checkboxes and replaces the New button with a bar: how many are selected, **All**/**None**
+  for the rows the list is showing, **Cancel**, and **Change…**. Search, sort and filters keep
+  working while selecting, so "filter to done, select all" is three taps.
+- **Change…** sets one field to one value on every selected row. Before anything is saved it shows
+  what will happen: how many rows will change, how many already hold that value, and any that would
+  break a rule and so will be left as they are, each with its reason ("S212 - Blocked is before Done
+  (2026-11-09)"). Rows left alone stay selected afterwards.
+- Changing the **status** of a batch asks for the day it happened, defaulting to today. That date
+  fills the status's date where it is blank and never replaces one already recorded - so a dozen
+  squares blocked last Sunday can be entered in one go on Wednesday, each keeping the day it was
+  finished.
+- Only rows on screen count as selected: narrowing the search or filters after ticking a row takes
+  it out of the batch.
+
+**Sync**
+- A bulk change is queued as one ordinary field-level edit per row, written to the queue in a single
+  step, so it syncs and merges exactly like the same edits made one at a time. Why not one "bulk"
+  operation: [ADR 0041](adr/0041-a-bulk-edit-is-planned-per-row-before-it-is-queued.md).
+
 ## 2026-11-10 - v0.1.53, confirmation after save, delete and sync, with undo for delete
 
 **App**

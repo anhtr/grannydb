@@ -29,7 +29,7 @@ directly and runs them in Node during the build. The rules CI enforces and the r
 believes are literally the same code, so they cannot drift.
 
 Second, everything interesting — CSV round-tripping, queue collapsing, replay semantics, the whole
-commit protocol - is testable by calling functions. All but two of the test files run in a plain
+commit protocol - is testable by calling functions. All but three of the test files run in a plain
 Node environment with no DOM. That is why the tests are fast and why they are about behaviour
 rather than markup.
 
@@ -264,6 +264,19 @@ Three components in `ui/` serve every table:
   ([ADR 0030](adr/0030-project-time-zone-as-an-iana-name.md)).
   List rows generally float their badges to one side (`BadgeStack` in `ui/components.tsx`) so a long
   title or subtitle wraps under them instead of being truncated to make room.
+  **Select** (shown when a token is saved) turns the rows from links into checkboxes and swaps the
+  New button for a selection bar; **Change…** then opens `BulkEditDialog`
+  ([`ui/BulkEdit.tsx`](../src/ui/BulkEdit.tsx)) to set one field on every ticked row. The dialog is
+  a view over a pure function, `planBulkEdit` in
+  [`core/schema/bulk.ts`](../src/core/schema/bulk.ts): it previews how many rows will change, how
+  many already hold the value and which would break a rule and are left alone, and Apply queues
+  exactly that plan through `appStore.saveMany`. A status that carries a date asks for the day,
+  which is what lets a batch of squares be blocked "last Sunday". Only rows the list is currently
+  showing count as selected, so narrowing the filters after ticking can only shrink a batch. Why it
+  is planned row by row and not queued as one "bulk" operation:
+  [ADR 0041](adr/0041-a-bulk-edit-is-planned-per-row-before-it-is-queued.md). The dialog's focus
+  handling (focus in on open, Escape, focus back on close, Tab kept inside) is `useDialog` in
+  [`ui/dialog.ts`](../src/ui/dialog.ts).
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional
   `extra` slot for computed sections (see `TABLE_DETAIL_EXTRAS` above), edit and delete, a link to
   the underlying CSV on github.com. Above the fields, **Previous · n of N · Next** steps through the
@@ -368,6 +381,8 @@ Coverage is deliberately concentrated where a bug loses data rather than annoys 
 | `timeline.test.ts` | Monday-start weeks, day arithmetic across a DST change, and the Over time buckets and averages |
 | `offline.test.ts` | the snapshot cache key and its shape guard, and the load falling back to the saved copy when every read path throws |
 | `sw/__tests__/sw.test.ts` | the service worker in a fake worker global: what it precaches, what it serves, and that a cross-origin request is never intercepted |
+| `bulk.test.ts` | the bulk-edit plan: per-row field diffs, status dates filled from the chosen day, rows skipped with the rule they would break |
+| `ui/__tests__/BulkEdit.render.test.tsx` | the bulk-edit dialog mounted on the fixture data: the preview shown is the plan queued, one field-level operation per row (jsdom) |
 | `app.render.test.tsx` | one end-to-end mount against a frozen fixture dataset (`src/core/__tests__/fixtures/data/`), not `data/*.csv` — real tracker data changes shape and content on its own schedule and has nothing to do with whether the app mounts |
 
 `sync.test.ts` is the important one. It stands up a fake GitHub that enforces fast-forward-only ref

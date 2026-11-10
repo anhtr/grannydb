@@ -186,6 +186,39 @@ export function withdrawDelete(changes: readonly Change[], receipt: DeleteReceip
   return next
 }
 
+/**
+ * The queue with edits to several existing rows folded in: one field-level upsert per row, holding
+ * only the fields that differ from the row as it stands (`current`), each passed through the same
+ * `appendChange` a single save uses. So a bulk edit is not a new kind of operation - replayed, and
+ * merged with another device's edits, it is indistinguishable from the same edits made one by one.
+ *
+ * A row `current` cannot find is passed over rather than created, and so is one with nothing to
+ * change. `written` counts the rows that got an operation.
+ */
+export function queueRowEdits(
+  changes: readonly Change[],
+  table: string,
+  idField: string,
+  edits: readonly { id: string; values: CsvRow }[],
+  current: (id: string) => CsvRow | null,
+): { changes: Change[]; written: number } {
+  let next: Change[] = [...changes]
+  let written = 0
+  for (const { id, values } of edits) {
+    const row = current(id)
+    if (!row) continue
+    const diff: CsvRow = {}
+    for (const [key, value] of Object.entries(values)) {
+      if (key !== idField && (row[key] ?? '') !== value) diff[key] = value
+    }
+    if (Object.keys(diff).length === 0) continue
+    diff[idField] = id
+    next = appendChange(next, upsertChange(table, id, diff))
+    written++
+  }
+  return { changes: next, written }
+}
+
 export function upsertChange(table: string, rowId: string, values: CsvRow, create = false): RowChange {
   return { id: newChangeId(), ts: Date.now(), table, op: 'upsert', rowId, values, ...(create ? { create: true } : {}) }
 }

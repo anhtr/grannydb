@@ -3,7 +3,7 @@ import { parseCsv, serializeCsv } from '../csv'
 import { buildSchemaSet } from '../schema/load'
 import type { SchemaSet } from '../schema'
 import { applyChanges } from '../store/merge'
-import { appendChange, pendingRowIds, projectChange, queueDelete, withdrawDelete } from '../store/queue'
+import { appendChange, pendingRowIds, projectChange, queueDelete, queueRowEdits, withdrawDelete } from '../store/queue'
 import type { Change, RowChange } from '../store/queue'
 import { commitMessage } from '../store/message'
 
@@ -94,6 +94,56 @@ describe('appendChange', () => {
     queue = appendChange(queue, change({ table: 'squares', rowId: 'S001', op: 'delete', ts: 1 }))
     queue = appendChange(queue, change({ table: 'squares', rowId: 'S001', op: 'upsert', values: { notes: 'new' }, ts: 2 }))
     expect(queue.map((c) => c.op)).toEqual(['delete', 'upsert'])
+  })
+})
+
+describe('queueRowEdits', () => {
+  const rows: Record<string, Record<string, string>> = {
+    S001: { id: 'S001', notes: 'old', position: 'r1c1' },
+    S002: { id: 'S002', notes: '', position: '' },
+  }
+  const current = (id: string) => rows[id] ?? null
+  const values = (queue: Change[]) => queue.map((c) => (c as RowChange).values)
+
+  it('queues one field-level operation per row, holding only what differs', () => {
+    const { changes, written } = queueRowEdits(
+      [],
+      'squares',
+      'id',
+      [
+        { id: 'S001', values: { notes: 'new', position: 'r1c1' } },
+        { id: 'S002', values: { notes: 'new' } },
+      ],
+      current,
+    )
+    expect(written).toBe(2)
+    expect(values(changes)).toEqual([
+      { id: 'S001', notes: 'new' },
+      { id: 'S002', notes: 'new' },
+    ])
+    expect(changes.every((c) => (c as RowChange).op === 'upsert' && !(c as RowChange).create)).toBe(true)
+  })
+
+  it('passes over a row with nothing to change and one that is not there', () => {
+    const before: Change[] = []
+    const { changes, written } = queueRowEdits(
+      before,
+      'squares',
+      'id',
+      [
+        { id: 'S001', values: { notes: 'old' } },
+        { id: 'S404', values: { notes: 'new' } },
+      ],
+      current,
+    )
+    expect(written).toBe(0)
+    expect(changes).toEqual([])
+  })
+
+  it('folds into an edit already pending for the same row', () => {
+    const pending = change({ table: 'squares', op: 'upsert', rowId: 'S001', values: { id: 'S001', position: 'r9c9' } })
+    const { changes } = queueRowEdits([pending], 'squares', 'id', [{ id: 'S001', values: { notes: 'new' } }], current)
+    expect(values(changes)).toEqual([{ id: 'S001', position: 'r9c9', notes: 'new' }])
   })
 })
 

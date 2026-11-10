@@ -20,9 +20,11 @@ import { monthLabel } from '../core/date'
 import { appStore, pendingRowIds } from '../core/store'
 import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema, useToday } from '../app/hooks'
 import { navigate } from '../app/router'
+import { BulkEditDialog, countNoun, SelectionBar } from './BulkEdit'
 import { Badge, BadgeStack, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
 import { dateMatches, datePresets, dateSelection, dateSummary, readDateRange } from './dateFilter'
 import { rememberListOrder } from './listOrder'
+import { notify } from './toast'
 
 interface FilterOption {
   value: string
@@ -422,6 +424,12 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
     initialListPrefs(schema, state.prefs.lists[table]),
   )
   const { filters, sorts } = listPrefs
+  // Ticking rows to change together - see `BulkEdit.tsx`. Component state, not a saved preference:
+  // a selection belongs to one sitting at the list, and one that outlived it would be acted on by
+  // someone who can no longer see what is in it.
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   // Saved locally (see `core/prefs`), keyed by table, so leaving and reopening a list keeps how it
   // was last narrowed and sorted — but device-local only, never part of the synced data.
@@ -473,6 +481,14 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
     [rows, schema, resolve],
   )
 
+  // Only rows the list is showing count as selected. Narrowing the search or the filters after
+  // ticking a row takes it out of the batch, so a bulk change never reaches a row that is not on
+  // screen to be seen changing.
+  const selectedRows = useMemo(
+    () => (schema && selecting ? rows.filter((row) => selected.has(row[schema.idField] ?? '')) : []),
+    [schema, selecting, rows, selected],
+  )
+
   // What a record page's Previous and Next step through - see `listOrder.ts`.
   useEffect(() => {
     if (schema && data) rememberListOrder(table, rows.map((row) => row[schema.idField] ?? ''))
@@ -492,19 +508,55 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
     sorts.length === 0 ? '' : sorts.length === 1 ? (sorts[0].dir === 'asc' ? '↑' : '↓') : `+${sorts.length - 1}`
   const sortButtonText = `${sortButtonMain} ${sortButtonTail}`.trim()
 
+  const stopSelecting = () => {
+    setSelecting(false)
+    setSelected(new Set())
+    setBulkOpen(false)
+  }
+  const toggleSelected = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
+
   const renderItem = (row: CsvRow) => {
     const id = row[schema.idField] ?? ''
+    const body = (
+      <>
+        {renderRow ? renderRow(row, schema) : <DefaultRow row={row} schema={schema} resolve={resolve} />}
+        {pending.has(id) ? (
+          <div className="mt-1.5">
+            <Badge tone="warn">Unsynced</Badge>
+          </div>
+        ) : null}
+      </>
+    )
+    if (selecting) {
+      const checked = selected.has(id)
+      return (
+        <li key={id}>
+          {/* A label, so the whole card is the checkbox's tap area. While selecting, a row is a thing
+              to tick and not a link: one tap meaning "open" on some rows and "tick" on others, by
+              where on the card it lands, is how the wrong record gets opened half way through. */}
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input
+              type="checkbox"
+              className="size-5 shrink-0 accent-[var(--color-accent)]"
+              checked={checked}
+              onChange={() => toggleSelected(id)}
+              // Named by the record, or a screen reader reads out the entire card as the label.
+              aria-label={`Select ${titleFor(schema, row) || id}`}
+            />
+            <Card className={`min-w-0 flex-1 p-2.5 ${checked ? 'ring-2 ring-accent' : ''}`}>{body}</Card>
+          </label>
+        </li>
+      )
+    }
     return (
       <li key={id}>
         <Link to={`/${table}/${id}`} className="block">
-          <Card className="p-2.5 transition hover:border-accent">
-            {renderRow ? renderRow(row, schema) : <DefaultRow row={row} schema={schema} resolve={resolve} />}
-            {pending.has(id) ? (
-              <div className="mt-1.5">
-                <Badge tone="warn">Unsynced</Badge>
-              </div>
-            ) : null}
-          </Card>
+          <Card className="p-2.5 transition hover:border-accent">{body}</Card>
         </Link>
       </li>
     )
@@ -625,10 +677,18 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
         </ul>
       ) : null}
 
-      <p className="px-4 py-1.5 text-xs text-muted">
-        {rows.length} of {data.rows.length}
-        {activeFilters > 0 || query !== '' ? ' (filtered)' : ''}
-      </p>
+      <div className="flex items-center justify-between gap-2 px-4">
+        <p className="py-1.5 text-xs text-muted">
+          {rows.length} of {data.rows.length}
+          {activeFilters > 0 || query !== '' ? ' (filtered)' : ''}
+        </p>
+        {canEdit && rows.length > 0 && !selecting ? (
+          // The negative margin gives back the height the 44px tap target would add to this line.
+          <button type="button" className="tap-target -my-2 px-1.5 text-xs text-accent" onClick={() => setSelecting(true)}>
+            Select
+          </button>
+        ) : null}
+      </div>
 
       {data.rows.length === 0 ? (
         <EmptyState
@@ -667,7 +727,42 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
         <ul className="space-y-1.5 px-4">{rows.map(renderItem)}</ul>
       )}
 
-      {canEdit ? <NewRecordButton table={table} schema={schema} /> : null}
+      {!canEdit ? null : selecting ? (
+        <SelectionBar
+          count={selectedRows.length}
+          shown={rows.length}
+          onSelectAll={() => setSelected(new Set(rows.map((row) => row[schema.idField] ?? '')))}
+          onSelectNone={() => setSelected(new Set())}
+          onCancel={stopSelecting}
+          onChange={() => setBulkOpen(true)}
+        />
+      ) : (
+        <NewRecordButton table={table} schema={schema} />
+      )}
+      {selecting && bulkOpen && selectedRows.length > 0 ? (
+        <BulkEditDialog
+          table={table}
+          schema={schema}
+          rows={selectedRows}
+          onClose={() => setBulkOpen(false)}
+          onApplied={(plan, field) => {
+            const done = `Changed ${field.label.toLowerCase()} on ${countNoun(schema, plan.writes.length)}`
+            if (plan.skipped.length === 0) {
+              stopSelecting()
+              notify(done)
+              return
+            }
+            // What could not be changed stays ticked: it shows which rows those were, and the next
+            // step - another date, or opening one to see why - starts from them.
+            setBulkOpen(false)
+            setSelected(new Set(plan.skipped.map((skip) => skip.id)))
+            notify(
+              `${done} - ${plan.skipped.length} left as ${plan.skipped.length === 1 ? 'it was' : 'they were'}, still selected`,
+              { tone: 'warn' },
+            )
+          }}
+        />
+      ) : null}
     </div>
   )
 }

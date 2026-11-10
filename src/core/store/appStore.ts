@@ -24,6 +24,7 @@ import {
   loadQueue,
   projectChange,
   queueDelete,
+  queueRowEdits,
   saveQueue,
   upsertChange,
   withdrawDelete,
@@ -334,6 +335,26 @@ class AppStore {
 
     diff[schema.idField] = id
     await this.enqueue(upsertChange(table, id, diff, current === null))
+  }
+
+  /**
+   * Queue edits to several existing rows as one step - what a list's bulk edit calls with the
+   * writes `planBulkEdit` worked out. Each row still gets its own field-level operation
+   * (`queueRowEdits`); what is one step is the *write to the queue*. Every row's operation is
+   * persisted together or none is, where a loop over `save` could be cut off half way by a closing
+   * tab and leave a batch half applied with nothing on screen to say which half.
+   *
+   * Returns how many rows had something to write.
+   */
+  async saveMany(table: string, edits: readonly { id: string; values: CsvRow }[]): Promise<number> {
+    const schema = this.schema(table)
+    if (!schema) throw new Error(`Unknown table: ${table}`)
+
+    const { changes, written } = queueRowEdits(this.state.changes, table, schema.idField, edits, (id) =>
+      this.row(table, id),
+    )
+    if (written > 0) await this.replaceQueue(changes)
+    return written
   }
 
   /**

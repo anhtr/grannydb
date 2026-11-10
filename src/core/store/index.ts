@@ -7,6 +7,7 @@ export {
   upsertChange,
   deleteChange,
   queueDelete,
+  queueRowEdits,
   withdrawDelete,
   projectChange,
   isRowChange,

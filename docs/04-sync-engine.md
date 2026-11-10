@@ -222,6 +222,21 @@ undone. The alternative, a compensating upsert that writes the row back, would w
 would be a whole-row write - see
 [ADR 0040](adr/0040-undo-a-delete-by-withdrawing-it-from-the-queue.md).
 
+### Editing many rows at once
+
+A list's bulk edit ("set status to blocked on these twelve squares") adds **no new kind of
+operation**. `planBulkEdit` works out, per row, which fields would actually change; `appStore.saveMany`
+passes those to `queueRowEdits`, which appends one ordinary field-level upsert per row through the
+same `appendChange`, so each folds into an edit already pending for its row like any other. Replay,
+the Pending changes screen, the commit message and CI cannot tell a batch from the same edits made
+one at a time, and they merge with another device's edits field by field.
+
+What the batch does get is **one write to the queue**: `saveQueue` runs once with every row's
+operation in it, so a batch is pending whole or not at all, where a loop of single saves could be
+cut short by a closing tab. The alternative - a single queued "bulk" operation expanded at replay -
+would put schema rules inside replay; see
+[ADR 0041](adr/0041-a-bulk-edit-is-planned-per-row-before-it-is-queued.md).
+
 ## Failure modes
 
 | What happens | Behaviour |

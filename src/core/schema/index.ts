@@ -1,5 +1,7 @@
 export type { DerivedFilterDef, FieldDef, FieldType, InheritFromDef, SchemaSet, StatusDatesDef, TableSchema } from './types'
 export { changeStatus, fillStatusDates, statusDate, statusDateIssues } from './statusDates'
+export type { BulkEditPlan, BulkSkip, BulkWrite } from './bulk'
+export { bulkEditableFields, bulkEditNeedsDate, planBulkEdit } from './bulk'
 export { fieldByKey, listFields, filterFields, sortableFields, schemaColumns, titleFor } from './types'
 export { buildSchemaSet, parseTableSchema, SchemaError, schemaPath, manifestPath } from './load'
 export type { Issue } from './validate'
