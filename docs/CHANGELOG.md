@@ -4,6 +4,16 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-09 - v0.1.45, the last sync's warnings stay on the Sync screen
+
+**Sync**
+- Validation warnings from a sync are now **kept with the last sync** (`LastSync.issues`, capped at
+  20 with the true count in `issueCount`) and shown on the Pending changes screen until the next
+  sync. They used to live only in the result of pressing the Sync button, so an automatic push,
+  which is most pushes, showed none, and a manual one lost them on leaving the screen. Each warning
+  links to its record (or to Settings for `project.json`) and names the field by its label.
+  `lastSyncFrom` in `src/core/store/sync.ts` builds the record; no change to what is committed.
+
 ## 2026-11-09 - v0.1.44, confirm before forgetting the token or moving pending edits
 
 **App**

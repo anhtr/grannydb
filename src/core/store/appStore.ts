@@ -29,7 +29,7 @@ import {
 import type { Change } from './queue'
 import { clearSnapshot, loadSnapshot, saveSnapshot } from './snapshotCache'
 import { renumberChanges } from './renumber'
-import { loadLastSync, saveLastSync, syncChanges } from './sync'
+import { lastSyncFrom, loadLastSync, saveLastSync, syncChanges } from './sync'
 import type { LastSync, SyncResult } from './sync'
 import { autoSyncBlocker, autoSyncDelay, isWorthReporting } from './autoSync'
 import type { AutoSyncTrigger } from './autoSync'
@@ -428,13 +428,7 @@ class AppStore {
       const remaining = schemas ? renumberChanges(unsent, schemas, result.renumbered) : unsent
       await saveQueue(remaining)
 
-      const lastSync: LastSync = {
-        at: Date.now(),
-        sha: result.sha,
-        paths: result.paths,
-        changeCount: result.changeCount,
-        ...(result.renumbered.length > 0 ? { renumbered: result.renumbered } : {}),
-      }
+      const lastSync = lastSyncFrom(result, Date.now())
       saveLastSync(lastSync)
       this.set({ changes: remaining, syncing: false, lastSync })
       // Edits made while the push was in flight scheduled a timer that found the store busy and

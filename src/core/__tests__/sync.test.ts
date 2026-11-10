@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { syncChanges } from '../store/sync'
+import { LAST_SYNC_ISSUE_LIMIT, lastSyncFrom, syncChanges } from '../store/sync'
+import type { SyncResult } from '../store/sync'
 import { projectChange } from '../store/queue'
 import type { RowChange } from '../store/queue'
 import { readFromApi } from '../github/read'
@@ -298,6 +299,41 @@ describe('syncChanges', () => {
 
     expect(result.status).toBe('committed')
     expect(result.issues.some((i) => i.message === 'row has no id')).toBe(true)
+  })
+})
+
+describe('what is remembered of a sync', () => {
+  const result: SyncResult = {
+    status: 'committed',
+    sha: 'commit-bbb',
+    paths: ['data/squares.csv'],
+    changeCount: 2,
+    attempts: 1,
+    issues: [],
+    renumbered: [],
+  }
+
+  it('leaves out the optional parts when there is nothing to say', () => {
+    expect(lastSyncFrom(result, 5)).toEqual({ at: 5, sha: 'commit-bbb', paths: ['data/squares.csv'], changeCount: 2 })
+  })
+
+  it('keeps the warnings, so an automatic push does not swallow them', () => {
+    const issues = [{ table: 'squares', rowId: 'S001', field: 'design_id', message: 'no designs with id D99' }]
+    const last = lastSyncFrom({ ...result, issues }, 5)
+    expect(last.issues).toEqual(issues)
+    expect(last.issueCount).toBe(1)
+  })
+
+  it('keeps only the first few of a long list, with the true count', () => {
+    const issues = Array.from({ length: LAST_SYNC_ISSUE_LIMIT + 7 }, (_, i) => ({
+      table: 'squares',
+      rowId: `S${i}`,
+      message: 'bad',
+    }))
+    const last = lastSyncFrom({ ...result, issues }, 5)
+    expect(last.issues).toHaveLength(LAST_SYNC_ISSUE_LIMIT)
+    expect(last.issues?.[0].rowId).toBe('S0')
+    expect(last.issueCount).toBe(LAST_SYNC_ISSUE_LIMIT + 7)
   })
 })
 

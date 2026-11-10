@@ -162,6 +162,14 @@ reported on the sync screen, but they do not block the commit. Refusing to save 
 `design_id` points somewhere odd would be the wrong trade in an app whose whole point is capturing
 squares quickly. CI is the enforcement point; see [operations](06-operations.md).
 
+An advisory nobody sees is not an advisory, and most pushes are automatic. So the warnings are kept
+in `LastSync` (`lastSyncFrom` in [`sync.ts`](../src/core/store/sync.ts)) beside the renumbering
+notes, and the Sync screen shows them until the next sync replaces them, whoever pressed the
+button. Only the first `LAST_SYNC_ISSUE_LIMIT` (20) are stored, with the true count: `LastSync`
+lives in `localStorage`, and a longer list is a job for `npm run validate-data`. They describe the
+whole merged dataset, not just the edits pushed, so a problem that was already in the repo shows up
+here as well.
+
 ## Commit messages
 
 Generated from the batch ([`message.ts`](../src/core/store/message.ts)):

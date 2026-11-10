@@ -31,6 +31,33 @@ export interface LastSync {
   changeCount: number
   /** Kept with the last sync, not just shown once, so an automatic push's renumbering is not missed. */
   renumbered?: Renumbering[]
+  /**
+   * Validation warnings from the merged data, for the same reason: most pushes are automatic now,
+   * and a warning that only the manual Sync button could show was a warning nobody saw. Only the
+   * first `LAST_SYNC_ISSUE_LIMIT` are kept; `issueCount` is the real total.
+   */
+  issues?: Issue[]
+  issueCount?: number
+}
+
+/**
+ * How many warnings ride along in `LastSync`. It lives in `localStorage`, which is small and shared
+ * with the token, and a list longer than this is a job for `npm run validate-data`, not a phone.
+ */
+export const LAST_SYNC_ISSUE_LIMIT = 20
+
+/** What is remembered of a finished sync. Optional parts are left out, not stored empty. */
+export function lastSyncFrom(result: SyncResult, at: number): LastSync {
+  return {
+    at,
+    sha: result.sha,
+    paths: result.paths,
+    changeCount: result.changeCount,
+    ...(result.renumbered.length > 0 ? { renumbered: result.renumbered } : {}),
+    ...(result.issues.length > 0
+      ? { issues: result.issues.slice(0, LAST_SYNC_ISSUE_LIMIT), issueCount: result.issues.length }
+      : {}),
+  }
 }
 
 const LAST_SYNC_KEY = 'grannydb.last-sync'

@@ -28,6 +28,53 @@ function describe(change: Change, state: AppState): { record: string; fields: st
   }
 }
 
+/**
+ * The validation warnings the last sync left behind, read from `lastSync` rather than from the
+ * result of pressing Sync - so they are here after an automatic push too, and still here after a
+ * reload, until the next sync replaces them.
+ */
+function SyncWarnings({ state }: { state: AppState }) {
+  const issues = state.lastSync?.issues ?? []
+  const total = state.lastSync?.issueCount ?? issues.length
+  if (total === 0) return null
+  const schemas = state.snapshot?.schemas.tables
+  return (
+    <Card className="p-4 text-sm">
+      <p className="text-amber-700 dark:text-amber-400">
+        The last sync went through, but left {total} validation warning{total === 1 ? '' : 's'} in the data:
+      </p>
+      <ul className="mt-2 space-y-1 text-muted">
+        {issues.map((issue, i) => {
+          const schema = schemas?.[issue.table]
+          const field = issue.field ? ((schema ? fieldByKey(schema, issue.field)?.label : undefined) ?? issue.field) : ''
+          const isProject = issue.table === 'project'
+          return (
+            <li key={i}>
+              {isProject ? (
+                <Link to="/settings" className="underline underline-offset-2">
+                  Project settings
+                </Link>
+              ) : issue.rowId ? (
+                <Link to={`/${issue.table}/${issue.rowId}`} className="font-mono underline underline-offset-2">
+                  {issue.rowId}
+                </Link>
+              ) : (
+                <span>{schema?.label ?? issue.table}</span>
+              )}
+              {field ? ` · ${field}` : ''}: {issue.message}
+            </li>
+          )
+        })}
+      </ul>
+      {total > issues.length ? (
+        <p className="mt-2 text-muted">
+          and {total - issues.length} more. <span className="font-mono">npm run validate-data</span> lists them all.
+        </p>
+      ) : null}
+    </Card>
+  )
+}
+
 export function SyncPage() {
   const state = useAppState()
   const [result, setResult] = useState<SyncResult | null>(null)
@@ -99,21 +146,10 @@ export function SyncPage() {
           ) : (
             <p>Nothing to write: the repo already matches your edits.</p>
           )}
-          {result.issues.length > 0 ? (
-            <p className="mt-2 text-amber-700 dark:text-amber-400">
-              {result.issues.length} validation warning{result.issues.length === 1 ? '' : 's'} in the
-              data. The commit still went through; check the list below.
-            </p>
-          ) : null}
-          <ul className="mt-2 space-y-1 text-muted">
-            {result.issues.slice(0, 10).map((issue, i) => (
-              <li key={i}>
-                {issue.table}/{issue.rowId}: {issue.message}
-              </li>
-            ))}
-          </ul>
         </Card>
       ) : null}
+
+      <SyncWarnings state={state} />
 
       {state.changes.length === 0 ? (
         <EmptyState
