@@ -29,7 +29,7 @@ directly and runs them in Node during the build. The rules CI enforces and the r
 believes are literally the same code, so they cannot drift.
 
 Second, everything interesting — CSV round-tripping, queue collapsing, replay semantics, the whole
-commit protocol - is testable by calling functions. All but three of the test files run in a plain
+commit protocol - is testable by calling functions. All but four of the test files run in a plain
 Node environment with no DOM. That is why the tests are fast and why they are about behaviour
 rather than markup.
 
@@ -277,6 +277,11 @@ Three components in `ui/` serve every table:
   [ADR 0041](adr/0041-a-bulk-edit-is-planned-per-row-before-it-is-queued.md). The dialog's focus
   handling (focus in on open, Escape, focus back on close, Tab kept inside) is `useDialog` in
   [`ui/dialog.ts`](../src/ui/dialog.ts).
+  The **Sort** and **Filter** panels use the same hook without `modal`: each is a `role="dialog"`
+  that takes focus when it opens, closes on Escape and returns focus to its button, while the list
+  behind stays live. They take focus on the panel itself, not on its first control, because the
+  Filter panel can open on a search box and focusing that on a phone would raise the keyboard over
+  the filters.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional
   `extra` slot for computed sections (see `TABLE_DETAIL_EXTRAS` above), edit and delete, a link to
   the underlying CSV on github.com. A `number` field marked `"stepper": true` (a yarn's skeins) is
@@ -385,6 +390,7 @@ Coverage is deliberately concentrated where a bug loses data rather than annoys 
 | `sw/__tests__/sw.test.ts` | the service worker in a fake worker global: what it precaches, what it serves, and that a cross-origin request is never intercepted |
 | `bulk.test.ts` | the bulk-edit plan: per-row field diffs, status dates filled from the chosen day, rows skipped with the rule they would break |
 | `ui/__tests__/BulkEdit.render.test.tsx` | the bulk-edit dialog mounted on the fixture data: the preview shown is the plan queued, one field-level operation per row (jsdom) |
+| `ui/__tests__/RefPicker.render.test.tsx` | the `ref` picker as a combobox: the roles and ids a screen reader follows, the arrow keys moving `aria-activedescendant`, Enter picking, the `pickerFields` line under an option (jsdom) |
 | `app.render.test.tsx` | one end-to-end mount against a frozen fixture dataset (`src/core/__tests__/fixtures/data/`), not `data/*.csv` — real tracker data changes shape and content on its own schedule and has nothing to do with whether the app mounts |
 
 `sync.test.ts` is the important one. It stands up a fake GitHub that enforces fast-forward-only ref

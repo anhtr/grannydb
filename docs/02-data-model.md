@@ -308,7 +308,10 @@ quick-creating a design from inside a square, is the case that motivated it. See
 [ADR 0018](adr/0018-full-inline-quick-create.md).
 
 A `ref`/`reflist` field is edited through a live-search combobox, not a bare `<select>` — practical
-once a table has more than a handful of rows, e.g. one design per square. `"searchFields"` on the
+once a table has more than a handful of rows, e.g. one design per square. (A `ref`'s is a combobox
+in the ARIA sense too: `role="combobox"` on the box, a `listbox` of `option`s, and
+`aria-activedescendant` following the arrow keys, so a screen reader reads each option as it is
+reached.) `"searchFields"` on the
 field names which fields on the *referenced* row the search matches against (`squares.design_id` sets
 `["name", "source"]`, so picking a design searches by book as well as by name); omit it to search
 every field on the referenced row. See

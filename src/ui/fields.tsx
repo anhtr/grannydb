@@ -278,6 +278,12 @@ function QuickCreate({ refTable, onCreated }: { refTable: string; onCreated: (id
  * table has more than a handful of rows — a design table is practically one design per square — so
  * every `ref` gets a search box instead, matching case-insensitively against `field.searchFields`
  * (or every field on the referenced row, if that is not set).
+ *
+ * To a screen reader it is a **combobox**: the text box owns a `listbox` of `option`s, focus never
+ * leaves the box, and `aria-activedescendant` names the option the arrow keys have reached - so
+ * each press is read out ("Fixture Rose, 2 of 14") instead of moving a highlight nobody announced.
+ * The options are therefore plain list items and not buttons: a listbox may contain only options,
+ * and a second set of focusable things inside it would be a second, competing way round the list.
  */
 function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
   const schema = useTableSchema(field.refTable ?? '')
@@ -287,6 +293,8 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const resultsRef = useRef<HTMLUListElement>(null)
+  const listId = useId()
+  const optionId = (i: number) => `${listId}-${i}`
 
   // Keep the highlighted result visible as the arrow keys move it, so Enter never picks a row that
   // has scrolled out of the dropdown.
@@ -316,6 +324,13 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
           <input
             id={id}
             type="text"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={open}
+            aria-controls={open ? listId : undefined}
+            aria-activedescendant={open && results[active] ? optionId(active) : undefined}
+            // The browser's own suggestions would sit on top of the list this box already shows.
+            autoComplete="off"
             className={`${inputClass} scroll-mt-16`}
             // While searching, the current choice stays visible as the placeholder rather than vanishing.
             placeholder={selectedLabel || `Search ${schema?.labelSingular.toLowerCase() ?? '…'}`}
@@ -379,53 +394,61 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
           ) : null}
         </div>
         {open ? (
-          <ul ref={resultsRef} className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-line bg-card shadow-lg">
-            {results.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-muted">No matches</li>
-            ) : (
-              results.map(([rowId, row], i) => {
+          <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-line bg-card shadow-lg">
+            <ul ref={resultsRef} id={listId} role="listbox" aria-label={field.label}>
+              {results.map(([rowId, row], i) => {
                 // What tells two options with similar names apart: which book a design is from, or
                 // whether there is any of a yarn left - see `pickerFields`.
                 const note = schema && field.pickerFields ? refAnnotation(schema, row, field.pickerFields, resolve) : ''
                 return (
-                  <li key={rowId}>
-                    <button
-                      type="button"
-                      className={`tap-target flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-line/40 ${
-                        i === active ? 'bg-line/40' : ''
-                      }`}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        onChange(rowId)
-                        setQuery('')
-                        setOpen(false)
-                      }}
-                    >
-                      {schema?.swatchField ? (
-                        <Swatch
-                          hex={row[schema.swatchField]}
-                          pattern={schema.patternField ? row[schema.patternField] : undefined}
-                          size={14}
-                        />
-                      ) : null}
-                      <span className="min-w-0">
-                        <span className="block">{schema ? titleFor(schema, row) : rowId}</span>
-                        {note ? <span className="block text-xs text-muted">{note}</span> : null}
-                      </span>
-                    </button>
+                  <li
+                    key={rowId}
+                    id={optionId(i)}
+                    role="option"
+                    aria-selected={i === active}
+                    // cursor-pointer is not decoration: iOS Safari only sends a tap's click to an
+                    // element that is not a link or a button when it looks clickable.
+                    className={`tap-target flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-line/40 ${
+                      i === active ? 'bg-line/40' : ''
+                    }`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onChange(rowId)
+                      setQuery('')
+                      setOpen(false)
+                    }}
+                  >
+                    {schema?.swatchField ? (
+                      <Swatch
+                        hex={row[schema.swatchField]}
+                        pattern={schema.patternField ? row[schema.patternField] : undefined}
+                        size={14}
+                      />
+                    ) : null}
+                    <span className="min-w-0">
+                      <span className="block">{schema ? titleFor(schema, row) : rowId}</span>
+                      {note ? <span className="block text-xs text-muted">{note}</span> : null}
+                    </span>
                   </li>
                 )
-              })
-            )}
-            {/* Last in the list, after the options the arrow keys walk, so it never takes a highlight. */}
+              })}
+            </ul>
+            {/* Beside the listbox, not in it: it holds options and nothing else. */}
+            {results.length === 0 ? <p className="px-3 py-2 text-sm text-muted">No matches</p> : null}
             {matchCount > results.length ? (
-              <li className="border-t border-line px-3 py-2 text-xs text-muted">
+              <p className="border-t border-line px-3 py-2 text-xs text-muted">
                 Showing the first {results.length} of {matchCount} - type to narrow
-              </li>
+              </p>
             ) : null}
-          </ul>
+          </div>
         ) : null}
       </div>
+      {/* How many options the typing has left, for someone who cannot see the list shrink. Always in
+          the page and empty while closed: a live region that arrives already holding its text is not
+          reliably read out, one whose text changes is. */}
+      <span className="sr-only" role="status">
+        {!open ? '' : matchCount === 0 ? 'No matches' : matchCount === 1 ? '1 match' : `${matchCount} matches`}
+      </span>
       {/* Keep a dangling reference visible rather than silently resetting it to blank. */}
       {value !== '' && !lookup.has(value) ? (
         <p className="text-sm text-red-600 dark:text-red-400">{value} (missing)</p>

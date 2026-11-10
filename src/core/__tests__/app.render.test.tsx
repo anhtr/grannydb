@@ -145,6 +145,25 @@ describe('App renders against the real data', () => {
     }
   })
 
+  it('opens the filter panel as a dialog, and Escape hands focus back to its button', async () => {
+    await render('#/squares')
+    const button = [...container.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'Filter')!
+    expect(button.getAttribute('aria-haspopup')).toBe('dialog')
+    button.focus()
+    act(() => button.click())
+
+    const panel = container.querySelector('[role="dialog"][aria-label="Filter"]')
+    expect(panel).not.toBeNull()
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(panel)
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    })
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    expect(document.activeElement).toBe(button)
+  })
+
   it('renders the yarns list from the generic components', async () => {
     await render('#/yarns')
     expect(container.textContent).toContain('Fixture Rose')

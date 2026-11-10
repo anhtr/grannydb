@@ -21,6 +21,7 @@ import { appStore, pendingRowIds } from '../core/store'
 import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema, useToday } from '../app/hooks'
 import { navigate } from '../app/router'
 import { BulkEditDialog, countNoun, SelectionBar } from './BulkEdit'
+import { useDialog } from './dialog'
 import { Badge, BadgeStack, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
 import { dateMatches, datePresets, dateSelection, dateSummary, readDateRange } from './dateFilter'
 import { rememberListOrder } from './listOrder'
@@ -410,16 +411,6 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
   useListMemory(table, query, schema !== null && data !== null)
   const [sortPanelOpen, setSortPanelOpen] = useState(false)
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
-  useEffect(() => {
-    if (!sortPanelOpen && !filterPanelOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setSortPanelOpen(false)
-      setFilterPanelOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [sortPanelOpen, filterPanelOpen])
   const [listPrefs, setListPrefsState] = useState<ListPrefs>(() =>
     initialListPrefs(schema, state.prefs.lists[table]),
   )
@@ -587,6 +578,7 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
             <button
               type="button"
               title={sortButtonText}
+              aria-haspopup="dialog"
               aria-expanded={sortPanelOpen}
               // Capped and truncated: a long rule ("Sort: Main colour +1") otherwise squeezes the search
               // box down to a few letters on a phone. The panel spells the rules out in full.
@@ -606,6 +598,7 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
             <button
               type="button"
               aria-label="Filter"
+              aria-haspopup="dialog"
               aria-expanded={filterPanelOpen}
               className={`tap-target shrink-0 whitespace-nowrap rounded-xl border px-3 text-sm ${
                 activeFilters > 0 ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
@@ -768,9 +761,25 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
 }
 
 /** A dropdown panel under the search row, no taller than the space between that row (~7rem from the
- * top while it is stuck there) and the bottom bar, so its end never slides under the nav. */
+ * top while it is stuck there) and the bottom bar, so its end never slides under the nav. No outline:
+ * the panel takes focus itself when it opens (see `usePanel`), and a ring round the whole card says
+ * nothing its appearing has not already said. */
 const panelClass =
-  'absolute inset-x-0 top-full z-20 mt-2 max-h-[calc(100dvh-var(--footer-height,4rem)-8rem)] overflow-y-auto rounded-xl border border-line bg-card shadow-lg'
+  'absolute inset-x-0 top-full z-20 mt-2 max-h-[calc(100dvh-var(--footer-height,4rem)-8rem)] overflow-y-auto rounded-xl border border-line bg-card shadow-lg outline-none'
+
+/**
+ * What makes the Sort and Filter panels dialogs and not just boxes that appear: focus moves to the
+ * panel when it opens, Escape closes it, and focus goes back to the button that opened it. Without
+ * that a keyboard user pressed Filter and was left on the button, with the panel's controls
+ * somewhere after the whole list in the Tab order.
+ *
+ * Not modal - the list behind stays live and updates as rules change, which is the point of them.
+ * Focus lands on the panel and not its first control because the Filter panel can begin with a
+ * search box, and focusing that on a phone would cover the filters with the keyboard.
+ */
+function usePanel(onClose: () => void) {
+  return useDialog<HTMLDivElement>(onClose, { focus: 'container' })
+}
 
 /**
  * Sort as a priority-ordered list of rules rather than one field: each rule only breaks ties left by
@@ -812,11 +821,12 @@ function SortPanel({
   const add = (key: string) => {
     if (key) onChange([...sorts, { key, dir: 'asc' }])
   }
+  const panelRef = usePanel(onClose)
 
   return (
     <>
       <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className={`${panelClass} p-3`}>
+      <div ref={panelRef} role="dialog" aria-label="Sort" tabIndex={-1} className={`${panelClass} p-3`}>
         <p className="mb-2 text-xs font-medium text-muted">Sort by, in priority order</p>
         <ol className="space-y-1.5">
           {sorts.map((sort, i) => (
@@ -1177,10 +1187,11 @@ function FilterPanel({
 }) {
   const today = useToday()
   const activeCount = Object.values(filters).filter((v) => v.length > 0).length
+  const panelRef = usePanel(onClose)
   return (
     <>
       <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className={`${panelClass} p-3`}>
+      <div ref={panelRef} role="dialog" aria-label="Filter" tabIndex={-1} className={`${panelClass} p-3`}>
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs font-medium text-muted">Filter by</p>
           {activeCount > 0 ? (

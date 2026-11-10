@@ -13,7 +13,10 @@ function focusable(container: HTMLElement): HTMLElement[] {
  * not itself provide. For as long as the element holding the returned ref is mounted:
  *
  * - focus **moves into it** when it opens, so a keyboard or screen reader user is put where the new
- *   controls are instead of being left on the button behind them;
+ *   controls are instead of being left on the button behind them - onto its first control, or with
+ *   `focus: 'container'` onto the element itself (which then needs `tabIndex={-1}`). The second is
+ *   for a panel whose first control may be a text box: focusing that on a phone throws the
+ *   keyboard up over a panel the person only opened to look at;
  * - **Escape** closes it;
  * - focus **goes back** to whatever had it before, when it closes, so the next Tab carries on from
  *   where the person was rather than from the top of the page;
@@ -23,9 +26,13 @@ function focusable(container: HTMLElement): HTMLElement[] {
  * Hand-rolled rather than the native `<dialog>` element so that it behaves the same in the test
  * environment (jsdom has no `showModal`) as in a browser, and so the non-modal panels can share it.
  */
-export function useDialog<T extends HTMLElement>(onClose: () => void, options: { modal?: boolean } = {}): RefObject<T | null> {
+export function useDialog<T extends HTMLElement>(
+  onClose: () => void,
+  options: { modal?: boolean; focus?: 'first' | 'container' } = {},
+): RefObject<T | null> {
   const ref = useRef<T | null>(null)
   const modal = options.modal ?? false
+  const focusFirst = options.focus !== 'container'
   // Kept in a ref so a caller passing a new closure every render does not re-run the effect below,
   // which would steal focus back to the first control on each keystroke.
   const close = useRef(onClose)
@@ -35,7 +42,7 @@ export function useDialog<T extends HTMLElement>(onClose: () => void, options: {
     const container = ref.current
     if (!container) return
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    ;(focusable(container)[0] ?? container).focus()
+    ;((focusFirst ? focusable(container)[0] : undefined) ?? container).focus()
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -72,7 +79,7 @@ export function useDialog<T extends HTMLElement>(onClose: () => void, options: {
       // nowhere to hand focus back to.
       if (opener?.isConnected) opener.focus()
     }
-  }, [modal])
+  }, [modal, focusFirst])
 
   return ref
 }

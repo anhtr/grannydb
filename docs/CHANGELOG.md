@@ -4,6 +4,18 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.58, pickers and panels a keyboard or screen reader can follow
+
+**App**
+- The **Sort** and **Filter** panels are now proper dialogs. Opening one moves focus into it, Escape
+  closes it, and focus goes back to the button that opened it. Before, focus stayed on the button
+  and the panel's controls were only reachable by tabbing through the whole list first.
+- The **design** and **colour** pickers now describe themselves as a combobox. A screen reader
+  reads each option as the arrow keys reach it and says how many matches are left as you type;
+  before, the highlight moved silently. Nothing changes for touch or mouse.
+- The picker's options are no longer separate Tab stops: Tab leaves the picker, as it does in any
+  other dropdown.
+
 ## 2026-11-10 - v0.1.57, reorder a square's extra colours
 
 **App**
