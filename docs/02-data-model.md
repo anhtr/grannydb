@@ -214,6 +214,10 @@ a stored `active` or `square_count` column would go stale the moment a square's 
 edit on one table into a computed column on another. Scanning `squares` at read time instead means
 there is only ever one copy of the fact.
 
+`stashStats` reads the same two tables the other way round, for the Progress screen's Stash card:
+the total of `skeins`, and the yarns that are flagged `is_too_low`, that no square uses, or that have
+no `hex`. Nothing is stored for it either.
+
 `isYarnActive` treats "active" as *either* signal, not their conjunction: a yarn is active if any
 skein (partial or not) is still in stash, **or** at least one square already cites it — so a
 used-up colour still explains an old square's yarn, and a freshly bought colour with no square yet

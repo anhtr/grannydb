@@ -27,5 +27,5 @@ export {
   derivedFilterValue,
   effectiveValue,
 } from './search'
-export type { IncomingReference, YarnUsage, ColourCombination, YarnCombinations, IdenticalSquares, ConstructionCount, ColourConstructionImbalance, SquareConstructionInsights, ColourCountByConstruction } from './relations'
-export { squareYarnIds, yarnUsageCounts, yarnCombinations, designCombinations, identicalSquares, isYarnActive, designSquareCounts, referencesTo, squareConstructionInsights } from './relations'
+export type { IncomingReference, YarnUsage, StashStats, ColourCombination, YarnCombinations, IdenticalSquares, ConstructionCount, ColourConstructionImbalance, SquareConstructionInsights, ColourCountByConstruction } from './relations'
+export { squareYarnIds, yarnUsageCounts, stashStats, yarnCombinations, designCombinations, identicalSquares, isYarnActive, designSquareCounts, referencesTo, squareConstructionInsights } from './relations'

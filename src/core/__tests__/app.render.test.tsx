@@ -119,6 +119,22 @@ describe('App renders against the real data', () => {
     expect(text).toMatch(/\d+ days over/)
   })
 
+  it('sums the stash on the progress screen', async () => {
+    await render('#/stats')
+    const card = [...container.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Stash'))!
+      .parentElement!
+    // The fixture's two yarns hold 4 and 2 skeins, and both are used by a square.
+    expect(card.textContent).toContain('Skeins left6')
+    expect(card.textContent).toContain('Never used in a square0')
+
+    const toggle = card.querySelector('button')!
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => {
+      toggle.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    })
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('links the progress screen colours to their yarn pages', async () => {
     await render('#/stats')
     // Collapsed by default, so these are the colour chips rather than the expanded rows.

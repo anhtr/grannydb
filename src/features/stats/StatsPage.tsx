@@ -2,8 +2,8 @@ import { Fragment, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { CsvRow } from '../../core/csv'
 import { dayNumber, dayString, today } from '../../core/date'
-import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, statusDate, titleFor } from '../../core/schema'
-import type { ColourCountByConstruction, IdenticalSquares, TableSchema } from '../../core/schema'
+import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, stashStats, statusDate, titleFor } from '../../core/schema'
+import type { ColourCountByConstruction, IdenticalSquares, StashStats, TableSchema } from '../../core/schema'
 import { PACE_WINDOW_DAYS, paceOf, requiredPace, squaresOverTime } from '../../core/timeline'
 import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
@@ -714,6 +714,100 @@ function GapsCard({ title, items }: { title: string; items: Gap[] }) {
   )
 }
 
+/**
+ * The yarn table read as a stash: one total and three lists of records that want attention. The
+ * counts are always shown; expanding names the yarns behind them, each a link to its record, since
+ * a count of yarns with no colour is only something to act on once it says which.
+ *
+ * Unlike the tallies above it this card is about `yarns`, not `squares` - it is here because
+ * Progress is the one screen that summarises, and the Yarns list has no header to put a total in.
+ */
+function StashCard({
+  stash,
+  yarns,
+  yarnSchema,
+  collapsed,
+  onToggle,
+}: {
+  stash: StashStats
+  yarns: Map<string, CsvRow>
+  yarnSchema: TableSchema | null
+  collapsed: boolean
+  onToggle: () => void
+}) {
+  const lists: { key: string; label: string; ids: string[]; note?: string; plainAfter?: number }[] = [
+    { key: 'tooLow', label: 'Flagged too low', ids: stash.tooLow },
+    {
+      key: 'unused',
+      label: 'Never used in a square',
+      ids: stash.unused,
+      note: stash.unusedOnHand > 0 ? `${stash.unusedOnHand} with yarn on hand${collapsed ? '' : ', listed first'}` : undefined,
+      plainAfter: stash.unusedOnHand,
+    },
+    { key: 'noColour', label: 'No colour recorded', ids: stash.noColour },
+  ]
+  return (
+    <Card className="p-3">
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-2 text-left"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+      >
+        <span>
+          <span className="block font-medium">Stash</span>
+          <span className="mt-0.5 block text-xs text-muted">
+            What the Yarns table has on hand, and which of its records want attention.
+          </span>
+        </span>
+        <span className="tap-target shrink-0 text-xs text-accent">{collapsed ? 'Show yarns' : 'Collapse'}</span>
+      </button>
+      {stash.yarns === 0 ? (
+        <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
+      ) : (
+        <div className="mt-2 space-y-2 text-sm">
+          <div>
+            <p className="flex items-baseline justify-between gap-2">
+              <span>Skeins left</span>
+              <span className="font-semibold tabular-nums">{stash.skeins}</span>
+            </p>
+            <p className="text-xs text-muted">
+              whole skeins, across {stash.inStock} of {stash.yarns} yarns
+              {stash.started > 0 ? ` - plus ${stash.started} with a started skein` : ''}
+            </p>
+          </div>
+          {lists.map((list) => (
+            <div key={list.key}>
+              <p className="flex items-baseline justify-between gap-2">
+                <span>{list.label}</span>
+                <span className="tabular-nums text-muted">{list.ids.length}</span>
+              </p>
+              {list.note ? <p className="text-xs text-muted">{list.note}</p> : null}
+              {!collapsed && list.ids.length > 0 ? (
+                <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                  {list.ids.map((id, i) => (
+                    <li key={id}>
+                      <MaybeLink
+                        to={recordPath('yarns', yarns, id)}
+                        className={`flex items-center gap-1.5 ${
+                          list.plainAfter !== undefined && i >= list.plainAfter ? 'text-muted' : ''
+                        }`}
+                      >
+                        <Swatch hex={yarns.get(id)?.hex ?? ''} pattern={yarns.get(id)?.pattern} size={14} />
+                        {yarnLabel(yarnSchema, yarns.get(id), id)}
+                      </MaybeLink>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
+
 function Stat({
   label,
   value,
@@ -746,12 +840,13 @@ function Stat({
 
 /** Collapsed by default — these are the biggest cards on the page, and the summary (a line, a chip
  * row, or "By status"'s stacked bar) is usually all a glance needs. */
-const INITIAL_COLLAPSED = { overTime: true, byStatus: true, byMainColour: true, byColour: true, byDesign: true, bySource: true }
+const INITIAL_COLLAPSED = { overTime: true, byStatus: true, byMainColour: true, byColour: true, byDesign: true, bySource: true, stash: true }
 
 export function StatsPage() {
   const squares = useTable('squares')
   const schema = useTableSchema('squares')
   const yarns = useLookup('yarns')
+  const yarnTable = useTable('yarns')
   const yarnSchema = useTableSchema('yarns')
   const designs = useLookup('designs')
   const sources = useLookup('sources')
@@ -907,6 +1002,8 @@ export function StatsPage() {
     }
   }, [squares, schema, project, resolve, yarns, yarnSchema, designs, sources])
 
+  const stash = useMemo(() => (yarnTable && squares ? stashStats(yarnTable, squares) : null), [yarnTable, squares])
+
   if (!stats || !schema) return <Spinner />
 
   const goal = project.targetSquares
@@ -1059,6 +1156,16 @@ export function StatsPage() {
         onToggle={() => toggle('byColour')}
         renderCollapsed={collapsedColourChips}
       />
+
+      {stash ? (
+        <StashCard
+          stash={stash}
+          yarns={yarns}
+          yarnSchema={yarnSchema}
+          collapsed={collapsed.stash}
+          onToggle={() => toggle('stash')}
+        />
+      ) : null}
 
       <ColourCountCard
         title="Colour count × construction"

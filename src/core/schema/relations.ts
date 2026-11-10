@@ -57,6 +57,59 @@ export function isYarnActive(yarnRow: CsvRow, usage: YarnUsage | undefined): boo
   return Boolean(usage && usage.main + usage.extra > 0)
 }
 
+/** The yarn table read as a stash: what is on hand, and which records want attention. */
+export interface StashStats {
+  /** Yarns on file. */
+  yarns: number
+  /** Whole skeins on hand, summed over every yarn. */
+  skeins: number
+  /** Yarns with at least one whole skein on hand. */
+  inStock: number
+  /** Yarns with a started skein, which `skeins` does not count. */
+  started: number
+  /** Yarns flagged `is_too_low`. */
+  tooLow: string[]
+  /** Yarns no square uses as main or extra colour: the first `unusedOnHand` of them have yarn on
+   * hand, and the rest are records with nothing behind them either way. */
+  unused: string[]
+  unusedOnHand: number
+  /** Yarns with no colour recorded, so every swatch of them is drawn blank. */
+  noColour: string[]
+}
+
+/**
+ * Totals and to-do lists for the stash. Read time, not materialised, like everything else in this
+ * module: "never used" is a fact about `squares`, and a count stored on `yarns` would be wrong the
+ * moment a square's colours changed.
+ *
+ * The lists carry ids, not counts, so a screen can link each one to its record - a number that says
+ * 73 yarns have no colour is only useful if it also says which.
+ */
+export function stashStats(yarns: CsvTable, squares: CsvTable): StashStats {
+  const usage = yarnUsageCounts(squares)
+  const stats: StashStats = { yarns: yarns.rows.length, skeins: 0, inStock: 0, started: 0, tooLow: [], unused: [], unusedOnHand: 0, noColour: [] }
+  const unusedOnHand: string[] = []
+  const unusedOther: string[] = []
+  for (const row of yarns.rows) {
+    const id = row.id ?? ''
+    // A hand-typed negative or non-number counts as nothing on hand, as it does on the Yarns list.
+    const skeins = Math.max(0, Number(row.skeins) || 0)
+    const partial = parseBool(row.partial_skein ?? '')
+    stats.skeins += skeins
+    if (skeins > 0) stats.inStock += 1
+    if (partial) stats.started += 1
+    if (parseBool(row.is_too_low ?? '')) stats.tooLow.push(id)
+    if ((row.hex ?? '').trim() === '') stats.noColour.push(id)
+    const used = usage.get(id)
+    if (!used || used.main + used.extra === 0) (skeins > 0 || partial ? unusedOnHand : unusedOther).push(id)
+  }
+  // Fractions of a skein are allowed, and summing them in binary leaves 0.30000000000000004s behind.
+  stats.skeins = Math.round(stats.skeins * 1000) / 1000
+  stats.unused = [...unusedOnHand, ...unusedOther]
+  stats.unusedOnHand = unusedOnHand.length
+  return stats
+}
+
 /** One set of colours that has been worked together, and the squares that use it. */
 export interface ColourCombination {
   /** The square's main colour. Blank when the square has none on file. */

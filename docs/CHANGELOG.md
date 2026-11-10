@@ -4,6 +4,18 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.60, stash statistics on Progress
+
+**App**
+- New **Stash** card on the Progress screen, under "By colour". It always shows four numbers: whole
+  skeins left (with how many yarns they are spread across, and how many more have a started skein),
+  yarns flagged too low, yarns never used in a square, and yarns with no colour recorded.
+- **Show yarns** expands the card to name the yarns behind each count, each one a link to its
+  record. "Never used" lists the ones with yarn on hand first - bought and not yet worked - and the
+  rest, which are records with nothing on hand either, after them in grey.
+- The counts are computed from the Yarns and Squares tables each time (`stashStats` in
+  `core/schema/relations.ts`), like the usage counts on the Yarns list. Nothing new is stored.
+
 ## 2026-11-10 - v0.1.59, a target date and the pace it takes
 
 **App**

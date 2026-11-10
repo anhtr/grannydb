@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { designCombinations, designSquareCounts, identicalSquares, isYarnActive, referencesTo, squareYarnIds, yarnCombinations, yarnUsageCounts } from '../schema/relations'
+import { designCombinations, designSquareCounts, identicalSquares, isYarnActive, referencesTo, squareYarnIds, stashStats, yarnCombinations, yarnUsageCounts } from '../schema/relations'
 import type { CsvTable } from '../csv'
 import type { SchemaSet } from '../schema'
 
@@ -47,6 +47,52 @@ describe('yarnUsageCounts', () => {
   it('ignores blank main_yarn and extra_yarns cells', () => {
     const counts = yarnUsageCounts(squares)
     expect([...counts.keys()]).not.toContain('')
+  })
+})
+
+describe('stashStats', () => {
+  const yarns: CsvTable = {
+    columns: ['id', 'hex', 'skeins', 'partial_skein', 'is_too_low'],
+    rows: [
+      { id: 'Y1', hex: '#ffffff', skeins: '2', partial_skein: 'yes', is_too_low: 'no' },
+      { id: 'Y2', hex: '', skeins: '0', partial_skein: 'no', is_too_low: 'yes' },
+      { id: 'Y3', hex: '#000000', skeins: '0.1', partial_skein: 'no', is_too_low: 'no' },
+      { id: 'Y4', hex: ' ', skeins: '', partial_skein: 'no', is_too_low: 'no' },
+      { id: 'Y5', hex: '#123456;#abcdef', skeins: '0.2', partial_skein: 'no', is_too_low: 'no' },
+      { id: 'Y6', hex: '#111111', skeins: '-3', partial_skein: 'yes', is_too_low: '' },
+      { id: 'Y7', hex: '#222222', skeins: 'lots', partial_skein: 'no', is_too_low: 'no' },
+    ],
+  }
+
+  it('adds up what is on hand, counting a started skein apart from the whole ones', () => {
+    // 2 + 0.1 + 0.2, and not 2.3000000000000003. The negative and the non-number count as none.
+    expect(stashStats(yarns, squares)).toMatchObject({ yarns: 7, skeins: 2.3, inStock: 3, started: 2 })
+  })
+
+  it('lists the yarns flagged too low and those with no colour recorded', () => {
+    const stats = stashStats(yarns, squares)
+    expect(stats.tooLow).toEqual(['Y2'])
+    expect(stats.noColour).toEqual(['Y2', 'Y4'])
+  })
+
+  it('lists the yarns no square uses, those with yarn on hand first', () => {
+    // Y1 to Y3 are used by the squares above. Y5 has a part skein and Y6 a started one.
+    const stats = stashStats(yarns, squares)
+    expect(stats.unused).toEqual(['Y5', 'Y6', 'Y4', 'Y7'])
+    expect(stats.unusedOnHand).toBe(2)
+  })
+
+  it('is all zeroes for an empty stash', () => {
+    expect(stashStats({ columns: ['id'], rows: [] }, squares)).toEqual({
+      yarns: 0,
+      skeins: 0,
+      inStock: 0,
+      started: 0,
+      tooLow: [],
+      unused: [],
+      unusedOnHand: 0,
+      noColour: [],
+    })
   })
 })
 

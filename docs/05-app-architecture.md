@@ -239,6 +239,10 @@ Three components in `ui/` serve every table:
   share a design, main colour and set of extras, using the same notion of "same combination" as the
   yarn and design detail views. Like the gap cards, it only renders when there is something to
   list, so a page with no duplicates stays quiet.
+  `stashStats` backs the "Stash" card, the one card here about `yarns` rather than `squares`: whole
+  skeins on hand, and the yarns flagged too low, used by no square, or with no colour recorded. It
+  returns ids rather than counts, so the expanded card can link each yarn to its record. "Never
+  used" is a join against `squares`, which is why it is computed here and not stored on the yarn.
   The "Over time" card ([`features/stats/OverTimeCard.tsx`](../src/features/stats/OverTimeCard.tsx))
   draws `squaresOverTime` from [`core/timeline.ts`](../src/core/timeline.ts): squares per week with a
   4-week moving average when collapsed; expanded, also the average per weekday (with this week's and
