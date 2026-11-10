@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseCsv } from '../csv'
 import { buildSchemaSet, SchemaError } from '../schema/load'
-import { validateDataset, validateValue } from '../schema/validate'
+import { stepCount, validateDataset, validateValue } from '../schema/validate'
 import type { FieldDef } from '../schema'
 
 function field(partial: Partial<FieldDef> & Pick<FieldDef, 'key' | 'type'>): FieldDef {
@@ -60,6 +60,29 @@ describe('validateValue', () => {
   })
 })
 
+describe('stepCount', () => {
+  it('moves a count by one either way', () => {
+    expect(stepCount('2', 1)).toBe('3')
+    expect(stepCount('2', -1)).toBe('1')
+  })
+
+  it('treats a blank cell as zero and never goes below it', () => {
+    expect(stepCount('', 1)).toBe('1')
+    expect(stepCount('', -1)).toBe('0')
+    expect(stepCount('0', -1)).toBe('0')
+    expect(stepCount('0.5', -1)).toBe('0')
+  })
+
+  it('keeps a fraction without float noise', () => {
+    expect(stepCount('2.5', -1)).toBe('1.5')
+    expect(stepCount('0.1', 0.2)).toBe('0.3')
+  })
+
+  it('leaves a cell that is not a number alone', () => {
+    expect(stepCount('two', 1)).toBe('two')
+  })
+})
+
 describe('buildSchemaSet', () => {
   const yarns = {
     table: 'yarns',
@@ -112,6 +135,13 @@ describe('buildSchemaSet', () => {
     const field = set.tables.yarns.fields.find((f) => f.key === 'x')
     expect(field?.searchFields).toEqual(['name'])
     expect(field?.sortable).toBe(true)
+  })
+
+  it('parses stepper on a field, off unless asked for', () => {
+    const withCount = { ...yarns, fields: [...yarns.fields, { key: 'skeins', label: 'Skeins', type: 'number', stepper: true }] }
+    const set = buildSchemaSet({ tables: ['yarns'] }, { yarns: withCount })
+    expect(set.tables.yarns.fields.find((f) => f.key === 'skeins')?.stepper).toBe(true)
+    expect(set.tables.yarns.fields.find((f) => f.key === 'name')?.stepper).toBe(false)
   })
 
   it('accepts a defaultSort naming a sortable field', () => {

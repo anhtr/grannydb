@@ -38,6 +38,13 @@ export interface FieldDef {
   /** `date` only: prefill today's date on new records. */
   defaultToday?: boolean
   /**
+   * `number` only: the value is a running count, moved by one far more often than it is retyped -
+   * skeins left. The form puts a - and a + either side of the box, and the record page gets the same
+   * pair with each tap saved at once, so using up a skein is one tap on the yarn's page and not a
+   * trip through the form. See `stepCount`.
+   */
+  stepper?: boolean
+  /**
    * `ref` only: offer a "+ New <thing>" affordance that creates a row in `refTable` (setting only
    * its title field) without leaving the current form. For a target table where most rows are
    * one-offs — a design used by exactly one square — a separate create screen is pure friction.

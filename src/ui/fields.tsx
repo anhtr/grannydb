@@ -11,6 +11,7 @@ import {
   refDisplayLabel,
   searchText,
   splitList,
+  stepCount,
   titleFor,
   validateValue,
   changeStatus,
@@ -691,6 +692,51 @@ function textInput(type: string, inputMode?: string): FieldRenderer['Input'] {
   )
 }
 
+/**
+ * A number, and for a `stepper` field a - and a + either side of it. The box stays a text input
+ * that can be typed into - the buttons are a shortcut for the common "one more, one fewer", not a
+ * replacement - so a count that jumps by twenty after a yarn order is still one edit.
+ */
+function NumberInput({ field, value, onChange, id }: FieldInputProps) {
+  const box = (className: string) => (
+    <input
+      id={id}
+      type="text"
+      inputMode="decimal"
+      className={className}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  )
+  if (!field.stepper) return box(inputClass)
+  const label = field.label.toLowerCase()
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="secondary"
+        className="shrink-0 px-4"
+        disabled={stepCount(value, -1) === value}
+        onClick={() => onChange(stepCount(value, -1))}
+        aria-label={`Decrease ${label}`}
+      >
+        −
+      </Button>
+      {box(`${inputClass} min-w-0 flex-1 text-center`)}
+      <Button
+        type="button"
+        variant="secondary"
+        className="shrink-0 px-4"
+        disabled={stepCount(value, 1) === value}
+        onClick={() => onChange(stepCount(value, 1))}
+        aria-label={`Increase ${label}`}
+      >
+        +
+      </Button>
+    </div>
+  )
+}
+
 const URL_IN_TEXT = /(https?:\/\/[^\s]+[^\s.,;:!?)\]'"])/g
 
 /**
@@ -750,7 +796,7 @@ export const fieldRenderers: Record<FieldType, FieldRenderer> = {
     Display: plainDisplay,
   },
 
-  number: { Input: textInput('text', 'decimal'), Display: plainDisplay },
+  number: { Input: NumberInput, Display: plainDisplay },
 
   date: {
     Input: textInput('date'),

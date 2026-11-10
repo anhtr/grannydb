@@ -34,6 +34,20 @@ export function formatBool(value: boolean): string {
 }
 
 /**
+ * A count moved by `delta`, as the cell text to store - what the buttons on a `stepper` field do.
+ * Blank counts as 0, and the result never drops below 0: the buttons are for counting things on a
+ * shelf, and typing is still there for any number they cannot reach. A cell that is not a number
+ * comes back unchanged, which callers read as "nothing to step" and the form reports as an error.
+ */
+export function stepCount(value: string, delta: number): string {
+  const v = value.trim()
+  const n = v === '' ? 0 : Number(v)
+  if (!Number.isFinite(n)) return value
+  // Rounded to keep float noise out of the CSV without assuming the count is whole: 2.5 - 1 is 1.5.
+  return String(Math.max(0, Math.round((n + delta) * 1000) / 1000))
+}
+
+/**
  * Validate one field value. Returns a message, or null when fine.
  *
  * `refIds` is the set of ids that exist in the referenced table; pass undefined to skip referential

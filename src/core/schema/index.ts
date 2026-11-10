@@ -14,6 +14,7 @@ export {
   joinList,
   parseBool,
   formatBool,
+  stepCount,
 } from './validate'
 export type { RefLookup, ResolveRef } from './search'
 export {

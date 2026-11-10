@@ -112,7 +112,7 @@ can't be trusted for.
 | `product_id` | text | Manufacturer's shade or product code, kept separate so it can drive a reorder link later without overloading a free-text field |
 | `hex` | colorlist | Drives every colour swatch in the app, which is what makes a list of 400 squares scannable on a phone. Usually one hex value; more than one (`;`-joined) is a variegated colourway |
 | `pattern` | enum | `solid` / `print` / `speckled`, optional. How `hex`'s colours are drawn — blank means "solid" for one colour or "print" (stripes) for more than one. See [ADR 0024](adr/0024-speckled-yarn-pattern.md) |
-| `skeins` | number | |
+| `skeins` | number | Whole skeins on hand. A `stepper` field (see Field types): − and + on the yarn's page and in the form |
 | `partial_skein` | bool | At least one skein on hand has been started |
 | `is_too_low` | bool | Too little left to count on as main for another pair of squares. Shown as `∅` after the skein count (and after `◖`) on the Yarns list. Does not affect whether a yarn is "active" — a low yarn is still in stash |
 | `notes` | textarea | |
@@ -321,6 +321,16 @@ sets `["source", "construction_type"]` on `design_id`, so a square's page shows 
 construction the design uses without a tap through to the design itself. Resolved through
 `refDisplayLabel`, the same label a filter dropdown or sort would show — a nested `ref` (a design's
 `source`) reads as the source's name, not its row id.
+
+A `number` field can set `"stepper": true` to say that it is a **running count**, moved by one far
+more often than it is retyped. `yarns.skeins` is the case: a skein gets used up, or one more turns
+up at the bottom of a bag. The form then puts a − and a + either side of the box (which can still be
+typed into), and the record page shows the same pair next to the value, where each tap is saved at
+once as an ordinary one-field edit - the only place a record page writes without opening the form.
+The arithmetic is `stepCount` in `core/schema/validate.ts`: blank counts as 0 and the buttons never
+go below 0. It is a flag and not the behaviour of every `number` because a one-tap write is only
+safe on a field where "one more" is a meaningful thing to say; a weight or a row count would get it
+by accident.
 
 Three more knobs live on the *table*, not a field:
 

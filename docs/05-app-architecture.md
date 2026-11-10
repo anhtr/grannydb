@@ -279,7 +279,9 @@ Three components in `ui/` serve every table:
   [`ui/dialog.ts`](../src/ui/dialog.ts).
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional
   `extra` slot for computed sections (see `TABLE_DETAIL_EXTRAS` above), edit and delete, a link to
-  the underlying CSV on github.com. Above the fields, **Previous · n of N · Next** steps through the
+  the underlying CSV on github.com. A `number` field marked `"stepper": true` (a yarn's skeins) is
+  the exception to "via its `Display`": with a token saved it is shown between a − and a + that save
+  on each tap (`CountStepper`), see [02](02-data-model.md#field-types). Above the fields, **Previous · n of N · Next** steps through the
   list in the order it was last shown: `RecordList` leaves its row order in
   [`ui/listOrder.ts`](../src/ui/listOrder.ts) and the record page reads it back, rather than
   re-running a filter-and-sort pipeline whose inputs only the list has. It falls back to id order

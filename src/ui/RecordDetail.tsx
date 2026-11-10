@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { IncomingReference } from '../core/schema'
+import type { FieldDef, IncomingReference } from '../core/schema'
 import type { ReactNode } from 'react'
 import { appStore } from '../core/store'
 import { fileUrl } from '../core/github'
-import { effectiveValue, fieldByKey, referencesTo, titleFor } from '../core/schema'
+import { effectiveValue, fieldByKey, referencesTo, stepCount, titleFor } from '../core/schema'
 import { useAppState, useCanEdit, useResolveRef, useRow, useTable, useTableSchema } from '../app/hooks'
 import { navigate as routerNavigate, useNavigate } from '../app/router'
 import { Button, Card, ErrorNote, Link, Spinner } from './components'
@@ -16,6 +16,50 @@ import { notify } from './toast'
  * yarn's colour combinations, which are not schema fields and so have no `Display` to render them.
  * It is passed in by the caller rather than looked up here, so `ui/` never imports from `features/`.
  */
+/**
+ * A `stepper` number on the record page: the value with a - and a + beside it, each tap saved
+ * straight away as an ordinary one-field edit. This is the one place a record page writes without
+ * going through the form, and it is deliberate - "used a skein" happens with a hook in the other
+ * hand, and Edit, find the box, retype, Save is four steps too many for it.
+ *
+ * No confirmation and no Undo message: the number changes where the finger is, and the opposite
+ * button is the undo. Taps are ignored while one is being saved, so a double tap cannot read the
+ * same starting value twice and count once.
+ */
+function CountStepper({ table, id, field, value }: { table: string; id: string; field: FieldDef; value: string }) {
+  const [busy, setBusy] = useState(false)
+  const step = async (delta: number) => {
+    const next = stepCount(value, delta)
+    if (busy || next === value) return
+    setBusy(true)
+    try {
+      await appStore.save(table, id, { [field.key]: next })
+    } finally {
+      setBusy(false)
+    }
+  }
+  const label = field.label.toLowerCase()
+  return (
+    // The negative margin gives back the height two 44px buttons would add to this one row.
+    <span className="-my-2 flex items-center gap-3">
+      <Button
+        className="px-4"
+        disabled={stepCount(value, -1) === value}
+        onClick={() => void step(-1)}
+        aria-label={`Decrease ${label}`}
+      >
+        −
+      </Button>
+      <span className="min-w-6 text-center tabular-nums" aria-live="polite">
+        {value === '' ? '-' : value}
+      </span>
+      <Button className="px-4" disabled={stepCount(value, 1) === value} onClick={() => void step(1)} aria-label={`Increase ${label}`}>
+        +
+      </Button>
+    </span>
+  )
+}
+
 export function RecordDetail({ table, id, extra }: { table: string; id: string; extra?: ReactNode }) {
   const state = useAppState()
   const schema = useTableSchema(table)
@@ -98,7 +142,11 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
             <div key={field.key} className="flex gap-4 px-4 py-3">
               <span className="w-32 shrink-0 text-sm text-muted">{field.label}</span>
               <span className="min-w-0 flex-1">
-                <Display field={field} value={value} row={row} schema={schema} />
+                {canEdit && field.type === 'number' && field.stepper ? (
+                  <CountStepper table={table} id={id} field={field} value={value} />
+                ) : (
+                  <Display field={field} value={value} row={row} schema={schema} />
+                )}
                 {inherited ? (
                   <span className="ml-2 text-xs text-muted">
                     (from {viaField ? viaField.label.toLowerCase() : 'related record'})

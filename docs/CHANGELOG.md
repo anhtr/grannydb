@@ -4,6 +4,19 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.55, skeins go up and down with one tap
+
+**App**
+- A yarn's page now shows **Skeins left** between a − and a + (with a token saved). Each tap is
+  saved straight away, so using up a skein no longer means Edit, find the box, retype, Save. The
+  count never goes below 0, and the other button undoes a slip.
+- The yarn form has the same two buttons either side of the Skeins box. The box can still be typed
+  into, for a count that changes by more than one or two.
+
+**Data**
+- New optional field flag, `"stepper": true`, for a `number` that is a running count; set on
+  `yarns.skeins`. No change to the CSV. A `number` without the flag behaves as before.
+
 ## 2026-11-10 - v0.1.54, select rows in a list and change them together
 
 **App**

@@ -48,6 +48,7 @@ function parseField(raw: unknown, where: string): FieldDef {
     refTable: typeof o.refTable === 'string' ? o.refTable : undefined,
     separator: typeof o.separator === 'string' ? o.separator : undefined,
     defaultToday: o.defaultToday === true,
+    stepper: o.stepper === true,
     quickCreate: o.quickCreate === true,
     searchFields: Array.isArray(o.searchFields) ? (o.searchFields as string[]) : undefined,
     sortable: o.sortable === true,
