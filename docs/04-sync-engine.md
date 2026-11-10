@@ -206,6 +206,22 @@ editing a square five times before syncing leaves one operation rather than five
 
 Pinned by tests in [`queue.test.ts`](../src/core/__tests__/queue.test.ts).
 
+### Taking a delete back
+
+The second rule has a cost: once a delete is queued, the edits it superseded are gone from the
+queue. So the Undo offered when a record is deleted cannot simply discard the delete. Instead
+`appStore.remove` returns a `DeleteReceipt` - the delete's id and the operation it superseded, if
+any - and `appStore.undoRemove` hands it to `withdrawDelete`, which removes the delete and puts the
+superseded operation back with its original timestamp. The result is the queue from before the
+delete.
+
+This is an edit to a log of things that *have not happened yet*; nothing already in the repo is
+rewritten. Which is also its limit: once the delete has been pushed, or while a push that may be
+carrying it is in flight, `undoRemove` returns false and the app says the delete can no longer be
+undone. The alternative, a compensating upsert that writes the row back, would work after a push but
+would be a whole-row write - see
+[ADR 0040](adr/0040-undo-a-delete-by-withdrawing-it-from-the-queue.md).
+
 ## Failure modes
 
 | What happens | Behaviour |

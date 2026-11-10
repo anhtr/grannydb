@@ -7,6 +7,7 @@ import { useAppState, useRefIds, useResolveRef, useRow, useTableSchema, useToday
 import { goBack, setLeaveGuard, useNavigate } from '../app/router'
 import { Button, ErrorNote, FieldShell, Spinner } from './components'
 import { DraftReporterContext, rendererFor } from './fields'
+import { notify } from './toast'
 
 function initialValues(schema: TableSchema, row: CsvRow | null, newId: string, todayDate: string): CsvRow {
   const values: CsvRow = {}
@@ -158,10 +159,13 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
     }
 
     setSaving(true)
+    // Save on an untouched form queues nothing, so it should not claim to have saved anything.
+    const changed = !existing || unsaved.current
     try {
       // A new record is written whole, defaults included; an existing one only where it was edited.
       await appStore.save(table, recordId, existing ? (edits ?? {}) : current)
       unsaved.current = false
+      if (changed) notify(`${existing ? 'Saved' : 'Added'} ${schema.labelSingular.toLowerCase()} ${recordId}`)
       navigate(`/${table}/${recordId}`, { replace: true })
     } finally {
       setSaving(false)

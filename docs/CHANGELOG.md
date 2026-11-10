@@ -4,6 +4,27 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.53, confirmation after save, delete and sync, with undo for delete
+
+**App**
+- Saving a record, deleting one and saving the project settings now each end in a short message at
+  the bottom of the screen ("Saved square S212", "Deleted yarn 92 (Lagoon)"). Until now the only
+  sign that any of them had worked was the screen changing. The message goes away by itself after
+  four seconds, waits while a pointer or keyboard focus is on it, and is announced by a screen
+  reader. Saving a form with nothing changed says nothing, because nothing was saved.
+- The message after a **delete** has an **Undo** button, on screen for eight seconds. It puts the
+  record back exactly as it was, including edits that were waiting to sync. Once the delete has been
+  synced it can no longer be undone from the app, and Undo says so rather than failing silently.
+
+**Sync**
+- Every sync that finishes says so ("Synced 3 changes"), including the automatic ones, which until
+  now were visible only as a number disappearing from the header. A sync that fails for a reason
+  waiting will not fix says "Sync failed - see Pending changes"; one that merely could not reach
+  GitHub stays quiet and retries, as before.
+- Undoing a delete withdraws the delete from the queue and restores the pending change it had
+  replaced, instead of queuing a second change that writes the row back. Why:
+  [ADR 0040](adr/0040-undo-a-delete-by-withdrawing-it-from-the-queue.md).
+
 ## 2026-11-10 - v0.1.52, progress tallies open the squares they count
 
 **App**

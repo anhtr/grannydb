@@ -16,6 +16,7 @@ import { StatsPage } from '../features/stats/StatsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { SyncPage } from '../features/sync/SyncPage'
 import { relativeTime } from '../ui/time'
+import { Toaster } from '../ui/Toaster'
 import { useAppState } from './hooks'
 import { matchRoute, useRoute } from './router'
 import { applyUpdate, registerServiceWorker } from './serviceWorker'
@@ -80,6 +81,7 @@ export function App() {
       {state.phase === 'loading' && state.snapshot ? (
         <div className="pointer-events-none fixed inset-x-0 top-0 h-0.5 animate-pulse bg-accent" />
       ) : null}
+      <Toaster />
     </div>
   )
 }

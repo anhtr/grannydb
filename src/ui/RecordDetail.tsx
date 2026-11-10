@@ -3,12 +3,13 @@ import type { IncomingReference } from '../core/schema'
 import type { ReactNode } from 'react'
 import { appStore } from '../core/store'
 import { fileUrl } from '../core/github'
-import { effectiveValue, fieldByKey, referencesTo } from '../core/schema'
+import { effectiveValue, fieldByKey, referencesTo, titleFor } from '../core/schema'
 import { useAppState, useCanEdit, useResolveRef, useRow, useTable, useTableSchema } from '../app/hooks'
 import { navigate as routerNavigate, useNavigate } from '../app/router'
 import { Button, Card, ErrorNote, Link, Spinner } from './components'
 import { rendererFor } from './fields'
 import { neighbours, recordOrder } from './listOrder'
+import { notify } from './toast'
 
 /**
  * `extra` is a slot for read-only sections a table wants under its fields — computed views such as a
@@ -50,8 +51,21 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
   }
 
   const onDelete = async () => {
-    await appStore.remove(table, id)
+    // Read before the delete: afterwards there is no row to take a name from.
+    const noun = schema.labelSingular.toLowerCase()
+    const name = titleFor(schema, row) || id
+    const receipt = await appStore.remove(table, id)
     navigate(`/${table}`, { replace: true })
+    notify(`Deleted ${noun} ${name}`, {
+      action: {
+        label: 'Undo',
+        run: async () => {
+          const undone = await appStore.undoRemove(receipt)
+          if (undone) notify(`Restored ${noun} ${name}`)
+          else notify(`Too late to undo - the delete of ${name} has been synced`, { tone: 'warn' })
+        },
+      },
+    })
   }
 
   return (

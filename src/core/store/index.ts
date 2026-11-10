@@ -1,4 +1,4 @@
-export type { Change, RowChange, DocChange } from './queue'
+export type { Change, RowChange, DocChange, DeleteReceipt } from './queue'
 export {
   loadQueue,
   saveQueue,
@@ -6,6 +6,8 @@ export {
   appendChange,
   upsertChange,
   deleteChange,
+  queueDelete,
+  withdrawDelete,
   projectChange,
   isRowChange,
   pendingRowIds,

@@ -23,10 +23,12 @@ import {
   isQueueDurable,
   loadQueue,
   projectChange,
+  queueDelete,
   saveQueue,
   upsertChange,
+  withdrawDelete,
 } from './queue'
-import type { Change } from './queue'
+import type { Change, DeleteReceipt } from './queue'
 import { clearSnapshot, loadSnapshot, saveSnapshot } from './snapshotCache'
 import { renumberChanges } from './renumber'
 import { lastSyncFrom, loadLastSync, saveLastSync, syncChanges } from './sync'
@@ -348,12 +350,32 @@ class AppStore {
     await this.enqueue(projectChange(diff))
   }
 
-  async remove(table: string, id: string): Promise<void> {
-    await this.enqueue(deleteChange(table, id))
+  /** Queue a delete. The receipt is what `undoRemove` needs to take it back. */
+  async remove(table: string, id: string): Promise<DeleteReceipt> {
+    const { changes, receipt } = queueDelete(this.state.changes, deleteChange(table, id))
+    await this.replaceQueue(changes)
+    return receipt
+  }
+
+  /**
+   * Take a queued delete back, restoring any pending edits it had superseded. False when that is no
+   * longer possible: the delete has already been pushed, or a push is in flight and may be carrying
+   * it - withdrawing it then would leave the restored edits to replay against a row the repo has
+   * just lost. See ADR 0040.
+   */
+  async undoRemove(receipt: DeleteReceipt): Promise<boolean> {
+    if (this.state.syncing) return false
+    const changes = withdrawDelete(this.state.changes, receipt)
+    if (!changes) return false
+    await this.replaceQueue(changes)
+    return true
   }
 
   private async enqueue(change: Change): Promise<void> {
-    const changes = appendChange(this.state.changes, change)
+    await this.replaceQueue(appendChange(this.state.changes, change))
+  }
+
+  private async replaceQueue(changes: Change[]): Promise<void> {
     await saveQueue(changes)
     this.set({ changes, queueDurable: isQueueDurable() })
     this.protectStorage()

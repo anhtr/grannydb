@@ -150,6 +150,42 @@ export function appendChange(changes: readonly Change[], change: Change): Change
   return next
 }
 
+/**
+ * What queuing a delete hands back so that it can be taken back: the delete itself, and the pending
+ * operation it superseded, which `appendChange` has by then dropped from the queue. See ADR 0040.
+ */
+export interface DeleteReceipt {
+  changeId: string
+  superseded: { change: RowChange; index: number } | null
+}
+
+/** `appendChange` for a delete, keeping hold of what it replaces. */
+export function queueDelete(
+  changes: readonly Change[],
+  change: RowChange,
+): { changes: Change[]; receipt: DeleteReceipt } {
+  // The same "last operation for that row" `appendChange` is about to drop.
+  const index = changes.findLastIndex((c) => isRowChange(c) && c.table === change.table && c.rowId === change.rowId)
+  const superseded = index === -1 ? null : { change: changes[index] as RowChange, index }
+  return { changes: appendChange(changes, change), receipt: { changeId: change.id, superseded } }
+}
+
+/**
+ * The queue with a delete taken back out and whatever it superseded put back where it was - the
+ * queue as it stood before the delete. Null when the delete is no longer in the queue (it has been
+ * synced, or discarded), which is the caller's cue to say that it cannot be undone.
+ *
+ * The superseded operation returns with its original timestamp, and replay is in timestamp order, so
+ * it lands exactly where it always would have relative to everything else.
+ */
+export function withdrawDelete(changes: readonly Change[], receipt: DeleteReceipt): Change[] | null {
+  const at = changes.findIndex((c) => c.id === receipt.changeId)
+  if (at === -1) return null
+  const next = [...changes.slice(0, at), ...changes.slice(at + 1)]
+  if (receipt.superseded) next.splice(Math.min(receipt.superseded.index, next.length), 0, receipt.superseded.change)
+  return next
+}
+
 export function upsertChange(table: string, rowId: string, values: CsvRow, create = false): RowChange {
   return { id: newChangeId(), ts: Date.now(), table, op: 'upsert', rowId, values, ...(create ? { create: true } : {}) }
 }

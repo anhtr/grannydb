@@ -337,6 +337,16 @@ Used mostly one-handed, on a phone, sometimes standing up:
   passed alongside would be a state the panel could not show. The cost is that it replaces the
   filters the list had. A tally only links when every field it filters on is `"filter": true` in the
   schema.
+- **Say that it worked.** Saving a record, deleting one, saving the project settings and every
+  sync end in a one-line message above the bottom bars (`notify` in
+  [`ui/toast.ts`](../src/ui/toast.ts), drawn by [`ui/Toaster.tsx`](../src/ui/Toaster.tsx)). It sits
+  in a live region that is always in the document, so a screen reader announces it. One message at a
+  time, the newest replacing the last: a stack would cover the list on a phone, at the cost of losing
+  an Undo when a second message arrives on top of it. The message store is module-level and outside
+  `appStore` because it is not application state - nothing saves it or reads it back. Sync messages
+  are derived by comparing consecutive store states (`syncMessage`) rather than sent by the store,
+  since `core/` cannot import `ui/` and most syncs are started by a timer, not a button. A delete's
+  message carries **Undo** - see [04](04-sync-engine.md#taking-a-delete-back).
 - **No hover-dependent affordances.**
 - **Dark mode** via `prefers-color-scheme`, both palettes defined explicitly in
   [`styles.css`](../src/styles.css).

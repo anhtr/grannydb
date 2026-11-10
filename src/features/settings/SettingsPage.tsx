@@ -9,6 +9,7 @@ import { useAppState, useCanEdit, useProject } from '../../app/hooks'
 import { promptInstall } from '../../app/install'
 import { Button, Card, Link, inputClass } from '../../ui/components'
 import { relativeTime } from '../../ui/time'
+import { notify } from '../../ui/toast'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -137,11 +138,13 @@ function ProjectSection({ project }: { project: ProjectInfo }) {
             variant="primary"
             disabled={!dirty || target === undefined}
             onClick={() =>
-              void appStore.saveProject({
-                [PROJECT_KEYS.startDate]: startDate === '' ? null : startDate,
-                [PROJECT_KEYS.targetSquares]: target ?? null,
-                [PROJECT_KEYS.timeZone]: timeZone === '' ? null : timeZone,
-              })
+              void appStore
+                .saveProject({
+                  [PROJECT_KEYS.startDate]: startDate === '' ? null : startDate,
+                  [PROJECT_KEYS.targetSquares]: target ?? null,
+                  [PROJECT_KEYS.timeZone]: timeZone === '' ? null : timeZone,
+                })
+                .then(() => notify('Saved project settings'))
             }
           >
             Save

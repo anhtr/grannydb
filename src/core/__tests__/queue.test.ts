@@ -3,7 +3,7 @@ import { parseCsv, serializeCsv } from '../csv'
 import { buildSchemaSet } from '../schema/load'
 import type { SchemaSet } from '../schema'
 import { applyChanges } from '../store/merge'
-import { appendChange, pendingRowIds, projectChange } from '../store/queue'
+import { appendChange, pendingRowIds, projectChange, queueDelete, withdrawDelete } from '../store/queue'
 import type { Change, RowChange } from '../store/queue'
 import { commitMessage } from '../store/message'
 
@@ -94,6 +94,46 @@ describe('appendChange', () => {
     queue = appendChange(queue, change({ table: 'squares', rowId: 'S001', op: 'delete', ts: 1 }))
     queue = appendChange(queue, change({ table: 'squares', rowId: 'S001', op: 'upsert', values: { notes: 'new' }, ts: 2 }))
     expect(queue.map((c) => c.op)).toEqual(['delete', 'upsert'])
+  })
+})
+
+describe('withdrawDelete', () => {
+  const other = change({ id: 'other', table: 'squares', rowId: 'S002', op: 'upsert', values: { notes: 'b' }, ts: 2 })
+
+  it('takes a delete back out of the queue', () => {
+    const { changes, receipt } = queueDelete([other], change({ id: 'del', table: 'squares', rowId: 'S001', op: 'delete', ts: 3 }))
+    expect(changes.map((c) => c.id)).toEqual(['other', 'del'])
+    expect(receipt.superseded).toBeNull()
+    expect(withdrawDelete(changes, receipt)).toEqual([other])
+  })
+
+  it('puts back the pending edit the delete superseded, where it was', () => {
+    const edit = change({ id: 'edit', table: 'squares', rowId: 'S001', op: 'upsert', values: { notes: 'a' }, ts: 1 })
+    const before = [edit, other]
+    const { changes, receipt } = queueDelete(before, change({ id: 'del', table: 'squares', rowId: 'S001', op: 'delete', ts: 3 }))
+    // The delete dropped the edit...
+    expect(changes.map((c) => c.id)).toEqual(['other', 'del'])
+    // ...and undoing it is the queue from before, edit and timestamp included.
+    expect(withdrawDelete(changes, receipt)).toEqual(before)
+  })
+
+  it('brings an unsynced new record back as a new record', () => {
+    const created = change({ id: 'new', table: 'squares', rowId: 'S003', op: 'upsert', values: { notes: 'n' }, create: true })
+    const { changes, receipt } = queueDelete([created], change({ id: 'del', table: 'squares', rowId: 'S003', op: 'delete' }))
+    expect(withdrawDelete(changes, receipt)).toEqual([created])
+  })
+
+  it('leaves alone changes queued after the delete', () => {
+    const { changes, receipt } = queueDelete([], change({ id: 'del', table: 'squares', rowId: 'S001', op: 'delete', ts: 1 }))
+    const later = appendChange(changes, other)
+    expect(withdrawDelete(later, receipt)).toEqual([other])
+  })
+
+  it('refuses once the delete has left the queue', () => {
+    const { receipt } = queueDelete([other], change({ id: 'del', table: 'squares', rowId: 'S001', op: 'delete' }))
+    // After a sync the queue no longer holds it.
+    expect(withdrawDelete([], receipt)).toBeNull()
+    expect(withdrawDelete([other], receipt)).toBeNull()
   })
 })
 
