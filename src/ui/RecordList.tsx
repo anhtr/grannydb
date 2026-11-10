@@ -16,6 +16,7 @@ import {
 } from '../core/schema'
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import type { ListPrefs, SortRule } from '../core/prefs'
+import { monthLabel } from '../core/date'
 import { appStore, pendingRowIds } from '../core/store'
 import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema, useToday } from '../app/hooks'
 import { Badge, BadgeStack, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
@@ -242,6 +243,57 @@ export function sortRows(rows: CsvRow[], schema: TableSchema, specs: SortSpec[],
   })
 }
 
+export interface RowGroup {
+  /** "Status: done", "Done: November 2026", "Design: blank". */
+  label: string
+  rows: CsvRow[]
+}
+
+/** Field types whose values repeat across rows, so that a run of them is worth a heading. */
+const GROUPABLE = new Set<FieldDef['type']>(['enum', 'ref', 'bool', 'number', 'date'])
+
+/**
+ * Splits rows that are *already sorted* into runs sharing the primary sort key's value, each with a
+ * heading - a **control break**, the report-writer's name for printing a subtotal line whenever the
+ * leading sort column changes. It costs one pass and no second ordering, because the sort has done
+ * the work: rows that belong together are already next to each other.
+ *
+ * Which is why "same group" is decided the way the sort decides "equal" (`compareIds` on the label
+ * the sort compared), not by comparing stored values: two designs that happen to share a name sort
+ * as one run, so they are headed as one run, and a heading can never repeat further down.
+ *
+ * Dates are the exception: sorted by day, grouped by month, since a heading per day is a heading per
+ * row. Returns null - meaning "show the list flat" - for a sort with nothing to group by (id, name, a
+ * computed count, free text) and whenever no run holds more than one row.
+ */
+export function groupRows(
+  rows: CsvRow[],
+  schema: TableSchema,
+  spec: SortSpec | undefined,
+  resolve: ResolveRef,
+): RowGroup[] | null {
+  const field = spec?.field
+  if (!field || spec.computed || !GROUPABLE.has(field.type)) return null
+
+  const textOf = (row: CsvRow): string => {
+    // A number is read the way the sort reads it: off the stored cell, blank counting as 0.
+    if (field.type === 'number') return String(Number(row[field.key]) || 0)
+    const value = sortValue(schema, field, row, resolve)
+    if (field.type === 'date') return /^\d{4}-\d{2}-\d{2}$/.test(value) ? monthLabel(value) : value
+    return refDisplayLabel(field, value, resolve)
+  }
+
+  const runs: { text: string; rows: CsvRow[] }[] = []
+  for (const row of rows) {
+    const text = textOf(row)
+    const last = runs[runs.length - 1]
+    if (last && compareIds(last.text, text) === 0) last.rows.push(row)
+    else runs.push({ text, rows: [row] })
+  }
+  if (runs.every((run) => run.rows.length === 1)) return null
+  return runs.map((run) => ({ label: `${field.label}: ${run.text === '' ? 'blank' : run.text}`, rows: run.rows }))
+}
+
 export interface RecordListProps {
   table: string
   /** Render one row. Defaults to a generic title/subtitle card. */
@@ -392,6 +444,13 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema, data, query, filters, filterDescriptors, sorts, sortOptions, computedSortOptions, resolve])
 
+  // `rows` is rebuilt whenever the sort rules change, so it stands in for them here.
+  const groups = useMemo(
+    () => (schema ? groupRows(rows, schema, sorts[0] ? specFor(sorts[0]) : undefined, resolve) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, schema, resolve],
+  )
+
   if (!schema || !data) return <Spinner />
 
   const chips = filterChips(filterDescriptors, filters)
@@ -405,6 +464,24 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
   const sortButtonTail =
     sorts.length === 0 ? '' : sorts.length === 1 ? (sorts[0].dir === 'asc' ? '↑' : '↓') : `+${sorts.length - 1}`
   const sortButtonText = `${sortButtonMain} ${sortButtonTail}`.trim()
+
+  const renderItem = (row: CsvRow) => {
+    const id = row[schema.idField] ?? ''
+    return (
+      <li key={id}>
+        <Link to={`/${table}/${id}`} className="block">
+          <Card className="p-2.5 transition hover:border-accent">
+            {renderRow ? renderRow(row, schema) : <DefaultRow row={row} schema={schema} resolve={resolve} />}
+            {pending.has(id) ? (
+              <div className="mt-1.5">
+                <Badge tone="warn">Unsynced</Badge>
+              </div>
+            ) : null}
+          </Card>
+        </Link>
+      </li>
+    )
+  }
 
   return (
     <div className="pb-32">
@@ -545,30 +622,22 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
             </Button>
           }
         />
+      ) : groups ? (
+        <div className="space-y-3 px-4">
+          {groups.map((group, i) => (
+            // Keyed by position as well as label: descending and ascending runs of the same value are
+            // different sections, and the label alone is only unique within one ordering.
+            <section key={`${i}:${group.label}`} aria-label={`${group.label}, ${group.rows.length}`}>
+              <h2 className="mb-1 flex items-baseline justify-between gap-2 px-1 text-xs font-medium text-muted">
+                <span className="min-w-0 truncate">{group.label}</span>
+                <span className="shrink-0">{group.rows.length}</span>
+              </h2>
+              <ul className="space-y-1.5">{group.rows.map(renderItem)}</ul>
+            </section>
+          ))}
+        </div>
       ) : (
-        <ul className="space-y-1.5 px-4">
-          {rows.map((row) => {
-            const id = row[schema.idField] ?? ''
-            return (
-              <li key={id}>
-                <Link to={`/${table}/${id}`} className="block">
-                  <Card className="p-2.5 transition hover:border-accent">
-                    {renderRow ? (
-                      renderRow(row, schema)
-                    ) : (
-                      <DefaultRow row={row} schema={schema} resolve={resolve} />
-                    )}
-                    {pending.has(id) ? (
-                      <div className="mt-1.5">
-                        <Badge tone="warn">Unsynced</Badge>
-                      </div>
-                    ) : null}
-                  </Card>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+        <ul className="space-y-1.5 px-4">{rows.map(renderItem)}</ul>
       )}
 
       {canEdit ? <NewRecordButton table={table} schema={schema} /> : null}

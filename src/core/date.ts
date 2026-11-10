@@ -65,6 +65,16 @@ export function dayLabel(day: number): string {
   return new Date(day * MS_PER_DAY).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 }
 
+/** The month a date falls in, spelled out: "November 2026" for `2026-11-10`. */
+export function monthLabel(date: string): string {
+  const [year, month] = [Number(date.slice(0, 4)), Number(date.slice(5, 7))]
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
 /** Weekday names in week order — Monday first, see `weekdayIndex`. */
 export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 

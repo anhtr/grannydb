@@ -213,7 +213,12 @@ Three components in `ui/` serve every table:
   marked `"sortable": true` as a priority-ordered list the person builds themselves — add a key, toggle
   its direction, reorder or remove it — not a single field-plus-direction pair; every rule breaks ties
   left by the ones before it, then title, then id, so the result order is always fully determined. See
-  [ADR 0023](adr/0023-priority-ordered-multi-key-sort.md). The list opens on the schema's `defaultSort`
+  [ADR 0023](adr/0023-priority-ordered-multi-key-sort.md). When the first sort rule is on an `enum`,
+  `ref`, `bool`, `number` or `date` field, the list is broken into headed runs with a count
+  ("Main colour: 77 (Sunflower) · 5", "Done: November 2026 · 31") - a **control break** over the rows
+  the sort has already put next to each other (`groupRows`), so grouping costs one pass and can never
+  disagree with the order. Dates group by month; a sort by id, name, a computed count or free text,
+  or one that leaves every run a single row, shows the list flat. The list opens on the schema's `defaultSort`
   (plus `defaultSort.thenBy`, or id if it sets neither) the first time it is visited on a device; after
   that, whatever filters and sort rules the person builds are saved to `Prefs.lists[table]`
   (`core/prefs`) and restored next time — device-local, not synced.

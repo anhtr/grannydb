@@ -4,6 +4,18 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.50, group headings in lists
+
+**App**
+- A list sorted first by a status, a reference, a yes/no, a number or a date is now broken into
+  headed groups, each with its count: **Main colour: 77 (Sunflower) · 5**, **Status: blocked · 42**,
+  **Done: November 2026 · 31** (dates group by month). Squares open grouped by main colour, since
+  that is their default sort. Before, a sorted list was one unbroken run and where one value ended
+  and the next began had to be read off each row.
+- Nothing to set: the grouping follows whatever the first sort rule is, and lists sorted by ID,
+  name, a computed count or free text stay flat, as does any list where every group would hold a
+  single record. Rows with nothing in the field are headed **blank**.
+
 ## 2026-11-10 - v0.1.49, active filters shown as chips
 
 **App**
