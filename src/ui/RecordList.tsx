@@ -21,6 +21,7 @@ import { appStore, pendingRowIds } from '../core/store'
 import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema, useToday } from '../app/hooks'
 import { Badge, BadgeStack, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
 import { dateMatches, datePresets, dateSelection, dateSummary, readDateRange } from './dateFilter'
+import { rememberListOrder } from './listOrder'
 
 interface FilterOption {
   value: string
@@ -450,6 +451,11 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows, schema, resolve],
   )
+
+  // What a record page's Previous and Next step through - see `listOrder.ts`.
+  useEffect(() => {
+    if (schema && data) rememberListOrder(table, rows.map((row) => row[schema.idField] ?? ''))
+  }, [table, schema, data, rows])
 
   if (!schema || !data) return <Spinner />
 

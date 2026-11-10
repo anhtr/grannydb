@@ -4,6 +4,18 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.51, previous and next on a record
+
+**App**
+- A record page now has **‹ Previous · 3 of 42 · Next ›** above its fields, stepping through the
+  list in the order it was last shown: same search, same filters, same sort. Reviewing a run of
+  records no longer means going back to the list between each one.
+- Back still returns to the list in one step, however many records were stepped through.
+- Opened from a shared link or after a reload, where no list has been shown yet, the buttons step
+  through every record by ID. A record the list was not showing (just created, or hidden by a
+  filter) has no buttons. Why the record page reads the list's order instead of working it out
+  again is [ADR 0039](adr/0039-previous-and-next-follow-the-list-as-last-shown.md).
+
 ## 2026-11-10 - v0.1.50, group headings in lists
 
 **App**

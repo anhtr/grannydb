@@ -266,7 +266,13 @@ Three components in `ui/` serve every table:
   title or subtitle wraps under them instead of being truncated to make room.
 - **[`RecordDetail`](../src/ui/RecordDetail.tsx)** — every field via its `Display`, an optional
   `extra` slot for computed sections (see `TABLE_DETAIL_EXTRAS` above), edit and delete, a link to
-  the underlying CSV on github.com. Confirming a delete lists every row whose `ref`/`reflist` field
+  the underlying CSV on github.com. Above the fields, **Previous · n of N · Next** steps through the
+  list in the order it was last shown: `RecordList` leaves its row order in
+  [`ui/listOrder.ts`](../src/ui/listOrder.ts) and the record page reads it back, rather than
+  re-running a filter-and-sort pipeline whose inputs only the list has. It falls back to id order
+  when the list has not been opened this session, and steps with a history *replace* so Back still
+  returns to the list - see
+  [ADR 0039](adr/0039-previous-and-next-follow-the-list-as-last-shown.md). Confirming a delete lists every row whose `ref`/`reflist` field
   still points at the record (`referencesTo` in `core/schema/relations.ts`), because a dangling
   reference fails the data check on the next deploy. It warns rather than blocks: repointing the rows
   afterwards is a legitimate order to do things in.

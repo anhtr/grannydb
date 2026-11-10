@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { IncomingReference } from '../core/schema'
 import type { ReactNode } from 'react'
 import { appStore } from '../core/store'
 import { fileUrl } from '../core/github'
 import { effectiveValue, fieldByKey, referencesTo } from '../core/schema'
-import { useAppState, useCanEdit, useResolveRef, useRow, useTableSchema } from '../app/hooks'
-import { useNavigate } from '../app/router'
+import { useAppState, useCanEdit, useResolveRef, useRow, useTable, useTableSchema } from '../app/hooks'
+import { navigate as routerNavigate, useNavigate } from '../app/router'
 import { Button, Card, ErrorNote, Link, Spinner } from './components'
 import { rendererFor } from './fields'
+import { neighbours, recordOrder } from './listOrder'
 
 /**
  * `extra` is a slot for read-only sections a table wants under its fields — computed views such as a
@@ -18,6 +19,7 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
   const state = useAppState()
   const schema = useTableSchema(table)
   const row = useRow(table, id)
+  const data = useTable(table)
   const canEdit = useCanEdit()
   const navigate = useNavigate()
   const resolve = useResolveRef()
@@ -29,6 +31,11 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
   useEffect(() => {
     if (confirmingDelete) actionsRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
   }, [confirmingDelete])
+
+  const pager = useMemo(() => {
+    if (!schema || !data) return null
+    return neighbours(recordOrder(table, data.rows.map((r) => r[schema.idField] ?? '')), id)
+  }, [schema, data, table, id])
 
   if (!schema) return <Spinner label="Loading schema" />
   if (!row) {
@@ -49,6 +56,23 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
 
   return (
     <div className="space-y-4 pb-24">
+      {pager && pager.total > 1 ? (
+        <nav
+          aria-label={`${schema.label} in list order`}
+          className="mx-4 flex items-center justify-between gap-2 text-sm"
+        >
+          <PagerLink table={table} id={pager.previous} label={`Previous ${schema.labelSingular.toLowerCase()}`}>
+            ‹ Previous
+          </PagerLink>
+          <span className="text-xs text-muted">
+            {pager.position} of {pager.total}
+          </span>
+          <PagerLink table={table} id={pager.next} label={`Next ${schema.labelSingular.toLowerCase()}`}>
+            Next ›
+          </PagerLink>
+        </nav>
+      ) : null}
+
       <Card className="mx-4 divide-y divide-line overflow-hidden">
         {schema.fields.map((field) => {
           const { Display } = rendererFor(field)
@@ -123,6 +147,48 @@ export function RecordDetail({ table, id, extra }: { table: string; id: string; 
         </a>
       </p>
     </div>
+  )
+}
+
+/**
+ * One end of the pager. A real link, so it can be opened in a new tab or read out as one, but a plain
+ * tap *replaces* the history entry instead of adding to it: stepping through twenty records and then
+ * pressing Back should land on the list, not on record nineteen. At either end of the list it stays in
+ * place as dimmed text, so the other button does not jump sideways under the thumb.
+ */
+function PagerLink({
+  table,
+  id,
+  label,
+  children,
+}: {
+  table: string
+  id: string | null
+  label: string
+  children: ReactNode
+}) {
+  const className = 'tap-target flex items-center rounded-lg px-2'
+  if (id === null) {
+    return (
+      <span aria-hidden className={`${className} text-muted opacity-40`}>
+        {children}
+      </span>
+    )
+  }
+  const to = `/${table}/${id}`
+  return (
+    <a
+      href={`#${to}`}
+      aria-label={`${label}, ${id}`}
+      className={`${className} text-accent`}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+        e.preventDefault()
+        routerNavigate(to, { replace: true })
+      }}
+    >
+      {children}
+    </a>
   )
 }
 
