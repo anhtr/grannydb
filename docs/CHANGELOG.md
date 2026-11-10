@@ -4,6 +4,17 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.49, active filters shown as chips
+
+**App**
+- Every list now shows the filters that are narrowing it as chips above the count: **Status: done,
+  blocked ×**, **Skeins: 2+ ×**, **Done: 2026-11-01 to 2026-11-30 ×**. Tapping a chip removes that
+  filter; **Clear all** appears when there is more than one. The Filter button only ever showed a
+  number, so finding out *which* filters were on meant opening the panel and reading down it -
+  and filters are remembered between visits, so a list could be quietly short for days.
+- The Filter button's count now comes from the same chips. A selection saved for a field the schema
+  no longer has is not counted, since it filters nothing and no control could clear it.
+
 ## 2026-11-10 - v0.1.48, date filters
 
 **App**

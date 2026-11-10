@@ -200,7 +200,10 @@ Three components in `ui/` serve every table:
   opened so that a table with several dates does not bury its pill filters; the matching, the saved
   `[from, to]` shape and the shortcuts are pure functions in
   [`ui/dateFilter.ts`](../src/ui/dateFilter.ts), tested without rendering anything - see
-  [ADR 0038](adr/0038-date-filters-save-absolute-ranges.md). A filter past `SEARCHABLE_FILTER_THRESHOLD` (8) options —
+  [ADR 0038](adr/0038-date-filters-save-absolute-ranges.md). Every filter that is narrowing the list
+  shows as a removable chip above the count ("Status: done, blocked ×", "Skeins: 2+ ×"), built by
+  `filterChips` from the same descriptors, so what is hidden and why is on screen without opening the
+  panel, and one tap undoes it. A filter past `SEARCHABLE_FILTER_THRESHOLD` (8) options —
   a square's Design or Main colour filter, easily past a hundred — renders as a search box instead of a
   flat pill row: empty, it shows only what is already selected; typing narrows to matches, the same
   "type to narrow, tap to toggle" pattern `RefListInput`'s multi-select `ref` picker already uses for a

@@ -95,6 +95,40 @@ export function rangeMax(rows: CsvRow[], value: (row: CsvRow) => number): number
   return Math.ceil(rows.reduce((m, r) => Math.max(m, value(r)), 0))
 }
 
+export interface FilterChip {
+  key: string
+  label: string
+  /** What the filter is set to, in the words its own control uses. */
+  text: string
+}
+
+/**
+ * One chip per filter that is narrowing the list, in panel order. Built from the descriptors rather
+ * than from the saved selections alone, for two reasons: only a descriptor knows how to say its value
+ * (a yarn id reads as the yarn's name, `['2', '']` as "2+"), and a selection saved for a field the
+ * schema has since dropped filters nothing, so it should not be shown as if it did.
+ */
+export function filterChips(descriptors: FilterDescriptor[], filters: Record<string, string[]>): FilterChip[] {
+  const chips: FilterChip[] = []
+  for (const d of descriptors) {
+    const values = filters[d.key] ?? []
+    if (values.length === 0) continue
+    let text: string
+    if (d.kind === 'range') {
+      const { lo, hi } = readRange(values, d.max)
+      text = rangeSummary(lo, hi, d.max)
+    } else if (d.kind === 'date') {
+      text = dateSummary(values)
+    } else {
+      // A value with no option left (the last square using that yarn was deleted) still filters, so
+      // it is still named - by its raw value, which is all there is.
+      text = values.map((v) => d.options.find((o) => o.value === v)?.label ?? v).join(', ')
+    }
+    chips.push({ key: d.key, label: d.label, text })
+  }
+  return chips
+}
+
 /**
  * A sort option for a value that lives outside the schema — a cross-table count like "squares using
  * this yarn as main", say — computed from data the page already has loaded rather than read off a
@@ -360,7 +394,10 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
 
   if (!schema || !data) return <Spinner />
 
-  const activeFilters = Object.values(filters).filter((v) => v.length > 0).length
+  const chips = filterChips(filterDescriptors, filters)
+  // Counted from the chips, not the saved selections, so the button never claims a filter that no
+  // control on screen could show or clear.
+  const activeFilters = chips.length
   const sortActive = !sortsEqual(sorts, defaultSorts(schema))
   const sortLabel = (key: string) => allSortOptions.find((o) => o.key === key)?.label ?? key
   // Split so only the field name truncates on a narrow screen, never the direction or the "+1".
@@ -444,6 +481,45 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
           ) : null}
         </div>
       </div>
+
+      {chips.length > 0 ? (
+        // Below the sticky row, not in it: what is filtered matters when the list is first read, and
+        // a row of chips pinned to the top would cost every scrolled screen a line of records.
+        <ul className="flex flex-wrap items-center gap-1.5 px-4 pt-2" aria-label="Active filters">
+          {chips.map((chip) => (
+            <li key={chip.key} className="min-w-0 max-w-full">
+              <button
+                type="button"
+                title={`${chip.label}: ${chip.text}`}
+                aria-label={`Remove filter ${chip.label}: ${chip.text}`}
+                className="tap-target flex max-w-full items-center gap-1.5 rounded-lg border border-accent bg-accent-soft px-2.5 text-xs text-accent"
+                onClick={() => {
+                  const { [chip.key]: _removed, ...rest } = filters
+                  setListPrefs({ filters: rest })
+                }}
+              >
+                <span className="min-w-0 truncate">
+                  {chip.label}: {chip.text}
+                </span>
+                <span aria-hidden className="shrink-0">
+                  ×
+                </span>
+              </button>
+            </li>
+          ))}
+          {chips.length > 1 ? (
+            <li>
+              <button
+                type="button"
+                className="tap-target px-1.5 text-xs text-accent"
+                onClick={() => setListPrefs({ filters: {} })}
+              >
+                Clear all
+              </button>
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
 
       <p className="px-4 py-1.5 text-xs text-muted">
         {rows.length} of {data.rows.length}
