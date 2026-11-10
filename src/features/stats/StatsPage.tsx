@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { CsvRow } from '../../core/csv'
 import { dayNumber, dayString, today } from '../../core/date'
 import { fieldByKey, identicalSquares, splitList, squareConstructionInsights, statusDate, titleFor } from '../../core/schema'
@@ -8,6 +8,7 @@ import { PACE_WINDOW_DAYS, paceOf, squaresOverTime } from '../../core/timeline'
 import { useLookup, useProject, useResolveRef, useTable, useTableSchema } from '../../app/hooks'
 import { Badge, Card, ColourGlyph, DonutChart, Link, Spinner, Swatch } from '../../ui/components'
 import type { DonutSlice } from '../../ui/components'
+import { openListFiltered } from '../../ui/RecordList'
 import { statusMark, statusTone } from '../../ui/status'
 import { useMeasuredWidth } from '../../ui/useMeasuredWidth'
 import { OverTimeCard } from './OverTimeCard'
@@ -18,6 +19,9 @@ function yarnLabel(schema: TableSchema | null, row: CsvRow | undefined, fallback
   return titleFor(schema, row)
 }
 
+/** Filter selections for the Squares list, in the shape it saves them (`ListPrefs.filters`). */
+type SquareFilters = Record<string, string[]>
+
 interface Tally {
   key: string
   label: string
@@ -25,6 +29,8 @@ interface Tally {
   hex?: string
   /** The record this row counts, when there is one to open — the row becomes a link to it. */
   to?: string
+  /** The squares this row counts, as filters on the Squares list — the row opens that list instead. */
+  squares?: SquareFilters
   /** Bar fill for this row. Defaults to the accent; set where the row belongs to a scale whose
    * colours the reader has already met somewhere else on the card (see `StatusStackCard`). */
   color?: string
@@ -53,6 +59,61 @@ function MaybeLink({ to, className, children }: { to?: string; className?: strin
   )
 }
 
+/**
+ * A tally that opens the Squares list narrowed to exactly the squares it counted - a **drill-down**,
+ * from the aggregate to the rows behind it. Like `MaybeLink`, it is the same box with or without
+ * somewhere to go, so a count that cannot be expressed as filters (a blank status, the part of the
+ * bar still to make) simply does not respond.
+ *
+ * An anchor, so it announces as a link and may hold block content, but one that always handles its
+ * own click: the destination is "the list, once its filters have been set", which a bare
+ * `href="#/squares"` opened in a new tab would not be.
+ */
+function SquaresLink({
+  filters,
+  className,
+  style,
+  title,
+  label,
+  decorative,
+  children,
+}: {
+  filters?: SquareFilters
+  className?: string
+  style?: CSSProperties
+  title?: string
+  /** Read out instead of the content, for a link with none of its own (a bar segment). */
+  label?: string
+  /** A second way to the same place as a neighbouring link, for a pointer only. */
+  decorative?: boolean
+  children?: ReactNode
+}) {
+  if (!filters) {
+    return (
+      <span className={className} style={style} title={title}>
+        {children}
+      </span>
+    )
+  }
+  return (
+    <a
+      href="#/squares"
+      className={className}
+      style={style}
+      title={title}
+      aria-label={label}
+      aria-hidden={decorative || undefined}
+      tabIndex={decorative ? -1 : undefined}
+      onClick={(e) => {
+        e.preventDefault()
+        openListFiltered('squares', filters)
+      }}
+    >
+      {children}
+    </a>
+  )
+}
+
 /** The detail route for `id` in `table`, but only for a row that exists — a dangling reference has
  * nothing to open, so it stays plain text rather than linking to a not-found page. */
 function recordPath(table: string, lookup: Map<string, CsvRow>, id: string | undefined): string | undefined {
@@ -69,18 +130,31 @@ function TallyCard({ title, items, note }: { title: string; items: Tally[]; note
         <p className="mt-2 text-sm text-muted">Nothing recorded yet.</p>
       ) : (
         <ul className="mt-2 space-y-2">
-          {items.map((item) => (
-            <li key={item.key}>
-              <MaybeLink to={item.to} className="flex items-center gap-2 text-sm">
+          {items.map((item) => {
+            const row = (
+              <>
                 {item.hex !== undefined ? <Swatch hex={item.hex} size={14} /> : null}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 <span className="tabular-nums text-muted">{item.count}</span>
-              </MaybeLink>
-              <div className="mt-1">
-                <Bar value={item.count} max={max} color={item.color} />
-              </div>
-            </li>
-          ))}
+              </>
+            )
+            return (
+              <li key={item.key}>
+                {item.squares ? (
+                  <SquaresLink filters={item.squares} className="flex items-center gap-2 text-sm">
+                    {row}
+                  </SquaresLink>
+                ) : (
+                  <MaybeLink to={item.to} className="flex items-center gap-2 text-sm">
+                    {row}
+                  </MaybeLink>
+                )}
+                <div className="mt-1">
+                  <Bar value={item.count} max={max} color={item.color} />
+                </div>
+              </li>
+            )
+          })}
         </ul>
       )}
     </Card>
@@ -181,6 +255,9 @@ interface StatusTally {
   label: string
   count: number
   color: string
+  /** The squares in this status, as filters on the Squares list. Absent for "to go" and for a blank
+   * status, neither of which a filter can select. */
+  squares?: SquareFilters
 }
 
 /**
@@ -283,8 +360,12 @@ function StatusStackCard({
         <>
           <div className="mt-2 flex gap-[2px]">
             {segments.map((item, i) => (
-              <span
+              // The label opens the same list as the segment under it - a 12px-high bar is a poor
+              // thing to aim a thumb at - but only for a pointer; read out, the segment says it once.
+              <SquaresLink
                 key={item.key}
+                filters={item.squares}
+                decorative
                 className="min-w-0 whitespace-nowrap text-[10px] leading-4"
                 style={{ flexBasis: `${shares[i] * 100}%` }}
               >
@@ -292,7 +373,7 @@ function StatusStackCard({
                 {forms[i] === 'full' ? ' ' : null}
                 {forms[i] === 'stacked' ? <br /> : null}
                 {forms[i] !== 'none' ? <span className="font-medium tabular-nums">{item.count}</span> : null}
-              </span>
+              </SquaresLink>
             ))}
           </div>
           {/* The segments and their labels are two rows of the same proportions — same flex basis,
@@ -301,17 +382,21 @@ function StatusStackCard({
           <div
             ref={barRef}
             className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full"
-            role="img"
+            // A group, not an image: an image's children are hidden from a screen reader, and the
+            // segments are now links.
+            role="group"
             aria-label={`${counted} of ${total} squares: ${segments.map((i) => `${i.label} ${i.count}`).join(', ')}`}
           >
             {segments.map((item, i) => (
-              <span
+              <SquaresLink
                 key={item.key}
+                filters={item.squares}
                 className="block"
                 // A single square out of hundreds is a sliver a fraction of a pixel wide; the floor
                 // keeps it visible, and flex shrinks the rest to pay for it.
                 style={{ flexBasis: `${shares[i] * 100}%`, minWidth: 3, background: item.color }}
                 title={`${item.label}: ${item.count} of ${total} (${Math.round(shares[i] * 100)}%)`}
+                label={`${item.label}: ${item.count} of ${total}. Show these squares`}
               />
             ))}
           </div>
@@ -319,10 +404,10 @@ function StatusStackCard({
             <ul className="mt-3 space-y-2">
               {items.map((item) => (
                 <li key={item.key}>
-                  <div className="flex items-center gap-2 text-sm">
+                  <SquaresLink filters={item.squares} className="flex items-center gap-2 text-sm">
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     <span className="tabular-nums text-muted">{item.count}</span>
-                  </div>
+                  </SquaresLink>
                   <div className="mt-1">
                     <Bar value={item.count} max={max} color={item.color} />
                   </div>
@@ -629,15 +714,30 @@ function GapsCard({ title, items }: { title: string; items: Gap[] }) {
   )
 }
 
-function Stat({ label, value, sub, extra }: { label: string; value: string; sub?: string; extra?: ReactNode }) {
+function Stat({
+  label,
+  value,
+  sub,
+  extra,
+  squares,
+}: {
+  label: string
+  value: string
+  sub?: string
+  extra?: ReactNode
+  /** The squares the headline figure counts; the tile then opens them. */
+  squares?: SquareFilters
+}) {
   return (
-    <Card className="p-3">
-      <p className="text-sm text-muted">{label}</p>
-      {/* Scales down a touch on the narrowest phones so "194 / 400" stays one figure, not two lines. */}
-      <p className="mt-1 whitespace-nowrap text-[clamp(1.25rem,6.5vw,1.5rem)] font-semibold tabular-nums">{value}</p>
-      {sub ? <p className="text-xs text-muted">{sub}</p> : null}
-      {extra}
-    </Card>
+    <SquaresLink filters={squares} className="block">
+      <Card className={`h-full p-3 ${squares ? 'transition hover:border-accent' : ''}`}>
+        <p className="text-sm text-muted">{label}</p>
+        {/* Scales down a touch on the narrowest phones so "194 / 400" stays one figure, not two lines. */}
+        <p className="mt-1 whitespace-nowrap text-[clamp(1.25rem,6.5vw,1.5rem)] font-semibold tabular-nums">{value}</p>
+        {sub ? <p className="text-xs text-muted">{sub}</p> : null}
+        {extra}
+      </Card>
+    </SquaresLink>
   )
 }
 
@@ -741,6 +841,15 @@ export function StatsPage() {
     const sortDesc = (m: Map<string, number>) =>
       [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
 
+    // A tally can only open the Squares list on fields that list can filter by. The schema is data,
+    // so that is asked of it rather than assumed: drop a field's `"filter": true` and the tallies
+    // that needed it go back to being plain numbers instead of opening a list that ignores them.
+    const filterable = (key: string) => fieldByKey(schema, key)?.filter === true
+    const byFilter = filterable('status')
+      ? (filters: SquareFilters): SquareFilters | undefined =>
+          Object.keys(filters).every(filterable) ? filters : undefined
+      : null
+
     // Statuses in the schema's own order — the workflow order — reversed, so the stacked bar runs
     // most-advanced first and fills from the left as squares progress. A status the schema doesn't
     // list (a hand-edited CSV can hold one, and a blank status reads as "(none)") is appended after
@@ -748,17 +857,25 @@ export function StatsPage() {
     // no squares are dropped rather than drawn as a zero-width segment and an empty row.
     const statusOptions = fieldByKey(schema, 'status')?.options ?? []
     const byStatusOrdered: StatusTally[] = statusOptions
-      .map((option) => ({
+      .map((option): StatusTally => ({
         key: option,
         label: option,
         count: byStatus.get(option) ?? 0,
         color: statusMark(option),
+        squares: byFilter?.({ status: [option] }),
       }))
       .reverse()
       .concat(
         sortDesc(byStatus)
           .filter(([key]) => !statusOptions.includes(key))
-          .map(([key, count]) => ({ key, label: key, count, color: statusMark(key) })),
+          .map(([key, count]): StatusTally => ({
+            key,
+            label: key,
+            count,
+            color: statusMark(key),
+            // A blank status was tallied as "(none)", which no filter option selects.
+            squares: key === '(none)' ? undefined : byFilter?.({ status: [key] }),
+          })),
       )
       .filter((status) => status.count > 0)
 
@@ -769,6 +886,10 @@ export function StatsPage() {
       unblocked: finished.length - blocked.length,
       pace: paceOf(overTime),
       byStatus: byStatusOrdered,
+      finishedSquares: byFilter?.({ status: ['done', 'blocked'] }),
+      blockedSquares: byFilter?.({ status: ['blocked'] }),
+      finishedOfConstruction: (construction: string) =>
+        byFilter?.({ status: ['done', 'blocked'], construction_type: [construction] }),
       byDesign: sortDesc(byDesign),
       byYarn: sortDesc(byYarn),
       byMainYarnFinished: sortDesc(byMainYarnFinished),
@@ -802,8 +923,14 @@ export function StatsPage() {
           label="Finished"
           value={goal > 0 ? `${stats.done} / ${goal}` : String(stats.done)}
           sub={goal > 0 ? `${remaining} to go` : undefined}
+          squares={stats.finishedSquares}
         />
-        <Stat label="Blocked" value={`${stats.blocked}`} sub={`${stats.unblocked} still to block`} />
+        <Stat
+          label="Blocked"
+          value={`${stats.blocked}`}
+          sub={`${stats.unblocked} still to block`}
+          squares={stats.blockedSquares}
+        />
         <Stat
           label="Pace"
           value={perWeek === null ? '—' : perWeek.toFixed(1)}
@@ -845,7 +972,12 @@ export function StatsPage() {
       <TallyCard
         title="Finished, by construction"
         note="Only finished squares (done or blocked). A square with no construction of its own counts by its design's."
-        items={stats.byConstructionFinished.map((c) => ({ key: c.construction, label: c.construction, count: c.count }))}
+        items={stats.byConstructionFinished.map((c) => ({
+          key: c.construction,
+          label: c.construction,
+          count: c.count,
+          squares: stats.finishedOfConstruction(c.construction),
+        }))}
       />
 
       {stats.colourImbalances.length > 0 ? (

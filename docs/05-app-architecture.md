@@ -327,6 +327,16 @@ Used mostly one-handed, on a phone, sometimes standing up:
   on a row agree by construction ([ADR 0025](adr/0025-one-status-one-colour-and-a-bar-drawn-to-the-goal.md)).
   Only a value with no colour of its own, like a design's source, draws from the categorical chart
   palette (`--color-chart-*`).
+- **A count opens what it counted.** The Progress screen's Finished and Blocked tiles, each status
+  in the By status card (bar segment, label and expanded row) and each row of Finished, by
+  construction are **drill-downs**: they open the Squares list filtered to exactly those squares
+  (`SquaresLink` in `StatsPage.tsx`). There is one mechanism, `openListFiltered` in
+  `ui/RecordList.tsx`: write the list's saved filters (`Prefs.lists`), drop its remembered search and
+  scroll, navigate. The list has only ever read its filters from prefs, so the Filter panel and the
+  chips show the drill-down like any other filter and one tap removes it; a second, transient "view"
+  passed alongside would be a state the panel could not show. The cost is that it replaces the
+  filters the list had. A tally only links when every field it filters on is `"filter": true` in the
+  schema.
 - **No hover-dependent affordances.**
 - **Dark mode** via `prefers-color-scheme`, both palettes defined explicitly in
   [`styles.css`](../src/styles.css).

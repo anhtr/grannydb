@@ -4,6 +4,20 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.52, progress tallies open the squares they count
+
+**App**
+- On **Progress**, the **Finished** and **Blocked** tiles, every status in **By status** (its bar
+  segment, its label above the bar, and its row when the card is expanded) and every row of
+  **Finished, by construction** now open the Squares list filtered to exactly those squares. A
+  number on Progress used to be a dead end: seeing "42 blocked" and wanting the 42 meant going to
+  Squares and rebuilding the filter by hand.
+- The list arrives with the filter showing as a chip like any other, so it is one tap to remove.
+  It **replaces** whatever filters Squares had saved; the sort is kept, the search box is cleared.
+- "To go" and a blank status have nothing to open and stay plain. So does any tally whose field is
+  not marked `"filter": true` in `squares.json`.
+- The status bar is now announced as a group of links rather than a single image.
+
 ## 2026-11-10 - v0.1.51, previous and next on a record
 
 **App**

@@ -19,6 +19,7 @@ import type { ListPrefs, SortRule } from '../core/prefs'
 import { monthLabel } from '../core/date'
 import { appStore, pendingRowIds } from '../core/store'
 import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema, useToday } from '../app/hooks'
+import { navigate } from '../app/router'
 import { Badge, BadgeStack, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
 import { dateMatches, datePresets, dateSelection, dateSummary, readDateRange } from './dateFilter'
 import { rememberListOrder } from './listOrder'
@@ -352,6 +353,26 @@ function initialListPrefs(schema: TableSchema | null, saved: ListPrefs | undefin
  * `prefs`: a search is a passing question, and finding one still applied tomorrow would be a surprise.
  */
 const listMemory = new Map<string, { query: string; scrollY: number }>()
+
+/**
+ * Open `table`'s list narrowed to exactly `filters` - how a count somewhere else in the app (a
+ * Progress tally) becomes the records it counted. It works by writing the list's saved filters and
+ * then going there, because that is the only state a list reads when it mounts; there is no second,
+ * one-off channel that could disagree with what the Filter panel then shows.
+ *
+ * The cost is that the filters the list had before are replaced, not set aside. The sort is kept, and
+ * the search text and scroll position are dropped: both belonged to the list as it was, and a search
+ * left on would make the list shorter than the number that was just tapped.
+ */
+export function openListFiltered(table: string, filters: Record<string, string[]>): void {
+  const prefs = appStore.getState().prefs
+  appStore.setPrefs({
+    ...prefs,
+    lists: { ...prefs.lists, [table]: { filters, sorts: prefs.lists[table]?.sorts ?? [] } },
+  })
+  listMemory.delete(table)
+  navigate(`/${table}`)
+}
 
 /** Keeps `listMemory` current for `table` and puts the scroll position back on return. */
 function useListMemory(table: string, query: string, ready: boolean) {

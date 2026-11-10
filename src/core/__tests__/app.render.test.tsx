@@ -18,6 +18,8 @@ import type { Root } from 'react-dom/client'
 import { StrictMode } from 'react'
 import { buildBundle } from '../../../scripts/build-data'
 import { App } from '../../app/App'
+import { DEFAULT_PREFS } from '../prefs'
+import { appStore } from '../store'
 
 // Tells React that `act()` is available, so it batches effects instead of warning on every render.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -117,6 +119,29 @@ describe('App renders against the real data', () => {
     // Collapsed by default, so these are the colour chips rather than the expanded rows.
     expect(container.querySelector('a[href="#/yarns/FY1"]')).not.toBeNull()
     expect(container.querySelector('a[href="#/yarns/FY2"]')).not.toBeNull()
+  })
+
+  it('opens the squares a progress tally counts', async () => {
+    await render('#/stats')
+    const finished = [...container.querySelectorAll('a[href="#/squares"]')].find((a) =>
+      a.textContent?.includes('Finished'),
+    )
+    expect(finished).toBeDefined()
+    await act(async () => {
+      finished!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    })
+
+    try {
+      expect(window.location.hash).toBe('#/squares')
+      const text = container.textContent ?? ''
+      // The fixture has one done square (FS1) and one in progress (FS2).
+      expect(text).toContain('Status: done')
+      expect(text).toContain('FS1')
+      expect(text).not.toContain('FS2')
+    } finally {
+      // The store is a singleton and prefs are saved; leave neither narrowed for the next test.
+      act(() => appStore.setPrefs(DEFAULT_PREFS))
+    }
   })
 
   it('renders the yarns list from the generic components', async () => {
