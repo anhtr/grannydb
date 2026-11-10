@@ -4,6 +4,15 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-09 - v0.1.42, try again from the load-error screen
+
+**App**
+- The screen shown when the first load fails and there is no saved copy to fall back on now has a
+  **Try again** button, ahead of the link to Settings. Most first loads that fail do so for want of
+  signal, and the only way to retry used to be reloading the page. When the browser reports no
+  connection the screen says so, and that the app retries by itself once it is back (it already
+  did; nothing said so).
+
 ## 2026-11-07 - v0.1.41, colour count × construction
 
 **App**

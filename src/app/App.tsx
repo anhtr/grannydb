@@ -6,7 +6,7 @@ import { titleFor } from '../core/schema'
 import { RecordDetail } from '../ui/RecordDetail'
 import { RecordForm } from '../ui/RecordForm'
 import { RecordList } from '../ui/RecordList'
-import { ErrorNote, Link, PageHeader, Spinner } from '../ui/components'
+import { Button, ErrorNote, Link, PageHeader, Spinner } from '../ui/components'
 import { SquaresPage } from '../features/squares/SquaresPage'
 import { YarnsPage } from '../features/yarns/YarnsPage'
 import { YarnCombinations } from '../features/yarns/YarnCombinations'
@@ -150,11 +150,20 @@ function Screen({ path }: { path: string }) {
     return (
       <main className="flex-1 space-y-4 pt-4">
         <ErrorNote>{state.error}</ErrorNote>
-        <div className="px-4">
+        {/* Most first loads that fail do so for want of signal, not a wrong setting, so trying again
+            comes first; the settings link is for when it keeps failing. `reload` puts the spinner back
+            on its own, by setting the phase to loading with no snapshot. */}
+        <div className="flex flex-wrap items-center gap-4 px-4">
+          <Button variant="primary" onClick={() => void appStore.reload()}>
+            Try again
+          </Button>
           <Link to="/settings" className="text-accent underline underline-offset-2">
             Check your settings
           </Link>
         </div>
+        {!state.online ? (
+          <p className="px-4 text-sm text-muted">This device is offline. The app tries again by itself when it is back.</p>
+        ) : null}
       </main>
     )
   }
