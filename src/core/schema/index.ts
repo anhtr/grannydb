@@ -12,6 +12,7 @@ export {
   idSet,
   splitList,
   joinList,
+  moveInList,
   parseBool,
   formatBool,
   stepCount,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseCsv } from '../csv'
 import { buildSchemaSet, SchemaError } from '../schema/load'
-import { stepCount, validateDataset, validateValue } from '../schema/validate'
+import { moveInList, stepCount, validateDataset, validateValue } from '../schema/validate'
 import type { FieldDef } from '../schema'
 
 function field(partial: Partial<FieldDef> & Pick<FieldDef, 'key' | 'type'>): FieldDef {
@@ -57,6 +57,22 @@ describe('validateValue', () => {
 
   it('skips reference checks when the lookup table is not loaded', () => {
     expect(validateValue(field({ key: 'main', type: 'ref', refTable: 'yarns' }), 'Y09')).toBeNull()
+  })
+})
+
+describe('moveInList', () => {
+  it('swaps an item with its neighbour, leaving the original list alone', () => {
+    const list = ['Y1', 'Y2', 'Y3']
+    expect(moveInList(list, 2, -1)).toEqual(['Y1', 'Y3', 'Y2'])
+    expect(moveInList(list, 0, 1)).toEqual(['Y2', 'Y1', 'Y3'])
+    expect(list).toEqual(['Y1', 'Y2', 'Y3'])
+  })
+
+  it('does nothing at either end or for an index that is not there', () => {
+    const list = ['Y1', 'Y2']
+    expect(moveInList(list, 0, -1)).toEqual(list)
+    expect(moveInList(list, 1, 1)).toEqual(list)
+    expect(moveInList(list, 5, -1)).toEqual(list)
   })
 })
 

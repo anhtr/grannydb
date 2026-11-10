@@ -70,7 +70,7 @@ see [ADR 0012](adr/0012-hidden-tables-for-lookup-only-data.md).
 | `design_id` | ref → designs | |
 | `customization` | textarea | How you deviated from the pattern |
 | `main_yarn` | ref → yarns | |
-| `extra_yarns` | reflist → yarns | `;`-separated, order preserved |
+| `extra_yarns` | reflist → yarns | `;`-separated, order preserved: the order the colours were worked in. The form lists them in that order, with ▲▼ to change it |
 | `position` | text | Free text for now — the layout is undecided |
 | `notes` | textarea | |
 | `construction_type` | enum, inherited | `solid` / `holey`. Blank means "use the design's" — see [ADR 0016](adr/0016-field-level-inherited-values.md) |

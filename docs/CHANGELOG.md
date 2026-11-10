@@ -4,6 +4,17 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.57, reorder a square's extra colours
+
+**App**
+- **Extra colours** in the square form are now listed in the order they are stored, one to a line,
+  and with two or more each has ▲ and ▼ to move it a place earlier or later. Before, the chips were
+  shown in the yarn table's order with a small number on each, and the only way to change the order
+  was to remove colours and add them back.
+- Search matches still appear as chips underneath, and tapping a selected colour still removes it.
+- A selected colour whose yarn no longer exists is now shown, marked "(missing)", so it can be
+  tapped away. It used to be invisible in the form while still being reported as an error on it.
+
 ## 2026-11-10 - v0.1.56, the pickers say more about what is being picked
 
 **App**

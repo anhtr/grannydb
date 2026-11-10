@@ -6,6 +6,7 @@ import {
   formatBool,
   joinList,
   matchesSearch,
+  moveInList,
   parseBool,
   refAnnotation,
   searchText,
@@ -441,9 +442,12 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
  * chips rather than a `<select multiple>`, which is close to unusable on a phone. Like a mail
  * client's Bcc field: with the box empty, only what is already selected is shown — not every row in
  * the referenced table — so this stays usable once that table has hundreds of rows (100+ yarn
- * colourways). Typing narrows the offered chips to matches, on top of whatever is already selected.
- * Selection order is preserved, because for a square the order colours were worked in is real
- * information.
+ * colourways). Typing offers the matches as chips underneath.
+ *
+ * What is selected is listed first, one to a line, **in the order it is stored** - for a square the
+ * order colours were worked in is real information - and with two or more, ▲▼ move one a place at a
+ * time. Without them the only way to put the third colour second was to remove two and add them
+ * back in the right order.
  */
 function RefListInput({ field, value, onChange, id }: FieldInputProps) {
   const separator = field.separator ?? ';'
@@ -459,16 +463,54 @@ function RefListInput({ field, value, onChange, id }: FieldInputProps) {
       : [...selected, rowId]
     onChange(joinList(next, separator))
   }
+  const move = (i: number, direction: -1 | 1) => onChange(joinList(moveInList(selected, i, direction), separator))
 
   const entries = [...lookup.entries()]
   const searching = query.trim() !== ''
-  const visible = schema
-    ? entries.filter(
-        ([rowId, row]) =>
-          selected.includes(rowId) ||
-          (searching && matchesSearch(searchText(schema, row, resolve, field.searchFields), query)),
-      )
-    : entries
+  const candidates =
+    schema && searching
+      ? entries.filter(
+          ([rowId, row]) =>
+            !selected.includes(rowId) && matchesSearch(searchText(schema, row, resolve, field.searchFields), query),
+        )
+      : []
+
+  const titleOf = (rowId: string, row: CsvRow | undefined) => (schema && row ? titleFor(schema, row) : rowId)
+
+  /** One chip. `position` is its place among the selected, or 0 for one still on offer. */
+  const chip = (rowId: string, row: CsvRow | undefined, position: number) => {
+    const active = position > 0
+    // Only on the chips still on offer: once picked, a chip is a record of the choice and stays as
+    // short as it can.
+    const note =
+      !active && schema && row && field.pickerFields ? refAnnotation(schema, row, field.pickerFields, resolve) : ''
+    return (
+      <button
+        key={rowId}
+        type="button"
+        onClick={() => toggle(rowId)}
+        aria-pressed={active}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition ${
+          active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
+        }`}
+      >
+        {schema?.swatchField && row ? (
+          <Swatch
+            hex={row[schema.swatchField]}
+            pattern={schema.patternField ? row[schema.patternField] : undefined}
+            size={14}
+          />
+        ) : null}
+        {titleOf(rowId, row)}
+        {/* A selected id with no row behind it is still listed, so it can be seen and tapped away. */}
+        {active && !row ? <span className="text-red-600 dark:text-red-400">(missing)</span> : null}
+        {active ? <span className="text-xs opacity-70">{position}</span> : null}
+        {note ? <span className="text-xs text-muted">{note}</span> : null}
+      </button>
+    )
+  }
+
+  const arrowClass = 'px-2 py-1 text-xs leading-tight text-muted hover:text-ink disabled:opacity-30'
 
   return (
     <div className="space-y-2">
@@ -486,7 +528,7 @@ function RefListInput({ field, value, onChange, id }: FieldInputProps) {
             // Adds the first match not already picked, rather than submitting the form around it.
             if (e.key !== 'Enter') return
             e.preventDefault()
-            const first = searching ? visible.find(([rowId]) => !selected.includes(rowId)) : undefined
+            const first = candidates[0]
             if (first) {
               toggle(first[0])
               setQuery('')
@@ -494,37 +536,44 @@ function RefListInput({ field, value, onChange, id }: FieldInputProps) {
           }}
         />
       ) : null}
+      {selected.length > 0 ? (
+        <ol className="space-y-1.5" aria-label={`${field.label}, in order`}>
+          {selected.map((rowId, i) => {
+            const row = lookup.get(rowId)
+            return (
+              // Keyed by the id, so a moved chip is the same element afterwards and not a new one. The
+              // index joins in only for an id a hand-edited cell lists twice.
+              <li key={selected.indexOf(rowId) === i ? rowId : `${rowId}#${i}`} className="flex items-center gap-1">
+                {selected.length > 1 ? (
+                  <span className="flex shrink-0 flex-col">
+                    <button
+                      type="button"
+                      className={arrowClass}
+                      disabled={i === 0}
+                      onClick={() => move(i, -1)}
+                      aria-label={`Move ${titleOf(rowId, row)} earlier`}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      className={arrowClass}
+                      disabled={i === selected.length - 1}
+                      onClick={() => move(i, 1)}
+                      aria-label={`Move ${titleOf(rowId, row)} later`}
+                    >
+                      ▼
+                    </button>
+                  </span>
+                ) : null}
+                {chip(rowId, row, i + 1)}
+              </li>
+            )
+          })}
+        </ol>
+      ) : null}
       <div className="flex flex-wrap gap-2">
-        {visible.map(([rowId, row]) => {
-          const active = selected.includes(rowId)
-          const position = selected.indexOf(rowId) + 1
-          // Only on the chips still on offer: once picked, a chip is a record of the choice and
-          // stays as short as it can.
-          const note =
-            !active && schema && field.pickerFields ? refAnnotation(schema, row, field.pickerFields, resolve) : ''
-          return (
-            <button
-              key={rowId}
-              type="button"
-              onClick={() => toggle(rowId)}
-              aria-pressed={active}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition ${
-                active ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-card'
-              }`}
-            >
-              {schema?.swatchField ? (
-                <Swatch
-                  hex={row[schema.swatchField]}
-                  pattern={schema.patternField ? row[schema.patternField] : undefined}
-                  size={14}
-                />
-              ) : null}
-              {schema ? titleFor(schema, row) : rowId}
-              {active ? <span className="text-xs opacity-70">{position}</span> : null}
-              {note ? <span className="text-xs text-muted">{note}</span> : null}
-            </button>
-          )
-        })}
+        {candidates.map(([rowId, row]) => chip(rowId, row, 0))}
         {/* With no search box rendered, this note carries the field's id instead, so the form can still
             move focus here when the field has an error (a selected yarn that no longer exists). */}
         {entries.length === 0 ? (
@@ -532,10 +581,10 @@ function RefListInput({ field, value, onChange, id }: FieldInputProps) {
             Nothing to pick from yet.
           </span>
         ) : null}
-        {entries.length > 0 && !searching && visible.length === 0 ? (
+        {entries.length > 0 && !searching && selected.length === 0 ? (
           <Muted>Type to search — nothing selected yet.</Muted>
         ) : null}
-        {entries.length > 0 && searching && visible.length === 0 ? <Muted>No matches.</Muted> : null}
+        {entries.length > 0 && searching && candidates.length === 0 ? <Muted>No matches.</Muted> : null}
       </div>
     </div>
   )
@@ -632,13 +681,7 @@ function ColorListInput({ field, value, onChange, id }: FieldInputProps) {
   }
   const addColour = () => onChange(joinList([...colours, '#cccccc'], separator))
   const removeColour = (i: number) => onChange(joinList(colours.filter((_, idx) => idx !== i), separator))
-  const moveColour = (i: number, direction: -1 | 1) => {
-    const j = i + direction
-    if (j < 0 || j >= colours.length) return
-    const next = [...colours]
-    ;[next[i], next[j]] = [next[j], next[i]]
-    onChange(joinList(next, separator))
-  }
+  const moveColour = (i: number, direction: -1 | 1) => onChange(joinList(moveInList(colours, i, direction), separator))
 
   if (colours.length === 0) {
     return (

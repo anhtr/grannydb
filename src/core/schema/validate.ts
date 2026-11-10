@@ -24,6 +24,19 @@ export function joinList(values: readonly string[], separator = ';'): string {
   return values.filter((v) => v.trim().length > 0).join(separator)
 }
 
+/**
+ * A list with the item at `index` swapped one place earlier (-1) or later (1) - what the arrows on
+ * an ordered list field do. A move off either end, or from an index that is not there, gives the
+ * list back as it was, so callers do not have to guard the first and last rows themselves.
+ */
+export function moveInList<T>(items: readonly T[], index: number, direction: -1 | 1): T[] {
+  const next = [...items]
+  const to = index + direction
+  if (index < 0 || index >= next.length || to < 0 || to >= next.length) return next
+  ;[next[index], next[to]] = [next[to], next[index]]
+  return next
+}
+
 export function parseBool(value: string): boolean {
   const v = value.trim().toLowerCase()
   return v === 'yes' || v === 'true' || v === '1'
