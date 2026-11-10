@@ -194,6 +194,25 @@ describe('App renders against the real data', () => {
     expect(container.textContent).toContain('Contents: read and write')
   })
 
+  it('says which version it is, and offers the theme and a backup, in settings', async () => {
+    await render('#/settings')
+    const text = container.textContent ?? ''
+    // Whatever the changelog's newest heading is - the build reads it, and so does this.
+    expect(text).toMatch(/Versionv\d+\.\d+\.\d+ · \d{4}-\d{2}-\d{2}/)
+    expect(text).toContain('Download backup')
+    expect(text).toContain('squares.csv')
+
+    const themes = [...container.querySelectorAll<HTMLInputElement>('input[name="theme"]')]
+    expect(themes.map((t) => t.checked)).toEqual([true, false, false])
+    await act(async () => {
+      themes[2].click()
+    })
+    expect(appStore.getState().prefs.theme).toBe('dark')
+    await act(async () => {
+      appStore.setPrefs({ ...appStore.getState().prefs, theme: 'system' })
+    })
+  })
+
   it('builds a nav tab per table in the manifest', async () => {
     await render('#/squares')
     const nav = container.querySelector('nav')

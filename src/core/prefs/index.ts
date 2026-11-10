@@ -13,6 +13,11 @@ export interface ListPrefs {
   sorts: SortRule[]
 }
 
+/** Which palette to draw in. "system" follows the device's own light or dark setting. */
+export type Theme = 'system' | 'light' | 'dark'
+
+export const THEMES: readonly Theme[] = ['system', 'light', 'dark']
+
 /**
  * Device-local app preferences that are not about where the data lives (that's `github/config.ts`)
  * or who can write it (that's `github/auth.ts`) — just how the app itself should behave. Facts about
@@ -31,9 +36,14 @@ export interface Prefs {
    * question about that phone, and a laptop you are hand-editing CSVs on may well want it off.
    */
   autoSync: boolean
+  /**
+   * Light, dark, or whatever the system says. Per device for the plainest reason there is: it is
+   * about one screen and the room it is in.
+   */
+  theme: Theme
 }
 
-export const DEFAULT_PREFS: Prefs = { lists: {}, autoSync: true }
+export const DEFAULT_PREFS: Prefs = { lists: {}, autoSync: true, theme: 'system' }
 
 const STORAGE_KEY = 'grannydb.prefs'
 
@@ -47,6 +57,9 @@ export function loadPrefs(): Prefs {
     return {
       lists: parsed.lists ?? DEFAULT_PREFS.lists,
       autoSync: typeof parsed.autoSync === 'boolean' ? parsed.autoSync : DEFAULT_PREFS.autoSync,
+      // Checked against the list, not just for being a string: a value written by a later build
+      // with a theme this one does not have should read as the default, not reach the stylesheet.
+      theme: THEMES.includes(parsed.theme as Theme) ? (parsed.theme as Theme) : DEFAULT_PREFS.theme,
     }
   } catch {
     return DEFAULT_PREFS

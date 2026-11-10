@@ -4,6 +4,29 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.61, Settings: version, theme and a backup to download
+
+**App**
+- **Settings → About** shows which version is running and its date, with a link to this changelog.
+  The version is the newest heading in this file, read at build time, so there is no second number
+  to keep in step ([ADR 0043](adr/0043-the-app-version-is-the-newest-changelog-heading.md)).
+- **Settings → This device → Appearance**: Match the device (the default, and what the app always
+  did), Light, or Dark. Kept per device, like the other choices in that section.
+- **Settings → Local data → Download backup** saves one JSON file holding every table and the
+  project settings as this device has them, unsynced edits included - the one part of the data the
+  repo does not already keep. Beside it, a button per table saves that table's CSV for a
+  spreadsheet. Both are made in the page, so they work offline and without a token. The format is
+  in [06-operations](06-operations.md#backups).
+
+**Under the hood**
+- The dark palette and every `dark:` utility now follow one rule, a `dark` variant redefined in
+  `styles.css`: the system asks for dark and Settings has not said light, or Settings says dark.
+  The choice is applied by the app's own script, not an inline one, because the content security
+  policy allows none; a device whose choice differs from its system setting can see the other
+  palette for a moment on a cold start
+  ([ADR 0042](adr/0042-the-theme-choice-is-applied-by-the-bundle.md)).
+- `Prefs` gains `theme`; an unknown stored value reads as "system".
+
 ## 2026-11-10 - v0.1.60, stash statistics on Progress
 
 **App**

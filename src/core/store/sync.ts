@@ -82,7 +82,7 @@ export function saveLastSync(value: LastSync): void {
  * schema field gets a column. It never reorders or drops what is already there, so a column added
  * by hand in a spreadsheet survives.
  */
-function toFile(table: CsvTable, schemas: SchemaSet, name: string): { path: string; text: string } | null {
+export function toFile(table: CsvTable, schemas: SchemaSet, name: string): { path: string; text: string } | null {
   const schema = schemas.tables[name]
   if (!schema) return null
   const aligned = ensureColumns(table, schemaColumns(schema))

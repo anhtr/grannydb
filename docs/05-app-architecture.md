@@ -9,17 +9,18 @@ src/
     schema/        types, loader, validation, search/filter/sort resolution, cross-table counts
     github/        config, HTTP client, snapshot reads, commits, auth
     project/       project.json: parse, validate, read start date, targets and time zone, apply key edits
-    prefs/         device-local app preferences (per-table list filters/sort)
+    prefs/         device-local app preferences (per-table list filters/sort, auto sync, theme)
     date.ts        today in the project's time zone, calendar days as integers, and the one
                    definition of a week (Monday first)
     timeline.ts    finished squares bucketed by day, week and weekday, with moving averages
     store/         change queue, merge, sync and when to run it automatically, the offline
-                   snapshot cache, persistent-storage requests, the app store
+                   snapshot cache, persistent-storage requests, the downloadable backup, the app store
   ui/              shared React: primitives, field renderers, generic list/detail/form
   features/        one folder per screen that is more than "a table"
-  app/             router, hooks, shell, service-worker registration, the install prompt
+  app/             router, hooks, shell, service-worker registration, the install prompt, the
+                   theme choice
   sw/              the service worker itself (plain JS, shipped unbundled)
-scripts/           the data pipeline and the icon generator (run in Node)
+scripts/           the data pipeline, the icon generator and the version reader (run in Node)
 ```
 
 **The rule that matters: `core/` imports no React.** Two reasons, both practical.
@@ -29,7 +30,7 @@ directly and runs them in Node during the build. The rules CI enforces and the r
 believes are literally the same code, so they cannot drift.
 
 Second, everything interesting — CSV round-tripping, queue collapsing, replay semantics, the whole
-commit protocol - is testable by calling functions. All but four of the test files run in a plain
+commit protocol - is testable by calling functions. All but five of the test files run in a plain
 Node environment with no DOM. That is why the tests are fast and why they are about behaviour
 rather than markup.
 
@@ -130,6 +131,17 @@ labelled "old → new" lines: field labels from the schema, references by the ti
 point at, the old value from the base snapshot. It is in `core/` so the wording is unit-tested
 without rendering, and so the queue's storage format (column keys, raw cells) never has to be
 readable in its own right.
+
+Two things on the Settings screen read the store's state and write nothing. **Download backup**
+hands `snapshot.schemas`, `data`, `project` and `changes` to `buildBackup`
+([`core/store/backup.ts`](../src/core/store/backup.ts)), a pure function that returns the document
+described in [06](06-operations.md#backups); the component only turns it into a file
+([`ui/download.ts`](../src/ui/download.ts)). It serialises tables with the same `toFile` the sync
+uses, so "what the backup holds" and "what the next commit would hold" cannot drift apart. **About**
+shows `__APP_VERSION__` and `__APP_RELEASED__`, constants Vite substitutes at build time from the
+newest changelog heading ([ADR 0043](adr/0043-the-app-version-is-the-newest-changelog-heading.md)).
+They are declared in [`globals.d.ts`](../src/globals.d.ts) and read only outside `core/`, which
+also runs in Node where nothing substitutes them.
 
 `reload()` guards against out-of-order responses with a ticket counter — a slow load kicked off
 before a config change must not overwrite a fast one kicked off after it.
@@ -377,8 +389,15 @@ Used mostly one-handed, on a phone, sometimes standing up:
   since `core/` cannot import `ui/` and most syncs are started by a timer, not a button. A delete's
   message carries **Undo** - see [04](04-sync-engine.md#taking-a-delete-back).
 - **No hover-dependent affordances.**
-- **Dark mode** via `prefers-color-scheme`, both palettes defined explicitly in
-  [`styles.css`](../src/styles.css).
+- **Dark mode** follows `prefers-color-scheme` unless Settings → This device → Appearance says
+  otherwise. Both palettes are defined explicitly in [`styles.css`](../src/styles.css), and one
+  redefined `dark` variant there decides when the dark one applies - the system asks for it and
+  the root element is not marked `data-theme="light"`, or it is marked `data-theme="dark"` - for
+  the palette and for every `dark:` utility alike. The mark is set by `applyTheme`
+  ([`app/theme.ts`](../src/app/theme.ts)) from `Prefs.theme`, by the bundle and not an inline
+  script, which costs a possible flash on a cold start
+  ([ADR 0042](adr/0042-the-theme-choice-is-applied-by-the-bundle.md)). Use `dark:` as usual; never
+  write a `prefers-color-scheme` query in a component, which the setting could not override.
 
 ## Testing
 
@@ -400,6 +419,10 @@ Coverage is deliberately concentrated where a bug loses data rather than annoys 
 | `bulk.test.ts` | the bulk-edit plan: per-row field diffs, status dates filled from the chosen day, rows skipped with the rule they would break |
 | `ui/__tests__/BulkEdit.render.test.tsx` | the bulk-edit dialog mounted on the fixture data: the preview shown is the plan queued, one field-level operation per row (jsdom) |
 | `ui/__tests__/RefPicker.render.test.tsx` | the `ref` picker as a combobox: the roles and ids a screen reader follows, the arrow keys moving `aria-activedescendant`, Enter picking, the `pickerFields` line under an option (jsdom) |
+| `backup.test.ts` | the downloadable backup: each CSV as the next sync would write it with pending edits applied, unknown columns and project keys kept, the queue alongside |
+| `prefs.test.ts` | device preferences read back from storage; a missing or unknown theme reads as "system" |
+| `theme.test.ts` | `applyTheme`: the `data-theme` mark and the two chrome-colour metas for each choice, and the mark removed for "system" (jsdom) |
+| `appVersion.test.ts` | the version read from a changelog heading, and that the real changelog's first heading is one it can read |
 | `app.render.test.tsx` | one end-to-end mount against a frozen fixture dataset (`src/core/__tests__/fixtures/data/`), not `data/*.csv` — real tracker data changes shape and content on its own schedule and has nothing to do with whether the app mounts |
 
 `sync.test.ts` is the important one. It stands up a fake GitHub that enforces fast-forward-only ref

@@ -1,6 +1,25 @@
 @import 'tailwindcss';
 
 /*
+  When the dark palette applies: the system asks for it and Settings has not said "light", or
+  Settings says "dark" (`data-theme` on the root element, set by `app/theme.ts`). Tailwind's own
+  `dark:` variant is the media query alone, which a choice in Settings could not override; redefining
+  it here makes every `dark:` utility in the app, and the palette below, follow the same one rule.
+  `:where()` keeps the selectors at zero specificity, so a `dark:` utility still wins or loses
+  against its neighbours exactly as it did as a bare media query.
+*/
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-theme='light'], [data-theme='light'] *)) {
+      @slot;
+    }
+  }
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+}
+
+/*
   Palette. Warm neutrals so yarn swatches sit against something closer to wool than to a spreadsheet.
   Light and dark are both defined explicitly; nothing is left to inherit from the browser.
 */
@@ -52,8 +71,19 @@
 }
 
 @layer base {
+  /* Tells the browser which palette its own parts (scrollbars, date pickers, form controls) should
+     use. With a choice made in Settings it has to be told that too, or a light page would keep dark
+     native controls on a dark system. */
   :root {
     color-scheme: light dark;
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
   }
 
   html {
@@ -70,8 +100,8 @@
     overscroll-behavior-y: none;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
+  :root {
+    @variant dark {
       --color-paper: #1c1917;
       --color-card: #292524;
       --color-ink: #f5f5f4;

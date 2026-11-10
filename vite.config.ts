@@ -5,6 +5,7 @@ import { defineConfig } from 'vitest/config'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { latestRelease } from './scripts/app-version'
 import { buildBundle } from './scripts/build-data'
 
 /**
@@ -131,10 +132,19 @@ function serviceWorkerPlugin(): Plugin {
   }
 }
 
+// The version Settings shows. From the changelog and deliberately not from the commit: every data
+// sync is a commit and a deploy, and a constant that changed with each one would change the JS
+// bundle's hash, so the service worker would offer an "update" after every synced square (ADR 0043).
+const release = latestRelease(readFileSync('docs/CHANGELOG.md', 'utf8'))
+
 export default defineConfig({
   // GitHub Pages serves this project from https://<user>.github.io/grannydb/.
   base: process.env.BASE_PATH ?? '/grannydb/',
   plugins: [react(), tailwindcss(), dataBundlePlugin(), serviceWorkerPlugin()],
+  define: {
+    __APP_VERSION__: JSON.stringify(release?.version ?? ''),
+    __APP_RELEASED__: JSON.stringify(release?.date ?? ''),
+  },
   build: {
     target: 'es2022',
     sourcemap: true,

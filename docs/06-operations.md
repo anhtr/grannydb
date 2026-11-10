@@ -92,6 +92,15 @@ The cost is a ~1 minute deploy after each sync, which nobody waits on: signed-in
 CSVs through the API and see their edits immediately. The bundle only serves anonymous visitors.
 Actions minutes are free on public repos.
 
+It also puts a constraint on the build: **a data-only commit must produce the same app files**, or
+the service worker would offer every device an "update" after every synced square. That is why the
+version shown in Settings → About is read from the newest heading of
+[`CHANGELOG.md`](CHANGELOG.md) (`latestRelease` in
+[`scripts/app-version.ts`](../scripts/app-version.ts), passed in through `define` in
+`vite.config.ts`) and not from the commit sha or the build time. Nothing that changes per commit
+may be compiled into the bundle
+([ADR 0043](adr/0043-the-app-version-is-the-newest-changelog-heading.md)).
+
 ## The data contract
 
 CSV is schema-on-read: the file cannot reject a bad row. A hand-edit can introduce a status of
@@ -259,3 +268,31 @@ browse. A static site has no secrets. See
 The repo is the backup: full history, every version of every square, restorable with `git revert`.
 Clone it anywhere. Worst case the app breaks entirely and the data is still three CSV files you can
 open in Excel — which was the point of choosing CSV.
+
+That covers everything that has been synced. The one thing the repo cannot hold is what has not
+reached it yet: edits queued on a device that is offline, has lost its token, or keeps failing to
+sync. They live in that browser's IndexedDB and nowhere else. **Settings → Local data → Download
+backup** is the way out for those: it saves one JSON file, built in the page from what the device
+already holds (`buildBackup` in [`core/store/backup.ts`](../src/core/store/backup.ts)), so it needs
+neither a connection nor a token.
+
+```json
+{
+  "format": "grannydb-backup",
+  "formatVersion": 1,
+  "exportedAt": "2026-11-10T19:04:11.000Z",
+  "source": { "owner": "…", "repo": "…", "branch": "main", "dataDir": "data", "commit": "ab12…" },
+  "files": { "data/squares.csv": "id,…", "data/project.json": "{…}" },
+  "pendingChanges": [ … ]
+}
+```
+
+`files` maps a repo path to the file's text with the pending edits already applied - each CSV is
+exactly what the next sync would commit, produced by the same function - so restoring is copying
+those texts over the files in a clone. `pendingChanges` is the queue as well, unapplied, because it
+says *what* was waiting, which the files alone do not. Schemas are not included: the app holds them
+parsed, and writing them back out would drop any key it does not know. The buttons beside it save
+one table's CSV on its own, for a spreadsheet.
+
+There is no restore button, on purpose. Restoring is a write to the repo, and the repo already has
+one way in that is reviewed, validated and reversible: a commit.

@@ -1,13 +1,16 @@
 import { useId, useState } from 'react'
-import { appStore, AUTO_SYNC_IDLE_MS } from '../../core/store'
-import { commitUrl, DEFAULT_CONFIG, repoUrl } from '../../core/github'
+import { appStore, AUTO_SYNC_IDLE_MS, buildBackup, tableCsv } from '../../core/store'
+import { commitUrl, DEFAULT_CONFIG, fileUrl, repoUrl } from '../../core/github'
 import type { ConnectionCheck, RepoConfig } from '../../core/github'
 import { deviceTimeZone } from '../../core/date'
+import { THEMES } from '../../core/prefs'
+import type { Theme } from '../../core/prefs'
 import { PROJECT_KEYS } from '../../core/project'
 import type { ProjectInfo } from '../../core/project'
-import { useAppState, useCanEdit, useProject } from '../../app/hooks'
+import { useAppState, useCanEdit, useProject, useToday } from '../../app/hooks'
 import { promptInstall } from '../../app/install'
 import { Button, Card, Link, inputClass } from '../../ui/components'
+import { downloadText } from '../../ui/download'
 import { relativeTime } from '../../ui/time'
 import { notify } from '../../ui/toast'
 
@@ -445,10 +448,96 @@ export function SettingsPage() {
           </p>
           <Button onClick={() => void appStore.refreshFromGitHub()}>Reload from GitHub</Button>
         </div>
+        <ExportPanel />
       </Section>
+
+      <AboutSection />
     </div>
   )
 }
+
+/**
+ * Save what this device holds as files. The repo already keeps everything that has been synced;
+ * the point of this is the edits that have not been, which live in this browser and nowhere else.
+ * Everything is built from the store's current state, so it works offline and without a token.
+ */
+function ExportPanel() {
+  const state = useAppState()
+  const stamp = useToday()
+  const { snapshot, changes, config } = state
+  if (!snapshot) return null
+  const pending = changes.length
+
+  const onBackup = () => {
+    const backup = buildBackup({
+      config,
+      commit: snapshot.commit,
+      schemas: snapshot.schemas,
+      data: state.data,
+      project: state.project,
+      changes,
+      exportedAt: new Date(),
+    })
+    const name = `${config.repo}-backup-${stamp}.json`
+    downloadText(name, `${JSON.stringify(backup, null, 2)}\n`, 'application/json')
+    notify(`Saved ${name}`)
+  }
+
+  const onTable = (table: string) => {
+    const file = tableCsv(snapshot.schemas, state.data, table)
+    if (!file) return
+    // The path's last segment: `data/squares.csv` is saved as `squares.csv`.
+    downloadText(file.path.slice(file.path.lastIndexOf('/') + 1), file.text, 'text/csv')
+  }
+
+  return (
+    <div className="space-y-3 px-4 py-3">
+      <p className="text-sm text-muted">
+        Download the data as this device has it
+        {pending > 0 ? `, including your ${pending} unsynced edit${pending === 1 ? '' : 's'}` : ''}. The backup is one
+        file holding every table and the project settings; the CSVs open in a spreadsheet.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={onBackup}>Download backup</Button>
+        {snapshot.schemas.order.map((table) => (
+          <Button key={table} variant="ghost" onClick={() => onTable(table)}>
+            {table}.csv
+          </Button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Which build this is. The link goes to the changelog in `DEFAULT_CONFIG`'s repo, not the one
+ * Settings currently points at: the changelog belongs to the app's code, and "Data location" only
+ * moves the data.
+ */
+function AboutSection() {
+  return (
+    <Section title="About">
+      <dl className="text-sm">
+        <Row label="Version">
+          {__APP_VERSION__ ? `v${__APP_VERSION__}` : 'unknown'}
+          {__APP_RELEASED__ ? <span className="text-muted"> · {__APP_RELEASED__}</span> : null}
+        </Row>
+      </dl>
+      <p className="px-4 py-3 text-sm">
+        <a
+          href={fileUrl(DEFAULT_CONFIG, 'docs/CHANGELOG.md')}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline underline-offset-2"
+        >
+          What changed in each version
+        </a>
+      </p>
+    </Section>
+  )
+}
+
+const THEME_LABELS: Record<Theme, string> = { system: 'Match the device', light: 'Light', dark: 'Dark' }
 
 /** How the app behaves on this device: installed or not, pushing on its own or not, safe or not. */
 function DeviceSection() {
@@ -457,6 +546,26 @@ function DeviceSection() {
 
   return (
     <Section title="This device">
+      <div className="space-y-1 px-4 py-3" role="radiogroup" aria-labelledby="theme-label">
+        <p id="theme-label" className="text-sm font-medium">
+          Appearance
+        </p>
+        <div className="flex flex-wrap gap-x-5">
+          {THEMES.map((theme) => (
+            <label key={theme} className="tap-target flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="theme"
+                className="size-5 accent-[var(--color-accent)]"
+                checked={prefs.theme === theme}
+                onChange={() => appStore.setPrefs({ ...prefs, theme })}
+              />
+              {THEME_LABELS[theme]}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-2 px-4 py-3">
         <label htmlFor="auto-sync" className="tap-target flex items-center gap-3">
           <input
