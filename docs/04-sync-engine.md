@@ -204,6 +204,7 @@ Pinned by tests in [`queue.test.ts`](../src/core/__tests__/queue.test.ts).
 |---|---|
 | Offline | The app still opens and renders the last snapshot saved on the device, with the queue replayed on top; edits queue as usual; an automatic push stands down silently, a manual Sync reports the connection; nothing changes |
 | Back online | The app re-reads if it was showing the device's copy, and pushes the queue straight away |
+| Back in the foreground | The app re-reads if the data on screen is over a minute old or is the device's copy; if that read fails the screen stays as it was |
 | Automatic push fails for another reason | Reported like a manual failure: `syncError` on the sync screen, and the header badge turns amber |
 | App frozen or killed mid-push | Safe: the ref only moves on the final fast-forward, the queue is only trimmed after a success, and replaying already-committed operations commits nothing |
 | Browser clears storage | Asked against on the first edit of a session with `navigator.storage.persist()`; Settings shows whether it was granted |
@@ -264,6 +265,33 @@ screen came from the device's cache, since that is the one the network was actua
 (`navigator.onLine` reports whether there is an interface, not whether GitHub is reachable — true on
 a captive portal — so `true` permits an attempt, never a conclusion. `false` is trusted, and skips
 an attempt that cannot succeed.)
+
+### Re-reading on return to the foreground
+
+A sync always reads before it writes, so a stale screen cannot corrupt anything. It can still
+mislead: a tab left open on the laptop went on showing the morning's data after an evening of
+entries on the phone, and `nextId` numbered new records from that stale list, which is exactly the
+clash [ADR 0036](adr/0036-renumber-a-clashing-new-record-at-sync-time.md) has to repair afterwards.
+
+So `visibilitychange` to visible also asks [`refresh.ts`](../src/core/store/refresh.ts) whether to
+read again. It is the same shape as `autoSync.ts`: a pure function, `foregroundRefreshBlocker`,
+that returns the reason not to, and `AppStore` only owns the listener. The read goes ahead unless a
+read or push is already in flight, the browser reports being offline, or the snapshot was read less
+than `FOREGROUND_REFRESH_AFTER_MS` (60 seconds) ago. The device's saved copy never counts as recent.
+
+This is a **staleness bound on a cache**, chosen over polling (spends requests on a tab nobody is
+looking at, and background timers are throttled anyway) and over reading on every return (switching
+to a pattern and back happens every minute or two). The cost is that a tab sitting untouched in the
+foreground still goes stale. See
+[ADR 0037](adr/0037-re-read-on-return-to-the-foreground.md).
+
+Two details keep an unrequested read from being felt:
+
+- It is **quiet**. An ordinary failed read falls back to the saved copy and says the device is
+  offline; this one, `reload(undefined, { quiet: true })`, leaves the screen exactly as it was.
+- It must not disturb a form that is open. `RecordForm` holds only the fields that were touched,
+  not a copy of the row, so the fields underneath can move to their newer values without those
+  values being written back as if they were edits.
 
 ### Keeping the queue on the device
 

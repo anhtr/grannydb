@@ -33,6 +33,7 @@ import { loadLastSync, saveLastSync, syncChanges } from './sync'
 import type { LastSync, SyncResult } from './sync'
 import { autoSyncBlocker, autoSyncDelay, isWorthReporting } from './autoSync'
 import type { AutoSyncTrigger } from './autoSync'
+import { foregroundRefreshBlocker } from './refresh'
 import { requestPersistence, storagePersistence } from './persistence'
 import type { StoragePersistence } from './persistence'
 
@@ -146,8 +147,15 @@ class AppStore {
     this.autoSync('start')
   }
 
-  /** Re-read the data — at commit `at` when the caller already knows it, else the branch head. */
-  async reload(at?: string): Promise<void> {
+  /**
+   * Re-read the data — at commit `at` when the caller already knows it, else the branch head.
+   *
+   * `quiet` is for a read nobody asked for (see `refresh.ts`): if it fails, whatever is on screen
+   * stays exactly as it was. Without it a failed read falls back to the saved copy and says so,
+   * which is right when you pressed a button and wrong when all you did was switch back to the tab
+   * in a tunnel — a good snapshot would be swapped for an "offline copy" of the same data.
+   */
+  async reload(at?: string, options: { quiet?: boolean } = {}): Promise<void> {
     const ticket = ++this.loadTicket
     const config = this.state.config
     this.set({ phase: 'loading', error: null })
@@ -159,6 +167,10 @@ class AppStore {
       void saveSnapshot(config, snapshot)
     } catch (error) {
       if (ticket !== this.loadTicket) return
+      if (options.quiet && this.state.snapshot) {
+        this.set({ phase: 'ready' })
+        return
+      }
       const message = error instanceof Error ? error.message : 'Could not load data.'
 
       // Every read path needs the network, so with no signal there is nothing to render and the
@@ -179,13 +191,17 @@ class AppStore {
   /**
    * Re-read when the device comes back, and push anything queued.
    *
-   * The re-read is guarded to the cases that are actually waiting on the network, because `online`
-   * fires on any interface change and a needless reload throws away a perfectly good snapshot
-   * mid-scroll. The push is `autoSync`'s decision, and does nothing if you turned it off.
+   * The `online` re-read is guarded to the cases that are actually waiting on the network, because
+   * `online` fires on any interface change and a needless reload throws away a perfectly good
+   * snapshot mid-scroll. The push is `autoSync`'s decision, and does nothing if you turned it off.
    *
    * Visibility is watched as well as connectivity because `online` is not a reliable signal on a
    * phone: an app frozen in the background misses it, and leaving the app is the last moment a
    * pending edit can go up before the OS suspends it.
+   *
+   * Coming back to the foreground also re-reads, once what is on screen is old enough to have been
+   * overtaken by another device (`foregroundRefreshBlocker`). The push is asked first: if it runs,
+   * the store is syncing by the time the re-read is considered, and a sync ends with its own read.
    */
   watchConnectivity(): () => void {
     if (typeof window === 'undefined') return () => {}
@@ -199,7 +215,11 @@ class AppStore {
     }
     const onOffline = (): void => this.set({ online: false })
     const onVisibility = (): void => {
-      this.autoSync(document.visibilityState === 'hidden' ? 'hidden' : 'visible')
+      const hidden = document.visibilityState === 'hidden'
+      this.autoSync(hidden ? 'hidden' : 'visible')
+      if (!hidden && foregroundRefreshBlocker(this.state, Date.now()) === null) {
+        void this.reload(undefined, { quiet: true })
+      }
     }
 
     this.set({ online: navigator.onLine })

@@ -4,6 +4,20 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-09 - v0.1.43, re-read on return to the foreground
+
+**Sync**
+- Coming back to the app now **re-reads the repo** when the data on screen is more than a minute
+  old, or is the device's saved copy. Before, a tab left open kept showing whatever it read at
+  start-up until Settings → Reload from GitHub was pressed, and handed out ids from that stale
+  list. Policy in the new `src/core/store/refresh.ts` (`foregroundRefreshBlocker`), shaped like
+  `autoSync.ts`; the read is quiet, so a failure leaves the screen as it was instead of swapping in
+  the offline copy. See [ADR 0037](adr/0037-re-read-on-return-to-the-foreground.md).
+- The record form now sends **only the fields that were edited** when saving an existing record,
+  and shows the current value of the rest. It used to copy the whole row at the first keystroke,
+  which was harmless while the data underneath could not change mid-edit; with a background
+  re-read it would have queued every stale field and reverted another device's edit.
+
 ## 2026-11-09 - v0.1.42, try again from the load-error screen
 
 **App**

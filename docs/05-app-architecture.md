@@ -114,7 +114,7 @@ appStore.state = {
   data         // snapshot + changes, recomputed on either change  ← screens read this
   project      // snapshot.project + pending `set` changes, the same way  ← Settings and Progress read this
   queueDurable // false once a queue write has failed; drives the storage warning
-  online       // navigator.onLine; drives the reconnect re-read, never a decision to skip a request
+  online       // navigator.onLine; drives the reconnect and foreground re-reads, never a decision to skip a manual request
   updateReady  // a newer build is installed and waiting behind the "Reload" bar
   token, config, prefs, phase, syncing, lastSync, error, syncError
 }
@@ -126,6 +126,12 @@ stale relative to its inputs. Hooks in [`app/hooks.ts`](../src/app/hooks.ts) exp
 
 `reload()` guards against out-of-order responses with a ticket counter — a slow load kicked off
 before a config change must not overwrite a fast one kicked off after it.
+
+A `reload()` can also arrive unasked, when the app returns to the foreground with data over a
+minute old ([`refresh.ts`](../src/core/store/refresh.ts),
+[ADR 0037](adr/0037-re-read-on-return-to-the-foreground.md)). Screens therefore must not copy a row
+into their own state and write the copy back. `RecordForm` keeps only the fields that were edited
+and reads everything else from `data` on each render, so `save` receives the edited fields alone.
 
 ## Routing
 

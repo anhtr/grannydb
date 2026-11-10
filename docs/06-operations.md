@@ -152,7 +152,9 @@ differently: a stale *shell* means the page itself is a deploy behind, and the a
 "A newer version is ready" bar when it knows about one. It asks the browser to check for one each
 time the app comes back to the foreground, because an installed app left in the app switcher never
 navigates, and navigation is when browsers check on their own. A stale *dataset* is the saved
-snapshot, and Settings → Reload from GitHub forgets it and reads again.
+snapshot, and Settings → Reload from GitHub forgets it and reads again. The app also re-reads by
+itself on returning to the foreground once the data on screen is over a minute old, so that button
+is for the tab that never left the foreground.
 
 To check installability, use `npm run preview` and DevTools → Application → Manifest (it lists any
 install blockers) and → Service workers. The Manifest pane will note that no `id` is specified; that

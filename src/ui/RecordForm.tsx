@@ -71,7 +71,12 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
     [id, table, state.data[table]],
   )
 
-  const [values, setValues] = useState<CsvRow | null>(null)
+  // Only the fields touched on this form, not a copy of the whole row. Everything else is read live
+  // off the record, so when the data underneath is re-read mid-edit (after a sync, or on coming back
+  // to the app - see `refresh.ts`) an untouched field shows, and on save leaves alone, whatever
+  // another device has since written to it. A full copy taken at the first keystroke would write
+  // every stale field back over the newer one.
+  const [edits, setEdits] = useState<CsvRow | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
@@ -112,15 +117,16 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
   }
 
   const initial = initialValues(schema, existing, newId, todayDate)
-  const current = values ?? initial
+  const current = edits ? { ...initial, ...edits } : initial
   const recordId = current[schema.idField] || newId
-  unsaved.current = values !== null && schema.fields.some((f) => (values[f.key] ?? '') !== (initial[f.key] ?? ''))
+  unsaved.current = edits !== null && Object.keys(edits).some((key) => edits[key] !== (initial[key] ?? ''))
 
   const setField = (key: string, value: string) => {
     // Changing the status also dates it (and clears any later status's date) — see `changeStatus`.
     const statusDates = schema.statusDates
     const touched = statusDates && key === statusDates.field ? [key, ...Object.values(statusDates.dates)] : [key]
-    setValues(statusDates && key === statusDates.field ? changeStatus(schema, current, value, todayDate) : { ...current, [key]: value })
+    const next = statusDates && key === statusDates.field ? changeStatus(schema, current, value, todayDate) : { ...current, [key]: value }
+    setEdits({ ...edits, ...Object.fromEntries(touched.map((k) => [k, next[k] ?? ''])) })
     setErrors((prev) => {
       if (!touched.some((k) => prev[k])) return prev
       const next = { ...prev }
@@ -153,7 +159,8 @@ export function RecordForm({ table, id }: { table: string; id?: string }) {
 
     setSaving(true)
     try {
-      await appStore.save(table, recordId, current)
+      // A new record is written whole, defaults included; an existing one only where it was edited.
+      await appStore.save(table, recordId, existing ? (edits ?? {}) : current)
       unsaved.current = false
       navigate(`/${table}/${recordId}`, { replace: true })
     } finally {
