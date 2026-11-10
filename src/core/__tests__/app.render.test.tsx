@@ -83,6 +83,7 @@ describe('App renders against the real data', () => {
     const text = container.textContent ?? ''
 
     expect(text).toContain('Fixture Granny') // design_id -> designs.name
+    expect(text).toContain('Source: Fixture Source') // design_id's detailFields, under the chip
     expect(text).toContain('Fixture Cream') // main_yarn -> yarns.name
     expect(text).toContain('Fixture Rose') // one of the extra_yarns, via the reflist renderer
   })

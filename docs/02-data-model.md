@@ -322,6 +322,26 @@ construction the design uses without a tap through to the design itself. Resolve
 `refDisplayLabel`, the same label a filter dropdown or sort would show — a nested `ref` (a design's
 `source`) reads as the source's name, not its row id.
 
+A `ref` or `reflist` field can set `"pickerFields"` in the same shape, for the other end of the
+field's life: fields on the referenced row shown as a second, smaller line under each **option in
+the picker**. `squares.design_id` sets `["source", "construction_type"]`, so two designs both called
+"Granny Square" can be told apart by their book; `main_yarn` and `extra_yarns` set
+`["skeins", "partial_skein", "is_too_low"]`, so a yarn that has run out says so before it is chosen
+and not after the square is half made. It is a separate knob from `detailFields` and not one list
+used twice because the two answer different questions - stock matters while choosing a yarn and is
+noise under the chip on a finished square.
+
+Both lines are produced by one pure function, `refAnnotation` (`core/schema/search.ts`): each field
+as `Label: value`, joined with ` · `, blank fields left out. A `bool` is written as its label alone
+when set and not at all when not - "Too low", never "Too low: no". And both are part of the data
+contract: `buildSchemaSet` rejects a `detailFields` or `pickerFields` entry that is not a field on
+the referenced table, since a misspelt key would otherwise just show nothing and look like a blank
+row.
+
+A `ref` picker lists at most 50 options at a time, in title order. When more match, the last line of
+the list says how many ("Showing the first 50 of 213 - type to narrow") - a cut list that does not
+say it is cut reads as "that row does not exist".
+
 A `number` field can set `"stepper": true` to say that it is a **running count**, moved by one far
 more often than it is retyped. `yarns.skeins` is the case: a skein gets used up, or one more turns
 up at the bottom of a bag. The form then puts a − and a + either side of the box (which can still be

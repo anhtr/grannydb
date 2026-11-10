@@ -34,11 +34,11 @@
     { "key": "started_date", "label": "Started", "type": "date", "filter": true, "sortable": true },
     { "key": "done_date", "label": "Done", "type": "date", "list": true, "filter": true, "sortable": true, "help": "When it was crocheted. Pace and the Progress charts count from this date." },
     { "key": "blocked_date", "label": "Blocked", "type": "date", "list": true, "filter": true, "sortable": true },
-    { "key": "design_id", "label": "Design", "type": "ref", "refTable": "designs", "list": true, "filter": true, "sortable": true, "quickCreate": true, "searchFields": ["name", "source"], "detailFields": ["source", "construction_type"] },
+    { "key": "design_id", "label": "Design", "type": "ref", "refTable": "designs", "list": true, "filter": true, "sortable": true, "quickCreate": true, "searchFields": ["name", "source"], "detailFields": ["source", "construction_type"], "pickerFields": ["source", "construction_type"] },
     { "key": "construction_type", "label": "Construction", "type": "enum", "options": ["solid", "holey"], "list": true, "filter": true, "sortable": true, "inheritFrom": { "via": "design_id", "throughField": "construction_type" }, "help": "Leave blank to use the design's construction type. Filtering matches this value even when inherited from the design." },
     { "key": "customization", "label": "Customization", "type": "textarea", "help": "How you deviated from the pattern." },
-    { "key": "main_yarn", "label": "Main colour", "type": "ref", "refTable": "yarns", "list": true, "filter": true, "sortable": true },
-    { "key": "extra_yarns", "label": "Extra colours", "type": "reflist", "refTable": "yarns", "separator": ";", "list": true },
+    { "key": "main_yarn", "label": "Main colour", "type": "ref", "refTable": "yarns", "list": true, "filter": true, "sortable": true, "pickerFields": ["skeins", "partial_skein", "is_too_low"] },
+    { "key": "extra_yarns", "label": "Extra colours", "type": "reflist", "refTable": "yarns", "separator": ";", "list": true, "pickerFields": ["skeins", "partial_skein", "is_too_low"] },
     { "key": "position", "label": "Position", "type": "text", "help": "Where it sits in the blanket. Free text for now." },
     { "key": "notes", "label": "Notes", "type": "textarea" }
   ]

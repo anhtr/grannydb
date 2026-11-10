@@ -3,12 +3,11 @@ import type { CsvRow } from '../core/csv'
 import { compareIds } from '../core/csv'
 import type { FieldDef, FieldType, TableSchema } from '../core/schema'
 import {
-  fieldByKey,
   formatBool,
   joinList,
   matchesSearch,
   parseBool,
-  refDisplayLabel,
+  refAnnotation,
   searchText,
   splitList,
   stepCount,
@@ -111,16 +110,15 @@ function RefDetailFields({ id, refTable, keys }: { id: string; refTable: string;
   if (!schema) return null
   const row = lookup.get(id)
   if (!row) return null
-  const parts = keys
-    .map((key) => fieldByKey(schema, key))
-    .filter((f): f is FieldDef => f !== undefined)
-    .map((f) => ({ label: f.label, value: refDisplayLabel(f, row[f.key] ?? '', resolve) }))
-    .filter((p) => p.value !== '')
-  if (parts.length === 0) return null
-  return (
-    <p className="mt-0.5 text-xs text-muted">{parts.map((p) => `${p.label}: ${p.value}`).join(' · ')}</p>
-  )
+  const note = refAnnotation(schema, row, keys, resolve)
+  return note === '' ? null : <p className="mt-0.5 text-xs text-muted">{note}</p>
 }
+
+/**
+ * How many options a `ref` picker lists at once. Past this the list is cut, and says so: fifty
+ * rows is already more than anyone scrolls in a dropdown, and typing two letters gets further.
+ */
+const PICKER_LIMIT = 50
 
 /**
  * How an inline quick-create tells the form around it that it holds a half-made row, so the form's
@@ -298,15 +296,16 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
   const selectedRow = value !== '' ? lookup.get(value) : undefined
   const selectedLabel = schema && selectedRow ? titleFor(schema, selectedRow) : value
 
-  const results = useMemo(() => {
-    if (!schema) return []
+  const { results, matchCount } = useMemo(() => {
+    if (!schema) return { results: [], matchCount: 0 }
     const entries = [...lookup.entries()]
     const matched =
       query.trim() === ''
         ? entries
         : entries.filter(([, row]) => matchesSearch(searchText(schema, row, resolve, field.searchFields), query))
     // Natural order, the same as the lists, so "77 (Sunflower)" comes before "129 (…)".
-    return matched.sort((a, b) => compareIds(titleFor(schema, a[1]), titleFor(schema, b[1]))).slice(0, 50)
+    matched.sort((a, b) => compareIds(titleFor(schema, a[1]), titleFor(schema, b[1])))
+    return { results: matched.slice(0, PICKER_LIMIT), matchCount: matched.length }
   }, [schema, lookup, query, resolve, field.searchFields])
 
   return (
@@ -383,32 +382,46 @@ function RefSearchSelect({ field, value, onChange, id }: FieldInputProps) {
             {results.length === 0 ? (
               <li className="px-3 py-2 text-sm text-muted">No matches</li>
             ) : (
-              results.map(([rowId, row], i) => (
-                <li key={rowId}>
-                  <button
-                    type="button"
-                    className={`tap-target flex w-full items-center gap-2 px-3 text-left text-sm hover:bg-line/40 ${
-                      i === active ? 'bg-line/40' : ''
-                    }`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onChange(rowId)
-                      setQuery('')
-                      setOpen(false)
-                    }}
-                  >
-                    {schema?.swatchField ? (
-                      <Swatch
-                        hex={row[schema.swatchField]}
-                        pattern={schema.patternField ? row[schema.patternField] : undefined}
-                        size={14}
-                      />
-                    ) : null}
-                    {schema ? titleFor(schema, row) : rowId}
-                  </button>
-                </li>
-              ))
+              results.map(([rowId, row], i) => {
+                // What tells two options with similar names apart: which book a design is from, or
+                // whether there is any of a yarn left - see `pickerFields`.
+                const note = schema && field.pickerFields ? refAnnotation(schema, row, field.pickerFields, resolve) : ''
+                return (
+                  <li key={rowId}>
+                    <button
+                      type="button"
+                      className={`tap-target flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-line/40 ${
+                        i === active ? 'bg-line/40' : ''
+                      }`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onChange(rowId)
+                        setQuery('')
+                        setOpen(false)
+                      }}
+                    >
+                      {schema?.swatchField ? (
+                        <Swatch
+                          hex={row[schema.swatchField]}
+                          pattern={schema.patternField ? row[schema.patternField] : undefined}
+                          size={14}
+                        />
+                      ) : null}
+                      <span className="min-w-0">
+                        <span className="block">{schema ? titleFor(schema, row) : rowId}</span>
+                        {note ? <span className="block text-xs text-muted">{note}</span> : null}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })
             )}
+            {/* Last in the list, after the options the arrow keys walk, so it never takes a highlight. */}
+            {matchCount > results.length ? (
+              <li className="border-t border-line px-3 py-2 text-xs text-muted">
+                Showing the first {results.length} of {matchCount} - type to narrow
+              </li>
+            ) : null}
           </ul>
         ) : null}
       </div>
@@ -485,6 +498,10 @@ function RefListInput({ field, value, onChange, id }: FieldInputProps) {
         {visible.map(([rowId, row]) => {
           const active = selected.includes(rowId)
           const position = selected.indexOf(rowId) + 1
+          // Only on the chips still on offer: once picked, a chip is a record of the choice and
+          // stays as short as it can.
+          const note =
+            !active && schema && field.pickerFields ? refAnnotation(schema, row, field.pickerFields, resolve) : ''
           return (
             <button
               key={rowId}
@@ -504,6 +521,7 @@ function RefListInput({ field, value, onChange, id }: FieldInputProps) {
               ) : null}
               {schema ? titleFor(schema, row) : rowId}
               {active ? <span className="text-xs opacity-70">{position}</span> : null}
+              {note ? <span className="text-xs text-muted">{note}</span> : null}
             </button>
           )
         })}

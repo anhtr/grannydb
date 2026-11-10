@@ -21,6 +21,7 @@ export {
   matchesSearch,
   searchText,
   refDisplayLabel,
+  refAnnotation,
   derivedFilterField,
   derivedFilterValue,
   effectiveValue,

@@ -4,6 +4,27 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.56, the pickers say more about what is being picked
+
+**App**
+- Options in the **design** picker show the design's source and construction under its name, so two
+  designs with the same name can be told apart.
+- Options in the **main colour** and **extra colours** pickers show how many skeins are left, and
+  "Partial skein" or "Too low" where those are set - a yarn that has run out says so before it is
+  chosen. In extra colours the note is on the chips still on offer, not on those already picked.
+- A picker with more than 50 matches now ends with "Showing the first 50 of N - type to narrow". The
+  list was already cut at 50; it just did not say so, which made a missing row look like a row that
+  did not exist.
+- **Fixed:** a square's page was meant to show its design's source and construction in small print
+  under the design chip (`detailFields`, v0.1.16) and never has. The schema loader did not read the
+  setting, so the app never saw it. It does now.
+
+**Data**
+- New optional field knob on a `ref`/`reflist` field, `"pickerFields"`: fields on the referenced row
+  to show under each picker option. Set on `squares.design_id`, `main_yarn` and `extra_yarns`.
+- The data check now rejects a `detailFields` or `pickerFields` entry that is not a field on the
+  referenced table. A misspelt key used to show nothing, silently.
+
 ## 2026-11-10 - v0.1.55, skeins go up and down with one tap
 
 **App**

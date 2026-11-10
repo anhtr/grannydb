@@ -137,6 +137,34 @@ describe('buildSchemaSet', () => {
     expect(field?.sortable).toBe(true)
   })
 
+  it('parses detailFields and pickerFields on a ref field', () => {
+    const withExtras = {
+      ...yarns,
+      fields: [
+        ...yarns.fields,
+        { key: 'x', label: 'X', type: 'ref', refTable: 'yarns', detailFields: ['name'], pickerFields: ['name', 'id'] },
+      ],
+    }
+    const field = buildSchemaSet({ tables: ['yarns'] }, { yarns: withExtras }).tables.yarns.fields.find((f) => f.key === 'x')
+    expect(field?.detailFields).toEqual(['name'])
+    expect(field?.pickerFields).toEqual(['name', 'id'])
+  })
+
+  it('rejects detailFields or pickerFields naming a field the referenced table lacks', () => {
+    const misspelt = (knob: string) => ({
+      ...yarns,
+      fields: [...yarns.fields, { key: 'x', label: 'X', type: 'ref', refTable: 'yarns', [knob]: ['nmae'] }],
+    })
+    expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: misspelt('detailFields') })).toThrow(
+      /x\.detailFields: "nmae" is not a field on "yarns"/,
+    )
+    expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: misspelt('pickerFields') })).toThrow(
+      /x\.pickerFields: "nmae" is not a field on "yarns"/,
+    )
+    const notARef = { ...yarns, fields: [...yarns.fields, { key: 'x', label: 'X', type: 'text', pickerFields: ['name'] }] }
+    expect(() => buildSchemaSet({ tables: ['yarns'] }, { yarns: notARef })).toThrow(/only a ref or reflist field/)
+  })
+
   it('parses stepper on a field, off unless asked for', () => {
     const withCount = { ...yarns, fields: [...yarns.fields, { key: 'skeins', label: 'Skeins', type: 'number', stepper: true }] }
     const set = buildSchemaSet({ tables: ['yarns'] }, { yarns: withCount })

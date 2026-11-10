@@ -51,6 +51,8 @@ function parseField(raw: unknown, where: string): FieldDef {
     stepper: o.stepper === true,
     quickCreate: o.quickCreate === true,
     searchFields: Array.isArray(o.searchFields) ? (o.searchFields as string[]) : undefined,
+    detailFields: Array.isArray(o.detailFields) ? (o.detailFields as string[]) : undefined,
+    pickerFields: Array.isArray(o.pickerFields) ? (o.pickerFields as string[]) : undefined,
     sortable: o.sortable === true,
     inheritFrom,
   }
@@ -225,6 +227,24 @@ export function buildSchemaSet(manifest: unknown, rawTables: Record<string, unkn
         throw new SchemaError(
           `schema[${schema.table}].${field.key}: refTable "${field.refTable}" is not a known table`,
         )
+      }
+    }
+  }
+
+  // A ref field's detailFields and pickerFields name fields on the table it points at. A misspelt
+  // key would otherwise just show nothing, which reads as "that row is blank" - so it is an error.
+  for (const schema of Object.values(tables)) {
+    for (const field of schema.fields) {
+      for (const knob of ['detailFields', 'pickerFields'] as const) {
+        const keys = field[knob]
+        if (!keys) continue
+        const where = `schema[${schema.table}].${field.key}.${knob}`
+        if (!field.refTable) throw new SchemaError(`${where}: only a ref or reflist field can set this`)
+        for (const key of keys) {
+          if (!tables[field.refTable].fields.some((f) => f.key === key)) {
+            throw new SchemaError(`${where}: "${key}" is not a field on "${field.refTable}"`)
+          }
+        }
       }
     }
   }

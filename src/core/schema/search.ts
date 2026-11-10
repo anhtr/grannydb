@@ -1,6 +1,6 @@
 import type { DerivedFilterDef, FieldDef, TableSchema } from './types'
 import { fieldByKey, titleFor } from './types'
-import { splitList } from './validate'
+import { parseBool, splitList } from './validate'
 
 /**
  * Live search and filter/sort label resolution, shared by every list's search box and every ref
@@ -94,6 +94,42 @@ export function refDisplayLabel(
 ): string {
   if (field.type === 'ref' && field.refTable) return refLabel(resolve, field.refTable, value)
   return value
+}
+
+/**
+ * A one-line summary of some of a row's fields, for the small print under a reference: "Source:
+ * Attic24 · Construction: holey", or "Skeins left: 0 · Too low". It is what a `ref` field's
+ * `detailFields` (under the chip on a record page) and `pickerFields` (under each option in the
+ * picker) both render.
+ *
+ * Blank fields are left out, so a sparse row gives a short line and an empty one gives '' - callers
+ * render nothing for that. A `bool` reads as its label alone when set and as nothing when not:
+ * "Too low" is a flag, and "Too low: no" on every other yarn would bury the few that have it.
+ */
+export function refAnnotation(
+  schema: TableSchema,
+  row: Record<string, string>,
+  keys: readonly string[],
+  resolve: ResolveRef,
+): string {
+  const parts: string[] = []
+  for (const key of keys) {
+    const field = schema.fields.find((f) => f.key === key)
+    if (!field) continue
+    const raw = row[key] ?? ''
+    if (field.type === 'bool') {
+      if (parseBool(raw)) parts.push(field.label)
+      continue
+    }
+    const value =
+      field.type === 'reflist' && field.refTable
+        ? splitList(raw, field.separator ?? ';')
+            .map((id) => refLabel(resolve, field.refTable!, id))
+            .join(', ')
+        : refDisplayLabel(field, raw, resolve)
+    if (value !== '') parts.push(`${field.label}: ${value}`)
+  }
+  return parts.join(' · ')
 }
 
 /** The field a derived filter reads through, resolved via its `via` ref field's target table. */

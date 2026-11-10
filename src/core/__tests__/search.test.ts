@@ -4,6 +4,7 @@ import {
   derivedFilterValue,
   effectiveValue,
   matchesSearch,
+  refAnnotation,
   refDisplayLabel,
   searchText,
 } from '../schema/search'
@@ -138,6 +139,50 @@ describe('refDisplayLabel', () => {
   it('passes non-ref values through unchanged', () => {
     const field = squares.fields.find((f) => f.key === 'status')!
     expect(refDisplayLabel(field, 'done', resolve)).toBe('done')
+  })
+})
+
+describe('refAnnotation', () => {
+  const yarns: TableSchema = {
+    table: 'yarns',
+    file: 'data/yarns.csv',
+    label: 'Yarns',
+    labelSingular: 'Yarn',
+    idField: 'id',
+    idPrefix: 'Y',
+    idPadding: 2,
+    titleField: 'name',
+    fields: [
+      { key: 'id', label: 'ID', type: 'id' },
+      { key: 'name', label: 'Colourway', type: 'text' },
+      { key: 'skeins', label: 'Skeins left', type: 'number' },
+      { key: 'is_too_low', label: 'Too low', type: 'bool' },
+    ],
+  }
+
+  it('labels each field and resolves a ref to its title', () => {
+    expect(refAnnotation(designs, designRows.get('D01')!, ['source', 'construction_type'], resolve)).toBe(
+      'Source: Attic24 · Construction: holey',
+    )
+  })
+
+  it('leaves out blank fields, and is empty when they all are', () => {
+    expect(refAnnotation(designs, designRows.get('D02')!, ['source', 'construction_type'], resolve)).toBe(
+      'Source: Attic24',
+    )
+    expect(refAnnotation(designs, { id: 'D09', name: 'Bare' }, ['source', 'construction_type'], resolve)).toBe('')
+  })
+
+  it('shows a flag as its label when set and not at all when not', () => {
+    const keys = ['skeins', 'is_too_low']
+    expect(refAnnotation(yarns, { id: 'Y1', skeins: '0', is_too_low: 'yes' }, keys, resolve)).toBe(
+      'Skeins left: 0 · Too low',
+    )
+    expect(refAnnotation(yarns, { id: 'Y2', skeins: '3', is_too_low: 'no' }, keys, resolve)).toBe('Skeins left: 3')
+  })
+
+  it('ignores a key the table does not have', () => {
+    expect(refAnnotation(yarns, { id: 'Y1', skeins: '2' }, ['nope', 'skeins'], resolve)).toBe('Skeins left: 2')
   })
 })
 

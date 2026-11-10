@@ -64,6 +64,14 @@ export interface FieldDef {
    * raw id. Detail view only; list rows and edit forms are unaffected.
    */
   detailFields?: string[]
+  /**
+   * `ref`/`reflist` only: fields on the *referenced* row shown as a second, smaller line under each
+   * option in the picker, e.g. a design's source, or how many skeins are left of a yarn - what tells
+   * two similar options apart at the moment of choosing. Kept apart from `detailFields` because the
+   * two answer different questions: a yarn's stock matters while picking it and is noise under the
+   * chip on a finished square's page. Formatted by `refAnnotation`, the same as `detailFields`.
+   */
+  pickerFields?: string[]
   /** Offer this field as a sort option in list views, alongside the built-in id and name sorts. */
   sortable?: boolean
   /**
