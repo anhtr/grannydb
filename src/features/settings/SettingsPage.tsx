@@ -176,6 +176,10 @@ export function SettingsPage() {
   const [config, setConfig] = useState<RepoConfig>(state.config)
   const [check, setCheck] = useState<ConnectionCheck | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirmForget, setConfirmForget] = useState(false)
+  const [confirmMove, setConfirmMove] = useState(false)
+  const pending = state.changes.length
+  const pendingEdits = `${pending} unsynced edit${pending === 1 ? '' : 's'}`
 
   const configDirty = JSON.stringify(config) !== JSON.stringify(state.config)
 
@@ -212,10 +216,36 @@ export function SettingsPage() {
               <Button onClick={() => void onTest()} disabled={busy}>
                 Test connection
               </Button>
-              <Button variant="danger" onClick={() => void appStore.signOut()}>
-                Forget token
-              </Button>
+              {confirmForget ? (
+                <>
+                  <Button variant="ghost" onClick={() => setConfirmForget(false)}>
+                    Keep
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      setConfirmForget(false)
+                      setCheck(null)
+                      void appStore.signOut()
+                    }}
+                  >
+                    Really forget
+                  </Button>
+                </>
+              ) : (
+                <Button variant="danger" onClick={() => setConfirmForget(true)}>
+                  Forget token
+                </Button>
+              )}
             </div>
+            {confirmForget ? (
+              <p className="text-sm text-amber-700 dark:text-amber-400" role="status">
+                This device goes back to read-only until a token is pasted in again.
+                {pending > 0
+                  ? ` Your ${pendingEdits} stay${pending === 1 ? 's' : ''} on this device, but cannot be pushed until then.`
+                  : ''}
+              </p>
+            ) : null}
           </div>
         ) : (
           <form
@@ -278,20 +308,60 @@ export function SettingsPage() {
         <div className="flex flex-wrap gap-2 px-4 py-3">
           <Button
             variant="primary"
-            disabled={!configDirty}
-            onClick={() => void appStore.setConfig(config)}
+            disabled={!configDirty || confirmMove}
+            onClick={() => {
+              // The queue is not tied to a location, so unsynced edits would follow the switch and be
+              // pushed to the new repo or branch. That is sometimes wanted (trying a scratch branch)
+              // and never something to do without being told.
+              if (pending > 0) setConfirmMove(true)
+              else void appStore.setConfig(config)
+            }}
           >
             Save and reload
           </Button>
           <Button
             variant="ghost"
             onClick={() => {
+              setConfirmMove(false)
               setConfig(DEFAULT_CONFIG)
             }}
           >
             Reset to defaults
           </Button>
         </div>
+        {confirmMove && configDirty ? (
+          <div className="space-y-3 px-4 py-3" role="alert">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              You have {pendingEdits} made against{' '}
+              <span className="font-mono">
+                {state.config.owner}/{state.config.repo}
+              </span>{' '}
+              ({state.config.branch}). Pending edits are not tied to a location, so after switching they would be
+              pushed to{' '}
+              <span className="font-mono">
+                {config.owner}/{config.repo}
+              </span>{' '}
+              ({config.branch}) instead.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to="/sync" className="tap-target inline-flex items-center rounded-xl border border-line bg-card px-4 text-sm font-medium hover:border-accent">
+                Review and sync first
+              </Link>
+              <Button variant="ghost" onClick={() => setConfirmMove(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setConfirmMove(false)
+                  void appStore.setConfig(config)
+                }}
+              >
+                Switch and take them along
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Section>
 
       <Section title="Status">

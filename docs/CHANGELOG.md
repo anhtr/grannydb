@@ -4,6 +4,17 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-09 - v0.1.44, confirm before forgetting the token or moving pending edits
+
+**App**
+- **Forget token** in Settings now takes a second tap ("Really forget"), and says what it costs:
+  the device goes back to read-only, and any unsynced edits stay put but cannot be pushed until a
+  token is saved again. It used to act on the first tap.
+- Saving a new **Data location** while edits are waiting now stops to say so. The queue is one per
+  device, not per location, so those edits would be pushed to the new repo or branch; the prompt
+  offers to review and sync them first, to cancel, or to switch and take them along. With nothing
+  pending it saves straight away, as before.
+
 ## 2026-11-09 - v0.1.43, re-read on return to the foreground
 
 **Sync**

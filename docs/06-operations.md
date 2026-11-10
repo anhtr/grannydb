@@ -142,6 +142,12 @@ that this writes to the **real repo**, and with automatic sync on it does so by 
 seconds after an edit, no button involved. Use a scratch branch (Settings → Branch), or turn off
 Settings → This device → Sync automatically, if you are experimenting.
 
+The pending queue is one per device, not one per data location (the snapshot cache is the one that
+is keyed by location). Edits queued before a switch are therefore pushed to wherever Settings
+points afterwards. Settings asks before saving a new location while edits are waiting, and offers
+to sync them first; it does not stop you, because carrying a few edits onto a scratch branch is a
+legitimate thing to want.
+
 **The service worker is production-only.** In development the app unregisters any worker it finds
 instead of installing one, because a precached shell served over the dev server's own files is a
 confusing afternoon. To exercise offline behaviour, use `npm run preview` — that is a production
