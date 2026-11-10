@@ -350,6 +350,15 @@ it: "how many colours do I have at least 2 skeins of" and "which am I nearly out
 questions, which a pill per exact skein count could not answer. There is no per-field setting for this
 — the type decides. See [ADR 0034](adr/0034-numeric-filters-are-min-max-sliders.md).
 
+A `"filter": true` field of `date` type filters as an inclusive **from-to range**, either end
+optional, with one-tap shortcuts for this week, this month and the last 30 days. All four of a
+square's dates (`planned_date`, `started_date`, `done_date`, `blocked_date`) use it, which is what
+makes "everything done this month" or "blocked since the 1st" askable at all. A blank date is outside
+every range: a square with no `done_date` is not "done this month". Again the type decides, with no
+per-field setting. A shortcut fills in the two dates it stands for on the day it is tapped; what is
+saved is those dates, not the phrase "this month" - see
+[ADR 0038](adr/0038-date-filters-save-absolute-ranges.md) for what that costs.
+
 And a table can set `"derivedFilters"` — filters computed by hopping through a `ref` field to a field
 on the table it points at, for filtering by something the table does not store directly.
 `squares.json` filters by `source` this way, hopping `design_id` to the design's `source`, since a

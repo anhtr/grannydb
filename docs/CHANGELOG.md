@@ -4,6 +4,22 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-10 - v0.1.48, date filters
+
+**App**
+- A `date` field marked `"filter": true` now filters as a **from-to range**: two date boxes, either
+  of which can be left empty, plus **This week**, **This month** and **Last 30 days** shortcuts.
+  Before, dates could be sorted on but not filtered, so "what did I finish this month" had no
+  answer short of scrolling. Each date filter sits collapsed in the Filter panel as its label and
+  what it is set to, and opens on a tap.
+- `squares.json` marks all four dates filterable (`planned_date`, `started_date`, `done_date`,
+  `blocked_date`). No data change.
+- A square with a blank date never matches a date filter that is set. Dates entered the wrong way
+  round are read as the range they span.
+- A shortcut saves the dates it stands for on the day it is tapped, not the phrase: "This month"
+  left on over a month end keeps showing last month until it is tapped again. Why, and what the
+  alternative would have cost, is [ADR 0038](adr/0038-date-filters-save-absolute-ranges.md).
+
 ## 2026-11-10 - v0.1.47, filter squares by any colour they use
 
 **App**

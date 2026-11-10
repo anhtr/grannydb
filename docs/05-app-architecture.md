@@ -195,7 +195,12 @@ Three components in `ui/` serve every table:
   native range inputs stacked on one track, styled by `.range-pair` in `styles.css`. Its selection is
   saved as `[min, max]` with `''` at either end for "unbounded", so a thumb left at the top keeps
   meaning "or more" as the data grows — see
-  [ADR 0034](adr/0034-numeric-filters-are-min-max-sliders.md). A filter past `SEARCHABLE_FILTER_THRESHOLD` (8) options —
+  [ADR 0034](adr/0034-numeric-filters-are-min-max-sliders.md). A `date` field renders as a from-to
+  pair of native date inputs with shortcut pills (`DateFilter`), collapsed to a one-line summary until
+  opened so that a table with several dates does not bury its pill filters; the matching, the saved
+  `[from, to]` shape and the shortcuts are pure functions in
+  [`ui/dateFilter.ts`](../src/ui/dateFilter.ts), tested without rendering anything - see
+  [ADR 0038](adr/0038-date-filters-save-absolute-ranges.md). A filter past `SEARCHABLE_FILTER_THRESHOLD` (8) options —
   a square's Design or Main colour filter, easily past a hundred — renders as a search box instead of a
   flat pill row: empty, it shows only what is already selected; typing narrows to matches, the same
   "type to narrow, tap to toggle" pattern `RefListInput`'s multi-select `ref` picker already uses for a
@@ -211,7 +216,8 @@ Three components in `ui/` serve every table:
   (`core/prefs`) and restored next time — device-local, not synced.
   A page can also pass `extraSortOptions`/`extraFilters` — the same shapes `sortableFields`/
   `filterFields` build from the schema, but supplied by the caller for a value that has no field to
-  scan, e.g. a cross-table count; an extra filter is either pills or a `kind: 'range'` slider (Yarns'
+  scan, e.g. a cross-table count; an extra filter is pills, a `kind: 'range'` slider or a
+  `kind: 'date'` range (Yarns'
   squares-as-main and squares-as-extra counts, Designs' square count). `SquaresPage` uses it for
   **Any colour (main or extra)**, a filter over two columns at once (`squareYarnIds`), which no
   single field's flag could express. `YarnsPage` and `DesignsPage` both use this for counts computed by

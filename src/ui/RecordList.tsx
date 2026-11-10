@@ -17,8 +17,9 @@ import {
 import type { FieldDef, ResolveRef, TableSchema } from '../core/schema'
 import type { ListPrefs, SortRule } from '../core/prefs'
 import { appStore, pendingRowIds } from '../core/store'
-import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema } from '../app/hooks'
+import { useAppState, useCanEdit, useResolveRef, useTable, useTableSchema, useToday } from '../app/hooks'
 import { Badge, BadgeStack, Button, Card, EmptyState, inputClass, Link, Spinner } from './components'
+import { dateMatches, datePresets, dateSelection, dateSummary, readDateRange } from './dateFilter'
 
 interface FilterOption {
   value: string
@@ -48,7 +49,20 @@ export interface RangeFilterDescriptor {
   value: (row: CsvRow) => number
 }
 
-export type FilterDescriptor = PillFilterDescriptor | RangeFilterDescriptor
+/**
+ * A date filter: an inclusive from-to range, either end optional. Every `date` field filters this
+ * way rather than as pills of its distinct values - a pill per day answers "done on the 3rd" and
+ * nothing else, and "done this month" is the question people actually have. The matching and the
+ * saved shape live in `dateFilter.ts`; see ADR 0038.
+ */
+export interface DateFilterDescriptor {
+  kind: 'date'
+  key: string
+  label: string
+  value: (row: CsvRow) => string
+}
+
+export type FilterDescriptor = PillFilterDescriptor | RangeFilterDescriptor | DateFilterDescriptor
 
 /**
  * A range filter's selection, saved in the same `string[]` slot a pill filter uses: `[min, max]`, with
@@ -110,6 +124,7 @@ function useFilterDescriptors(schema: TableSchema | null, data: CsvTable | null)
         const value = (row: CsvRow) => Number(fieldValue(row)) || 0
         return { kind: 'range', key: field.key, label: field.label, max: rangeMax(data.rows, value), value }
       }
+      if (field.type === 'date') return { kind: 'date', key: field.key, label: field.label, value: fieldValue }
       const values = [...new Set(data.rows.map((r) => fieldValue(r)).filter((v) => v !== ''))]
       const options =
         field.type === 'enum' && field.options
@@ -334,7 +349,9 @@ export function RecordList({ table, renderRow, header, extraSortOptions, extraFi
       return filterDescriptors.every((d) => {
         const values = filters[d.key]
         if (!values || values.length === 0) return true
-        return d.kind === 'range' ? rangeMatches(d.value(row), values) : values.some((v) => d.matches(row, v))
+        if (d.kind === 'range') return rangeMatches(d.value(row), values)
+        if (d.kind === 'date') return dateMatches(d.value(row), values)
+        return values.some((v) => d.matches(row, v))
       })
     })
     return sortRows(filtered, schema, sorts.map(specFor), resolve)
@@ -792,6 +809,94 @@ function RangeFilter({
   )
 }
 
+/**
+ * A from-to pair of native date inputs, so the picker, the keyboard entry and the locale's date
+ * order all come from the browser. Shut until asked for: Squares has four date fields, and eight
+ * date boxes would bury the pill filters people reach for far more often. One that is narrowing the
+ * list starts open, so what it is set to can be seen and changed without hunting for it.
+ */
+function DateFilter({
+  descriptor,
+  selected,
+  onChange,
+  today,
+}: {
+  descriptor: DateFilterDescriptor
+  selected: string[]
+  onChange: (values: string[]) => void
+  today: string
+}) {
+  const active = selected.length > 0
+  const [open, setOpen] = useState(active)
+  const { from, to } = readDateRange(selected)
+  const label = descriptor.label.toLowerCase()
+  const bodyId = `filter-date-${descriptor.key}`
+
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        className="tap-target flex w-full items-center justify-between gap-2 text-left text-xs text-muted"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>
+          {descriptor.label} <span aria-hidden>{open ? '▾' : '▸'}</span>
+        </span>
+        <span className={active ? 'text-accent' : undefined}>{dateSummary(selected)}</span>
+      </button>
+      {open ? (
+        <div id={bodyId} className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
+            <label className="block text-xs text-muted">
+              From
+              <input
+                type="date"
+                className={`${inputClass} mt-0.5 px-2.5 py-1.5 text-xs`}
+                aria-label={`${descriptor.label} from`}
+                value={from}
+                onChange={(e) => onChange(dateSelection(e.target.value, to))}
+              />
+            </label>
+            <label className="block text-xs text-muted">
+              To
+              <input
+                type="date"
+                className={`${inputClass} mt-0.5 px-2.5 py-1.5 text-xs`}
+                aria-label={`${descriptor.label} to`}
+                value={to}
+                onChange={(e) => onChange(dateSelection(from, e.target.value))}
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={`Shortcuts for ${label}`}>
+            {datePresets(today).map((preset) => {
+              const on = from === preset.from && to === preset.to
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  aria-pressed={on}
+                  className={pillClass(on)}
+                  onClick={() => onChange(on ? [] : dateSelection(preset.from, preset.to))}
+                >
+                  {preset.label}
+                </button>
+              )
+            })}
+            {active ? (
+              <button type="button" className="tap-target px-1.5 text-xs text-accent" onClick={() => onChange([])}>
+                Any date
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function FilterPanel({
   descriptors,
   filters,
@@ -803,6 +908,7 @@ function FilterPanel({
   onChange: (filters: Record<string, string[]>) => void
   onClose: () => void
 }) {
+  const today = useToday()
   const activeCount = Object.values(filters).filter((v) => v.length > 0).length
   return (
     <>
@@ -833,6 +939,9 @@ function FilterPanel({
                   <RangeFilter descriptor={d} selected={selected} onChange={set} />
                 </div>
               )
+            }
+            if (d.kind === 'date') {
+              return <DateFilter key={d.key} descriptor={d} selected={selected} onChange={set} today={today} />
             }
             return (
               <div key={d.key}>
