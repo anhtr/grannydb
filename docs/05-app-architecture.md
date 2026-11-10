@@ -124,6 +124,13 @@ appStore.state = {
 stale relative to its inputs. Hooks in [`app/hooks.ts`](../src/app/hooks.ts) expose slices:
 `useTable`, `useRow`, `useLookup`, `useProject`, `usePendingCount`, `useCanEdit`.
 
+The Pending changes screen reads the queue through
+[`describeChange`](../src/core/store/describe.ts), a pure function that turns one operation into
+labelled "old → new" lines: field labels from the schema, references by the title of what they
+point at, the old value from the base snapshot. It is in `core/` so the wording is unit-tested
+without rendering, and so the queue's storage format (column keys, raw cells) never has to be
+readable in its own right.
+
 `reload()` guards against out-of-order responses with a ticket counter — a slow load kicked off
 before a config change must not overwrite a fast one kicked off after it.
 

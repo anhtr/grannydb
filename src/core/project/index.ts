@@ -26,6 +26,18 @@ export interface ProjectInfo {
 
 export const PROJECT_KEYS = { startDate: 'start_date', targetSquares: 'target_squares', timeZone: 'time_zone' } as const
 
+/** The keys by the names Settings gives them, for anywhere a queued edit is shown to a person. */
+const PROJECT_LABELS: Record<string, string> = {
+  [PROJECT_KEYS.startDate]: 'Start date',
+  [PROJECT_KEYS.targetSquares]: 'Target squares',
+  [PROJECT_KEYS.timeZone]: 'Time zone',
+}
+
+/** A key's label, or the key itself for one the app does not know (added by hand, or by a newer build). */
+export function projectKeyLabel(key: string): string {
+  return PROJECT_LABELS[key] ?? key
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 /** Lives beside `schema/` in the data directory, so pointing Settings at another data dir moves it too. */

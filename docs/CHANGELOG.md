@@ -4,6 +4,20 @@ What changed and when. One entry per shipped change, newest first.
 
 Update this in the same commit as the change, not afterwards. See [README](README.md#keeping-these-current).
 
+## 2026-11-09 - v0.1.46, pending changes show what they change
+
+**App**
+- Each entry on the **Pending changes** screen now lists the fields it sets as
+  **Label: old → new**, with references shown by name (a design's name, a yarn's name) instead of
+  ids, and blank shown as *blank*. It used to list field names only. A new record lists the values
+  it has; a delete names the record it removes. The old value is the repo's as last read, which is
+  what the change will be replayed over.
+- **Project settings** changes read "Target squares: 400 → 420" and link to Settings, instead of
+  showing raw keys such as `target_squares`.
+- Discarding a single change now takes a second tap (Keep / Discard), like Discard all.
+- The wording lives in a new pure module, `src/core/store/describe.ts` (`describeChange`), with
+  `projectKeyLabel` in `src/core/project`. Nothing about what is queued or committed changes.
+
 ## 2026-11-09 - v0.1.45, the last sync's warnings stay on the Sync screen
 
 **Sync**

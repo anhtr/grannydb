@@ -1,31 +1,97 @@
 import { useState } from 'react'
 import { appStore, AUTO_SYNC_IDLE_MS } from '../../core/store'
-import type { AppState, Change, SyncResult } from '../../core/store'
-import { findRow } from '../../core/csv'
+import { describeChange } from '../../core/store'
+import type { AppState, Change, ChangeSummary, SyncResult } from '../../core/store'
 import { fieldByKey } from '../../core/schema'
+import type { ResolveRef } from '../../core/schema'
 import { commitUrl } from '../../core/github'
-import { useAppState } from '../../app/hooks'
+import { useAppState, useResolveRef } from '../../app/hooks'
 import { Badge, Button, Card, EmptyState, ErrorNote, Link } from '../../ui/components'
 
-/**
- * One queued change in words: which record, whether it is new, and which fields - by their labels, as
- * the form shows them, rather than the CSV column keys the queue stores.
- */
-function describe(change: Change, state: AppState): { record: string; fields: string; link?: string } {
-  if (change.op === 'set') return { record: 'Project settings', fields: Object.keys(change.values).join(', ') }
-  if (change.op === 'delete') return { record: `Delete ${change.rowId}`, fields: '' }
-  const schema = state.snapshot?.schemas.tables[change.table]
-  const base = state.snapshot?.tables[change.table]
-  // The flag where there is one; a change queued before it existed falls back to asking the base.
-  const isNew = change.create ?? (schema && base ? !findRow(base, schema.idField, change.rowId) : false)
-  const fields = Object.keys(change.values ?? {})
-    .filter((k) => k !== (schema?.idField ?? 'id'))
-    .map((k) => (schema ? fieldByKey(schema, k)?.label : undefined) ?? k)
-  return {
-    record: isNew ? `New ${change.rowId}` : change.rowId,
-    fields: fields.join(', '),
-    link: `/${change.table}/${change.rowId}`,
-  }
+const BLANK = <span className="italic">blank</span>
+
+/** One queued change: which record, and each field it sets as "Label: old → new" (see `describeChange`). */
+function ChangeRow({
+  change,
+  summary,
+  confirming,
+  onConfirming,
+}: {
+  change: Change
+  summary: ChangeSummary
+  confirming: boolean
+  onConfirming: (on: boolean) => void
+}) {
+  const { kind, title, name, lines, link } = summary
+  const heading = kind === 'new' ? `New ${title}` : title
+  return (
+    <div className="flex items-start gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm">
+          {/* A deleted record has no page to open; everything else links to where it can be seen. */}
+          {link ? (
+            <Link to={link} className={`underline underline-offset-2 ${kind === 'project' ? '' : 'font-mono'}`}>
+              {heading}
+            </Link>
+          ) : (
+            <span className="font-mono">{heading}</span>
+          )}
+          {name ? <span className="text-muted"> · {name}</span> : null}
+          {kind === 'delete' ? (
+            <>
+              {' '}
+              <Badge tone="warn">delete</Badge>
+            </>
+          ) : null}
+        </p>
+        {lines.length > 0 ? (
+          <ul className="mt-1 space-y-0.5 text-sm text-muted">
+            {lines.map((line) => (
+              <li key={line.label} className="break-words">
+                <span className="font-medium">{line.label}:</span>{' '}
+                {kind === 'new' ? null : (
+                  <>
+                    <span className="line-through decoration-muted/60">{line.from === '' ? BLANK : line.from}</span>
+                    <span aria-label="changed to"> → </span>
+                  </>
+                )}
+                <span className="text-ink">{line.to === '' ? BLANK : line.to}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="mt-1 text-xs text-muted">
+          {change.op === 'set' ? `${change.doc}.json` : change.table} · {new Date(change.ts).toLocaleString()}
+        </p>
+      </div>
+      {/* Two taps, like Discard all: a discarded edit is gone, and this button sits where a thumb scrolls. */}
+      {confirming ? (
+        <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row">
+          <Button variant="ghost" onClick={() => onConfirming(false)}>
+            Keep
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              onConfirming(false)
+              void appStore.discardChange(change.id)
+            }}
+          >
+            Discard
+          </Button>
+        </div>
+      ) : (
+        <Button variant="ghost" className="shrink-0" onClick={() => onConfirming(true)}>
+          Discard
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function summarise(change: Change, state: AppState, resolve: ResolveRef): ChangeSummary | null {
+  if (!state.snapshot) return null
+  return describeChange(change, state.snapshot, resolve)
 }
 
 /**
@@ -79,6 +145,9 @@ export function SyncPage() {
   const state = useAppState()
   const [result, setResult] = useState<SyncResult | null>(null)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  // The id of the one change whose Discard is waiting on a second tap, if any.
+  const [confirmingChange, setConfirmingChange] = useState<string | null>(null)
+  const resolve = useResolveRef()
 
   const onSync = async () => {
     setResult(await appStore.sync())
@@ -164,29 +233,16 @@ export function SyncPage() {
         <>
           <Card className="divide-y divide-line overflow-hidden">
             {state.changes.map((change) => {
-              const { record, fields, link } = describe(change, state)
+              const summary = summarise(change, state, resolve)
+              if (!summary) return null
               return (
-                <div key={change.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm">
-                      {link ? (
-                        <Link to={link} className="font-mono underline underline-offset-2">
-                          {record}
-                        </Link>
-                      ) : (
-                        <span className="font-mono">{record}</span>
-                      )}
-                      {fields ? <span className="text-muted"> · {fields}</span> : null}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {change.op === 'set' ? `${change.doc}.json` : change.table} · {new Date(change.ts).toLocaleString()}
-                    </p>
-                  </div>
-                  {change.op === 'delete' ? <Badge tone="warn">delete</Badge> : null}
-                  <Button variant="ghost" onClick={() => void appStore.discardChange(change.id)}>
-                    Discard
-                  </Button>
-                </div>
+                <ChangeRow
+                  key={change.id}
+                  change={change}
+                  summary={summary}
+                  confirming={confirmingChange === change.id}
+                  onConfirming={(on) => setConfirmingChange(on ? change.id : null)}
+                />
               )
             })}
           </Card>
