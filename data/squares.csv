@@ -236,3 +236,4 @@ S232,done,,,2026-11-08,,D205,"Two colors. Add 2 border rounds (hdc, fpdc-dc-bpdc
 S233,done,,,2026-11-08,,D206,Adjust sitch count and number of rows. The second to last round is dc instead of sc.,Y58,,,,
 S234,done,,,2026-11-09,,D207,Two colors only. Add a border round (sc). Second to last round is bldc instead of blsc.,Y58,Y68,,,
 S235,done,,,2026-11-10,,D208,,Y81,Y91,,,
+S236,done,,,2026-11-10,,D209,"Last two rounds are dc, bptc.",Y83,Y17,,,
