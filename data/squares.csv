@@ -245,3 +245,4 @@ S241,done,,,2026-11-13,,D214,"16 + 2 + 3 ch + pad 4 ch. Add border rounds (dc, s
 S242,done,,,2026-11-14,,D215,"24 + 1 + 3ch. Add 2 border rounds (dc, hdc).",Y87,,,,
 S243,done,,,2026-11-14,,D216,"2 colors only. Add 2 border rounds (blsc, dc).",Y57,Y58,,,
 S244,done,,,2026-11-14,,D217,Two colors only. Last round is dc instead of hdc. Adjust stitch count.,Y59,Y75,,,
+S245,done,,,2026-11-15,,D218,Two colors only. Omit last two rounds. Use 2.25mm hook except for last round.,Y59,Y16,,,
