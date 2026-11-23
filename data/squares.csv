@@ -266,3 +266,4 @@ S262,done,,,2026-11-21,,D235,"22 + 1 + 1 ch. Add 2 border rounds (hdc, dc). Spik
 S263,done,,,2026-11-22,,D236,"20 + 3 ch. Add 3 border rounds (sc, dc, sc).",Y136,,,,
 S264,done,,,2026-11-22,,D237,"The last two rounds are hdc, sc instead of dc, hdc.",Y69,Y60,,,
 S265,done,,,2026-11-22,,D238,Last round is dc instead of hdc. Use 2.25 mm hook.,Y72,Y94,,,
+S266,done,,,2026-11-23,,D239,"Two colors only. Last two rounds are hdc, sc instead of dc, hdc. Adjust stitch count.",Y79,Y113,,,
